@@ -1,4 +1,4 @@
-Eigen.jl
+LinearAlgebra.jl
 ========
 
-Eigenvalue and -vector calculations in Julia
+A fresh approach to numerical linear algebra in Julia

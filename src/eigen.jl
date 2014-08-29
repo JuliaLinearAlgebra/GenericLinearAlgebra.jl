@@ -1,4 +1,7 @@
+# Eigenfunctionality
+
 module Eigen
+
 import Base: size
 import Base.LinAlg: chksquare, eigvals, eigvals!, elementaryLeft!, givensAlgorithm
 
@@ -134,5 +137,4 @@ function singleShiftQR!(H::Hessenberg, shift::Number, m::Integer = size(H, 1))
 	end
 	return H
 end
-
 end
