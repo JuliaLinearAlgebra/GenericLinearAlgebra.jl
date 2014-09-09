@@ -1,6 +1,6 @@
 module EigenHermitian
 
-	using Base.LinAlg: givensAlgorithm
+	using Base.LinAlg: chksquare, elementaryLeft!, givensAlgorithm
 
 	# type SymmetricTridiagonalFactorization{T} <: Factorization{T}
 	# 	S::SymTridiagonal{T}
