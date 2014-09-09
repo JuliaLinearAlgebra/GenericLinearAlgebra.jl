@@ -33,7 +33,7 @@ module EigenHermitian
 		return r1 + r2, r1 - r2
 	end
 
-	function eigvalsPWK!{T<:FloatingPoint}(S::SymTridiagonal{T}; tol = abs2(eps(T)), debug::Bool=false)
+	function eigvalsPWK!{T<:FloatingPoint}(S::SymTridiagonal{T}; tol = zero(T), debug::Bool=false)
 		d = S.dv
 		e = S.ev
 		n = length(d)
@@ -83,7 +83,7 @@ module EigenHermitian
 		sort!(d)
 	end
 
-	function eigvalsQL!{T<:FloatingPoint}(S::SymTridiagonal{T}; tol = eps(T), debug::Bool=false)
+	function eigvalsQL!{T<:FloatingPoint}(S::SymTridiagonal{T}; tol = zero(T), debug::Bool=false)
 		d = S.dv
 		e = S.ev
 		n = length(d)
@@ -242,7 +242,7 @@ module EigenHermitian
 			ei = e[i]
 			ci1 = ci
 			si1 = si
-			ci,si,ζ = givensAlgorithm(π,ei)
+			ci, si, ζ = givensAlgorithm(π, ei)
 			if i < iend-1 e[i+1] = si1*ζ end
 			di = d[i]
 			γi1 = γi
@@ -267,7 +267,7 @@ module EigenHermitian
 			ei = e[i]
 			ci1 = ci
 			si1 = si
-			ci,si,ζ = givensAlgorithm(π,ei)
+			ci, si, ζ = givensAlgorithm(π,ei)
 			if i > istart e[i-1] = si1*ζ end
 			di = d[i-1]
 			γi1 = γi
@@ -375,34 +375,9 @@ module EigenHermitian
 	# 	end
 	# 	S
 	# end
-	function mysymtri!{T}(A::AbstractMatrix{T})
-		n = chksquare(A)
-		τ = Array(T, n-2)
-		for k = 1:n-2
-			τk = elementary!(A, k+1, k)
-			τ[k] = τk
-			for j = k+1:n
-				νAj = A[k+1,j]
-				for i = k+2:n
-					νAj += conj(A[i,k])*A[i,j]
-				end
 
-				νAj *= τk
-				A[k+1,j] -= νAj
-				for i = k+2:n
-					A[i,j] -= A[i,k]*νAj
-				end
-
-				νAj = A[k+1,j]
-				for i = k+2:n
-					νAj += conj(A[i,k])*A[i,j]
-				end
-			end	
-		end
-		A
-	end
-
-	symtri!(A::Hermitian) = A.uplo == 'L' ? symtriLower!(A.S) : symtriUpper!(A.S)
+	symtri!(A::Hermitian) = A.uplo == 'L' ? symtriLower!(A.data) : symtriUpper!(A.data)
+	symtri!{T<:Real}(A::Symmetric{T}) = A.uplo == 'L' ? symtriLower!(A.data) : symtriUpper!(A.data)
 
 	function symtriLower!{T}(AS::Matrix{T}) # Assume that lower triangle stores the relevant part
 		n = size(AS,1)
@@ -452,8 +427,8 @@ module EigenHermitian
 		SymmetricTridiagonalFactorization(AS,τ,SymTridiagonal(real(diag(AS)),real(diag(AS,-1))))
 	end
 
-	eigvals!(A::SymmetricTridiagonalFactorization) = eigvals(A.diagonals)
+	eigvals!(A::SymmetricTridiagonalFactorization) = eigvalsPWK!(A.diagonals)
 	eigvals!(A::Hermitian) = eigvals!(symtri!(A))
-
+	eigvals!{T<:Real}(A::Symmetric{T}) = eigvals!(symtri!(A))
 
 end
