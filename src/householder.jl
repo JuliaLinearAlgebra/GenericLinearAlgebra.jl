@@ -1,10 +1,11 @@
 module HouseholderModule
 
+	using ..JuliaBLAS: rankUpdate!
+	using Base.LinAlg: BlasReal, axpy!
 	using ArrayViews
 
 	import Base: convert, full, size
-	import Base.LinAlg: A_mul_B!, Ac_mul_B!, BlasReal
-	import Base.LinAlg.BLAS: axpy!
+	import Base.LinAlg: A_mul_B!, Ac_mul_B!
 
 	immutable Householder{T,S<:DenseVector}
 		v::S
@@ -84,6 +85,20 @@ module HouseholderModule
 			A[1,j] -= va
 			axpy!(-va, v, Aj)
 		end
+		A
+	end
+
+	function A_mul_B!(A::DenseMatrix, H::Householder)
+		m, n = size(A)
+		length(H.v) == n - 1 || throw(DimensionMismatch(""))
+		v = view(H.v, :)
+		τ = H.τ
+		a1 = view(A, :, 1)
+		A1 = view(A, :, 2:n)
+		x = A1*v
+		axpy!(one(τ), a1, x)
+		axpy!(-τ, x, a1)
+		rankUpdate!(-τ, x, v, A1)
 		A
 	end
 

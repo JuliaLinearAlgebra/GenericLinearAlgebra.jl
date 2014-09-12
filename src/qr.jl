@@ -19,10 +19,10 @@ module QRModule
 	function qrUnblocked!{T}(A::DenseMatrix{T})
 		m, n = size(A)
 		minmn = min(m,n)
-		τ = Householder{T}[]
+		τ = Array(Householder{T}, minmn)
 		for i = 1:min(m,n)
 			H = householder!(view(A,i,i), view(A, i+1:m, i))
-			push!(τ, H)
+			τ[i] = H
 			Ac_mul_B!(H, view(A, i:m, i + 1:n))
 		end
 		QR2{T,typeof(A),eltype(τ)}(A, τ)

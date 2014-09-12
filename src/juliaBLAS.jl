@@ -8,6 +8,11 @@ import Base.LinAlg: A_mul_B!, Ac_mul_B!
 export rankUpdate!
 
 # Rank one update
+
+# General
+rankUpdate!{T<:BlasReal}(α::T, x::StridedVector{T}, y::StridedVector{T}, A::StridedMatrix{T}) = ger!(α, x, y, A)
+
+## Symmetric
 rankUpdate!{T<:BlasReal,S<:StridedMatrix}(α::T, a::StridedVector{T}, A::Symmetric{T,S}) = syr!(A.uplo, α, a, A.data)
 rankUpdate!{T<:BlasReal,S<:StridedMatrix}(a::StridedVector{T}, A::Symmetric{T,S}) = rankUpdate!(one(T), a, A)
 
