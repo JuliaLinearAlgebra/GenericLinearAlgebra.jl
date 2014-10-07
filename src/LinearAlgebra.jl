@@ -7,6 +7,7 @@ immutable Sym{T}
 end
 
 include("juliaBLAS.jl")
+include("lapack.jl")
 include("cholesky.jl")
 include("householder.jl")
 include("qr.jl")

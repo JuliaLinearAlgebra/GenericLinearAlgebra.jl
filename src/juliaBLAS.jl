@@ -9,8 +9,21 @@ export rankUpdate!
 
 # Rank one update
 
-# General
+## General
+### BLAS
 rankUpdate!{T<:BlasReal}(α::T, x::StridedVector{T}, y::StridedVector{T}, A::StridedMatrix{T}) = ger!(α, x, y, A)
+### Generic
+function rankUpdate!(α::Number, x::StridedVector, y::StridedVector, A::StridedMatrix)
+    m, n = size(A, 1), size(A, 2)
+    m == length(x) || throw(DimensionMismatch("x vector has wrong length"))
+    n == length(y) || throw(DimensionMismatch("y vector has wrong length"))
+    for j = 1:n
+        yjc = y[j]'
+        for i = 1:m
+            A[i,j] += α*x[i]*yjc
+        end
+    end
+end
 
 ## Symmetric
 rankUpdate!{T<:BlasReal,S<:StridedMatrix}(α::T, a::StridedVector{T}, A::Symmetric{T,S}) = syr!(A.uplo, α, a, A.data)

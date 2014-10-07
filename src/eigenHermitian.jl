@@ -22,11 +22,10 @@ module EigenHermitian
 		blockend = n
 		iter = 0
 		@inbounds begin
-			for i = 1:n-1 e[i] = abs2(e[i]) end
+			for i = 1:n - 1 e[i] = abs2(e[i]) end
 			while true
-				for blockend = blockstart+1:n
+				for blockend = blockstart + 1:n
 					if abs(e[blockend - 1]) <= tol*(abs(d[blockend - 1]) + abs(d[blockend]))
-					# if abs(e[blockend-1]) == 0
 						blockend -= 1
 						break 
 					end
@@ -40,7 +39,7 @@ module EigenHermitian
 				else
 					# if abs(d[blockstart]) > abs(d[blockend])
 						sqrte = sqrt(e[blockstart])
-						μ = (d[blockstart + 1] -d[blockstart])/(2*sqrte)
+						μ = (d[blockstart + 1] - d[blockstart])/(2*sqrte)
 						r = hypot(μ, one(T))
 						μ = d[blockstart] - sqrte/(μ + copysign(r, μ))
 						singleShiftQLPWK!(S, μ, blockstart, blockend)
