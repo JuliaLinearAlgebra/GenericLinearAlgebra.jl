@@ -14,7 +14,7 @@ module EigenHermitian
 		return r1 + r2, r1 - r2
 	end
 
-	function eigvalsPWK!{T<:FloatingPoint}(S::SymTridiagonal{T}; tol = zero(T), debug::Bool=false)
+	function eigvalsPWK!{T<:FloatingPoint}(S::SymTridiagonal{T}; tol = eps(T), debug::Bool=false)
 		d = S.dv
 		e = S.ev
 		n = length(d)
