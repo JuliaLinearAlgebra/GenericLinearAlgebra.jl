@@ -1,18 +1,17 @@
 module QRModule
 
-	using ..Sym
 	using ..HouseholderModule: Householder, HouseholderBlock, householder!
 	using Base.LinAlg: QR, axpy!
 	using ArrayViews
 
 	import Base: getindex, size
 
-	immutable QR2{T,S<:AbstractMatrix{T},U} <: Factorization{T}
+	immutable QR2{T,S<:AbstractMatrix,U} <: Factorization{T}
 		data::S
 		reflectors::Vector{U}
 	end
 
-	immutable Q{T,S<:QR2{T}} <: AbstractMatrix{T}
+	immutable Q{T,S<:QR2} <: AbstractMatrix{T}
 		data::S
 	end
 
@@ -28,14 +27,14 @@ module QRModule
 		QR2{T,typeof(A),eltype(τ)}(A, τ)
 	end
 
-	getindex{T,S,U<:Householder}(A::QR2{T,S,U}, ::Type{Sym{:Q}}) = Q{T,typeof(A)}(A)
-	function getindex{T,S,U<:Householder}(A::QR2{T,S,U}, ::Type{Sym{:R}}) 
+	getindex{T,S,U<:Householder}(A::QR2{T,S,U}, ::Type{Val{:Q}}) = Q{T,typeof(A)}(A)
+	function getindex{T,S,U<:Householder}(A::QR2{T,S,U}, ::Type{Val{:R}}) 
 		m, n = size(A)
 		m >= n ? Triangular(view(A.data, 1:n, 1:n), :U) : error("R matrix is trapezoid and cannot be extracted with indexing")
 	end
 
 	# This method extracts the Q part of the factorization in the block form H = I - VTV' where V is a matrix the reflectors and T is an upper triangular matrix
-	function getindex{T,S,U}(A::QR2{T,S,U}, ::Type{Sym{:QBlocked}})
+	function getindex{T,S,U}(A::QR2{T,S,U}, ::Type{Val{:QBlocked}})
 		m, n = size(A)
 		D = A.data
 		ref = A.reflectors
@@ -61,7 +60,7 @@ module QRModule
 		F = qrUnblocked!(A1)
 		if n > blocksize
 			A2 = view(A, 1:m, blocksize + 1:n)
-			Ac_mul_B!(F[Sym{:QBlocked}], A2, view(work, 1:blocksize, 1:n - blocksize))
+			Ac_mul_B!(F[Val{:QBlocked}], A2, view(work, 1:blocksize, 1:n - blocksize))
 			qrBlocked!(view(A, blocksize + 1:m, blocksize + 1:n), blocksize, work)
 		end
 		A

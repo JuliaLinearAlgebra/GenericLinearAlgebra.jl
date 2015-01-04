@@ -1,11 +1,5 @@
 module LinearAlgebra
 
-export Sym
-
-# Dummy type to dispatch on Symbols. Haven't found a good name for this yet.
-immutable Sym{T}
-end
-
 include("juliaBLAS.jl")
 include("lapack.jl")
 include("cholesky.jl")

@@ -7,7 +7,7 @@ module EigenGeneral
     using ArrayViews
 
     import Base: A_mul_B!, A_mul_Bc!, Ac_mul_B, A_mul_Bc, A_ldiv_B!, ctranspose, full, getindex, size
-    import Base.LinAlg: QRPackedQ 
+    import Base.LinAlg: QRPackedQ
 
     # Auxiliary
     function adiagmax(A::StridedMatrix)
@@ -21,7 +21,7 @@ module EigenGeneral
     end
 
     # Hessenberg Matrix
-    immutable HessenbergMatrix{T,S<:StridedMatrix{T}} <: AbstractMatrix{T}
+    immutable HessenbergMatrix{T,S<:StridedMatrix} <: AbstractMatrix{T}
         data::S
     end
 
@@ -36,7 +36,7 @@ module EigenGeneral
         n = size(H, 1)
         Hd = H.data
         for i = 1:n-1
-            G = givens!(Hd, i, i+1, i)
+            G, _ = givens!(Hd, i, i+1, i)
             A_mul_B!(G, view(Hd, 1:n, i+1:n))
             A_mul_B!(G, B)
         end
@@ -44,7 +44,7 @@ module EigenGeneral
     end
 
     # Hessenberg factorization
-    immutable HessenbergFactorization{T, S<:StridedMatrix{T},U} <: Factorization{T}
+    immutable HessenbergFactorization{T, S<:StridedMatrix,U} <: Factorization{T}
         data::S
         τ::Vector{U}
     end
@@ -59,16 +59,16 @@ module EigenGeneral
             A_mul_B!(view(A, :, i + 1:n), H)
         end
         return HessenbergFactorization{T, typeof(A), eltype(τ)}(A, τ)
-    end    
+    end
 
     size(H::HessenbergFactorization, args...) = size(H.data, args...)
 
     # Schur
-    immutable Schur{T,S<:StridedMatrix{T}} <: Factorization{T}
+    immutable Schur{T,S<:StridedMatrix} <: Factorization{T}
         data::S
         R::Rotation
     end
-    
+
     function schurfact!{T<:Real}(H::HessenbergFactorization{T}; tol = eps(T), debug = false)
         n = size(H, 1)
         istart = 1
@@ -106,7 +106,7 @@ module EigenGeneral
                 d = Hm1m1*Hmm - HH[iend, iend - 1]*HH[iend - 1, iend]
                 t = Hm1m1 + Hmm
                 debug && @printf("block start is: %6d, block end is: %6d, d: %10.3e, t: %10.3e\n", istart, iend, d, t)
-                
+
                 # For small (sub) problems use Raleigh quotion shift and single shift
                 if iend <= istart + 2
                     σ = HH[iend, iend]
@@ -117,12 +117,12 @@ module EigenGeneral
                 # If the eigenvales of the 2x2 block are real use single shift
                 elseif t*t > 4d
                     debug && @printf("Single shift! subdiagonal is: %10.3e\n", HH[iend, iend - 1])
-                    
+
                     # Calculate the Wilkinson shift
                     λ1 = 0.5*(t + sqrt(t*t - 4d))
                     λ2 = 0.5*(t - sqrt(t*t - 4d))
                     σ = abs(Hmm - λ1) < abs(Hmm - λ2) ? λ1 : λ2
-                    
+
                     # Run a bulge chase
                     singleShiftQR!(HH, τ, σ, istart, iend)
 
@@ -147,12 +147,12 @@ module EigenGeneral
             Htmp = HH[istart + 2, istart]
             HH[istart + 2, istart] = 0
         end
-        G = givens(H11 - shift, H21, istart, istart + 1, m)
+        G, _ = givens(H11 - shift, H21, istart, istart + 1)
         A_mul_B!(G, view(HH, :, istart:m))
         A_mul_Bc!(view(HH, 1:min(istart + 2, iend), :), G)
         A_mul_B!(G, τ)
         for i = istart:iend - 2
-            G = givens(HH[i + 1, i], HH[i + 2, i], i + 1, i + 2, m)
+            G, _ = givens(HH[i + 1, i], HH[i + 2, i], i + 1, i + 2)
             A_mul_B!(G, view(HH, :, i:m))
             HH[i + 2, i] = Htmp
             if i < iend - 2
@@ -175,9 +175,8 @@ module EigenGeneral
         HH[istart + 3, istart] = 0
         Htmp22 = HH[istart + 3, istart + 1]
         HH[istart + 3, istart + 1] = 0
-        println("Hej")
-        G1 = givens(H11*H11 + HH[istart, istart + 1]*H21 - shiftTrace*H11 + shiftDeterminant, H21*(H11 + HH[istart + 1, istart + 1] - shiftTrace), istart, istart + 1, m)
-        G2 = givens(G1.r, H21*HH[istart + 2, istart + 1], istart, istart + 2, m)
+        G1, _ = givens(H11*H11 + HH[istart, istart + 1]*H21 - shiftTrace*H11 + shiftDeterminant, H21*(H11 + HH[istart + 1, istart + 1] - shiftTrace), istart, istart + 1)
+        G2, _ = givens(G1.r, H21*HH[istart + 2, istart + 1], istart, istart + 2)
         vHH = view(HH, :, istart:m)
         A_mul_B!(G1, vHH)
         A_mul_B!(G2, vHH)
@@ -189,8 +188,8 @@ module EigenGeneral
         for i = istart:iend - 2
             for j = 1:2
                 if i + j + 1 > iend break end
-                # G = givens(H.H,i+1,i+j+1,i)
-                G = givens(HH[i + 1, i], HH[i + j + 1, i], i + 1, i + j + 1, m)
+                # G, _ = givens(H.H,i+1,i+j+1,i)
+                G, _ = givens(HH[i + 1, i], HH[i + j + 1, i], i + 1, i + j + 1)
                 A_mul_B!(G, view(HH, :, i:m))
                 HH[i + j + 1, i] = Htmp11
                 Htmp11 = Htmp21
@@ -236,5 +235,5 @@ module EigenGeneral
         end
         if i == n vals[i] = HH[n, n] end
         return vals
-    end    
+    end
 end
