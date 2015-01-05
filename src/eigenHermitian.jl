@@ -27,7 +27,7 @@ module EigenHermitian
 				for blockend = blockstart + 1:n
 					if abs(e[blockend - 1]) <= tol*(abs(d[blockend - 1]) + abs(d[blockend]))
 						blockend -= 1
-						break 
+						break
 					end
 				end
 				if blockstart == blockend
@@ -43,7 +43,7 @@ module EigenHermitian
 						r = hypot(μ, one(T))
 						μ = d[blockstart] - sqrte/(μ + copysign(r, μ))
 						singleShiftQLPWK!(S, μ, blockstart, blockend)
-						debug && @printf("QL, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, μ: %f, rotations: %d\n", blockstart, blockend, e[blockstart], e[blockend-1], μ, iter += blockend - blockstart)
+						debug && @printf("QL, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, μ: %e, rotations: %d\n", blockstart, blockend, e[blockstart], e[blockend-1], μ, iter += blockend - blockstart)
 					# else
 						# δ = 0.5*(d[blockend-1]-d[blockend])
 						# μ = d[blockend] - copysign(abs2(e[blockend-1]),δ)/(abs(δ) + hypot(δeblockend-1]))
@@ -51,9 +51,9 @@ module EigenHermitian
 						# r = hypot(μ,one(T))
 						# μ = d[blockend] - (e[blockend-1]/(μ+copysign(r,μ)))
 						# singleShiftQR!(S,μ,blockstart,blockend)
-				# 		# if abs(e[blockend-1]) < tol*(abs(d[blockend-1]) + abs(d[blockend])) 
+				# 		# if abs(e[blockend-1]) < tol*(abs(d[blockend-1]) + abs(d[blockend]))
 				# 			# blockend -= 1
-				# 			# break 
+				# 			# break
 				# 		# end
 						# @printf("QR, blockstart: %d, blockend: %d, e[blockstart]: %e, eblockend-1]:%e, μ: %f\n", blockstart, blockend, e[blockstart], e[blockend-1], μ)
 					# end
@@ -75,7 +75,7 @@ module EigenHermitian
 				for blockend = blockstart+1:n
 					if abs(e[blockend-1]) <= tol*(abs(d[blockend-1]) + abs(d[blockend]))
 						blockend -= 1
-						break 
+						break
 					end
 				end
 				if blockstart == blockend
@@ -97,9 +97,9 @@ module EigenHermitian
 						# r = hypot(μ,one(T))
 						# μ = d[blockend] - (e[blockend-1]/(μ+copysign(r,μ)))
 						# singleShiftQR!(S,μ,blockstart,blockend)
-				# 		# if abs(e[blockend-1]) < tol*(abs(d[blockend-1]) + abs(d[blockend])) 
+				# 		# if abs(e[blockend-1]) < tol*(abs(d[blockend-1]) + abs(d[blockend]))
 				# 			# blockend -= 1
-				# 			# break 
+				# 			# break
 				# 		# end
 						# @printf("QR, blockstart: %d, blockend: %d, e[blockstart]: %e, eblockend-1]:%e, μ: %f\n", blockstart, blockend, e[blockstart], e[blockend-1], μ)
 					# end
@@ -121,7 +121,7 @@ module EigenHermitian
 				for blockend = blockstart+1:n
 					if abs(e[blockend - 1]) <= tol*(abs(d[blockend - 1]) + abs(d[blockend]))
 						blockend -= 1
-						break 
+						break
 					end
 				end
 				if blockstart == blockend
@@ -136,9 +136,9 @@ module EigenHermitian
 					r = hypot(μ, one(T))
 					μ = d[blockend] - (e[blockend - 1]/(μ + copysign(r, μ)))
 					singleShiftQR!(S, μ, blockstart, blockend)
-				# 		# if abs(e[blockend-1]) < tol*(abs(d[blockend-1]) + abs(d[blockend])) 
+				# 		# if abs(e[blockend-1]) < tol*(abs(d[blockend-1]) + abs(d[blockend]))
 				# 			# blockend -= 1
-				# 			# break 
+				# 			# break
 				# 		# end
 					debug && @printf("QR, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, d[blockend]: %f, μ: %f\n", blockstart, blockend, e[blockstart], e[blockend-1], d[blockend], μ)
 					# end
@@ -353,7 +353,7 @@ module EigenHermitian
 			ξτ2 = real(vcAv)*abs2(τk)/2
 
 			u[k+1] = u[k+1]*τk - ξτ2
-			for i = k+2:n 
+			for i = k+2:n
 				u[i] = u[i]*τk - ξτ2*AS[i,k]
 			end
 
@@ -372,8 +372,8 @@ module EigenHermitian
 		SymmetricTridiagonalFactorization(AS,τ,SymTridiagonal(real(diag(AS)),real(diag(AS,-1))))
 	end
 
-	eigvals!(A::SymmetricTridiagonalFactorization) = eigvalsPWK!(A.diagonals)
-	eigvals!(A::Hermitian) = eigvals!(symtri!(A))
-	eigvals!{T<:Real}(A::Symmetric{T}) = eigvals!(symtri!(A))
+	eigvals!(A::SymmetricTridiagonalFactorization; tol=eps(eltype(A)), debug=false) = eigvalsPWK!(A.diagonals; tol=tol, debug=debug)
+	eigvals!(A::Hermitian; tol=eps(eltype(A)), debug=false) = eigvals!(symtri!(A); tol=tol, debug=debug)
+	eigvals!{T<:Real}(A::Symmetric{T}; tol=eps(eltype(A)), debug=false) = eigvals!(symtri!(A); tol=tol, debug=debug)
 
 end
