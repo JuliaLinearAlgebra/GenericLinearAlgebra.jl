@@ -7,5 +7,5 @@ include("householder.jl")
 include("qr.jl")
 include("eigenHermitian.jl")
 include("eigenGeneral.jl")
-
+include("tridiag.jl")
 end
