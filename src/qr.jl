@@ -28,9 +28,9 @@ module QRModule
 	end
 
 	getindex{T,S,U<:Householder}(A::QR2{T,S,U}, ::Type{Val{:Q}}) = Q{T,typeof(A)}(A)
-	function getindex{T,S,U<:Householder}(A::QR2{T,S,U}, ::Type{Val{:R}}) 
+	function getindex{T,S,U<:Householder}(A::QR2{T,S,U}, ::Type{Val{:R}})
 		m, n = size(A)
-		m >= n ? Triangular(view(A.data, 1:n, 1:n), :U) : error("R matrix is trapezoid and cannot be extracted with indexing")
+		m >= n ? UpperTriangular(view(A.data, 1:n, 1:n)) : error("R matrix is trapezoid and cannot be extracted with indexing")
 	end
 
 	# This method extracts the Q part of the factorization in the block form H = I - VTV' where V is a matrix the reflectors and T is an upper triangular matrix
@@ -45,14 +45,17 @@ module QRModule
 			t12 = view(Tmat, 1:i-1, i)
 			Ac_mul_B!(-one(T), view(D, i+1:m, 1:i-1), view(D, i+1:m, i), zero(T), t12)
 			axpy!(-one(T), view(D, i, 1:i-1), t12)
-			A_mul_B!(Triangular(view(Tmat, 1:i-1, 1:i-1), :U), t12)
+			A_mul_B!(UpperTriangular(view(Tmat, 1:i-1, 1:i-1)), t12)
 			scale!(t12, Tmat[i,i])
 		end
-		HouseholderBlock{T,typeof(D)}(D, Triangular(Tmat, :U))
+		HouseholderBlock{T,typeof(D)}(D, UpperTriangular(Tmat))
 	end
 
 	size(A::QR2) = size(A.data)
 	size(A::QR2, i::Integer) = size(A.data, i)
+
+	size(A::Q) = size(A.data)
+	size(A::Q, i::Integer) = size(A.data, i)
 
 	function qrBlocked!(A::DenseMatrix, blocksize::Integer, work = Array(eltype(A), blocksize, size(A, 2)))
 		m, n = size(A)
@@ -66,7 +69,7 @@ module QRModule
 		A
 	end
 
-	function qrTiledUnblocked!{T,S<:DenseMatrix}(A::Triangular{T,S,:U,false}, B::DenseMatrix)
+	function qrTiledUnblocked!{T,S<:DenseMatrix}(A::UpperTriangular{T,S}, B::DenseMatrix)
 		m, n = size(B)
 		Ad = A.data
 		for i = 1:m

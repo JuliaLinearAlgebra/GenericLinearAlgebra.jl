@@ -13,7 +13,7 @@ module HouseholderModule
 	end
 	immutable HouseholderBlock{T,S<:DenseMatrix}
 		V::S
-		T::Triangular{T}
+		T::UpperTriangular{T,S}
 	end
 
 	# see dlapy2.f in LAPACK

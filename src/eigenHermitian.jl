@@ -14,7 +14,7 @@ module EigenHermitian
 		return r1 + r2, r1 - r2
 	end
 
-	function eigvalsPWK!{T<:FloatingPoint}(S::SymTridiagonal{T}; tol = eps(T), debug::Bool=false)
+	function eigvalsPWK!{T<:FloatingPoint}(S::SymTridiagonal{T}, tol = eps(T)^2, debug::Bool=false)
 		d = S.dv
 		e = S.ev
 		n = length(d)
@@ -22,49 +22,47 @@ module EigenHermitian
 		blockend = n
 		iter = 0
 		@inbounds begin
-			for i = 1:n - 1 e[i] = abs2(e[i]) end
+			for i = 1:n - 1
+				e[i] = abs2(e[i])
+			end
 			while true
+				# Check for zero off diagonal elements
 				for blockend = blockstart + 1:n
-					if abs(e[blockend - 1]) <= tol*(abs(d[blockend - 1]) + abs(d[blockend]))
+					if abs(e[blockend - 1]) <= tol*abs(d[blockend - 1]*d[blockend])
 						blockend -= 1
 						break
 					end
 				end
+				# Deflate?
 				if blockstart == blockend
+					# Yes
 					blockstart += 1
 				elseif blockstart + 1 == blockend
+					# Yes, but after solving 2x2 block
 					d[blockstart], d[blockend] = eigvals2x2(d[blockstart], d[blockend], sqrt(e[blockstart]))
 					e[blockstart] = zero(T)
 					blockstart += 1
 				else
-					# if abs(d[blockstart]) > abs(d[blockend])
-						sqrte = sqrt(e[blockstart])
-						μ = (d[blockstart + 1] - d[blockstart])/(2*sqrte)
-						r = hypot(μ, one(T))
-						μ = d[blockstart] - sqrte/(μ + copysign(r, μ))
-						singleShiftQLPWK!(S, μ, blockstart, blockend)
-						debug && @printf("QL, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, μ: %e, rotations: %d\n", blockstart, blockend, e[blockstart], e[blockend-1], μ, iter += blockend - blockstart)
-					# else
-						# δ = 0.5*(d[blockend-1]-d[blockend])
-						# μ = d[blockend] - copysign(abs2(e[blockend-1]),δ)/(abs(δ) + hypot(δeblockend-1]))
-						# μ = (d[blockend-1]-d[blockend])/(2*e[blockend-1])
-						# r = hypot(μ,one(T))
-						# μ = d[blockend] - (e[blockend-1]/(μ+copysign(r,μ)))
-						# singleShiftQR!(S,μ,blockstart,blockend)
-				# 		# if abs(e[blockend-1]) < tol*(abs(d[blockend-1]) + abs(d[blockend]))
-				# 			# blockend -= 1
-				# 			# break
-				# 		# end
-						# @printf("QR, blockstart: %d, blockend: %d, e[blockstart]: %e, eblockend-1]:%e, μ: %f\n", blockstart, blockend, e[blockstart], e[blockend-1], μ)
-					# end
+					# Calculate shift
+					sqrte = sqrt(e[blockstart])
+					μ = (d[blockstart + 1] - d[blockstart])/(2*sqrte)
+					r = hypot(μ, one(T))
+					μ = d[blockstart] - sqrte/(μ + copysign(r, μ))
+
+					# QL bulk chase
+					singleShiftQLPWK!(S, μ, blockstart, blockend)
+
+					debug && @printf("QL, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, μ: %e, rotations: %d\n", blockstart, blockend, e[blockstart], e[blockend-1], μ, iter += blockend - blockstart)
 				end
-				if blockstart == n break end
+				if blockstart == n
+					break
+				end
 			end
 		end
 		sort!(d)
 	end
 
-	function eigvalsQL!{T<:FloatingPoint}(S::SymTridiagonal{T}; tol = zero(T), debug::Bool=false)
+	function eigvalsQL!{T<:FloatingPoint}(S::SymTridiagonal{T}, tol = eps(T)^2, debug::Bool=false)
 		d = S.dv
 		e = S.ev
 		n = length(d)
@@ -72,45 +70,40 @@ module EigenHermitian
 		blockend = n
 		@inbounds begin
 			while true
+				# Check for zero off diagonal elements
 				for blockend = blockstart+1:n
-					if abs(e[blockend-1]) <= tol*(abs(d[blockend-1]) + abs(d[blockend]))
+					if abs(e[blockend-1]) <= tol*abs(d[blockend-1]*d[blockend])
 						blockend -= 1
 						break
 					end
 				end
+				# Deflate?
 				if blockstart == blockend
+					# Yes!
 					blockstart += 1
 				elseif blockstart + 1 == blockend
+					# Yes, but after solving 2x2 block
 					d[blockstart], d[blockend] = eigvals2x2(d[blockstart], d[blockend], e[blockstart])
 					blockstart += 1
 				else
-					# if abs(d[blockstart]) > abs(d[blockend])
-						μ = (d[blockstart + 1] - d[blockstart])/(2*e[blockstart])
-						r = hypot(μ, one(T))
-						μ = d[blockstart] - (e[blockstart]/(μ + copysign(r, μ)))
-						singleShiftQL!(S, μ, blockstart, blockend)
-						debug && @printf("QL, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, μ: %f\n", blockstart, blockend, e[blockstart], e[blockend-1], μ)
-					# else
-						# δ = 0.5*(d[blockend-1]-d[blockend])
-						# μ = d[blockend] - copysign(abs2(e[blockend-1]),δ)/(abs(δ) + hypot(δeblockend-1]))
-						# μ = (d[blockend-1]-d[blockend])/(2*e[blockend-1])
-						# r = hypot(μ,one(T))
-						# μ = d[blockend] - (e[blockend-1]/(μ+copysign(r,μ)))
-						# singleShiftQR!(S,μ,blockstart,blockend)
-				# 		# if abs(e[blockend-1]) < tol*(abs(d[blockend-1]) + abs(d[blockend]))
-				# 			# blockend -= 1
-				# 			# break
-				# 		# end
-						# @printf("QR, blockstart: %d, blockend: %d, e[blockstart]: %e, eblockend-1]:%e, μ: %f\n", blockstart, blockend, e[blockstart], e[blockend-1], μ)
-					# end
+					# Calculate shift
+					μ = (d[blockstart + 1] - d[blockstart])/(2*e[blockstart])
+					r = hypot(μ, one(T))
+					μ = d[blockstart] - (e[blockstart]/(μ + copysign(r, μ)))
+
+					# QL bulk chase
+					singleShiftQL!(S, μ, blockstart, blockend)
+					debug && @printf("QL, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, μ: %f\n", blockstart, blockend, e[blockstart], e[blockend-1], μ)
 				end
-				if blockstart == n break end
+				if blockstart == n
+					break
+				end
 			end
 		end
 		sort!(d)
 	end
 
-	function eigvalsQR!{T<:FloatingPoint}(S::SymTridiagonal{T}; tol = eps(T), debug::Bool=false)
+	function eigvalsQR!{T<:FloatingPoint}(S::SymTridiagonal{T}, tol = eps(T)^2, debug::Bool=false)
 		d = S.dv
 		e = S.ev
 		n = length(d)
@@ -118,37 +111,41 @@ module EigenHermitian
 		blockend = n
 		@inbounds begin
 			while true
+				# Check for zero off diagonal elements
 				for blockend = blockstart+1:n
-					if abs(e[blockend - 1]) <= tol*(abs(d[blockend - 1]) + abs(d[blockend]))
+					if abs(e[blockend - 1]) <= tol*abs(d[blockend - 1]*d[blockend])
 						blockend -= 1
 						break
 					end
 				end
+				# Deflate?
 				if blockstart == blockend
+					# Yes!
 					blockstart += 1
 				elseif blockstart + 1 == blockend
+					# Yes, but after solving 2x2 block
 					d[blockstart], d[blockend] = eigvals2x2(d[blockstart], d[blockend], e[blockstart])
 					blockstart += 1
 				else
-					# δ = 0.5*(d[blockend-1]-d[blockend])
-					# μ = d[blockend] - copysign(abs2(e[blockend-1]),δ)/(abs(δ) + hypot(δ,e[blockend-1]))
+					# Calculate shift
 					μ = (d[blockend - 1] - d[blockend])/(2*e[blockend - 1])
 					r = hypot(μ, one(T))
 					μ = d[blockend] - (e[blockend - 1]/(μ + copysign(r, μ)))
+
+					# QR bulk chase
 					singleShiftQR!(S, μ, blockstart, blockend)
-				# 		# if abs(e[blockend-1]) < tol*(abs(d[blockend-1]) + abs(d[blockend]))
-				# 			# blockend -= 1
-				# 			# break
-				# 		# end
+
 					debug && @printf("QR, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, d[blockend]: %f, μ: %f\n", blockstart, blockend, e[blockstart], e[blockend-1], d[blockend], μ)
-					# end
 				end
-				if blockstart == n break end
+				if blockstart == n
+					break
+				end
 			end
 		end
 		sort!(d)
 	end
 
+	# Own implementation based on Parlett's book
 	function singleShiftQLPWK!(S::SymTridiagonal, shift::Number, istart::Integer = 1, iend::Integer = length(S.dv))
 		d = S.dv
 		e = S.ev
@@ -160,7 +157,9 @@ module EigenHermitian
 		@inbounds for i = iend-1:-1:istart
 			ei = e[i]
 			ζ = π + ei
-			if i < iend-1 e[i+1] = s*ζ end
+			if i < iend-1
+				e[i+1] = s*ζ
+			end
 			ci1 = ci
 			ci = π/ζ
 			s = ei/ζ
@@ -175,6 +174,7 @@ module EigenHermitian
 		S
 	end
 
+	# Own implementation based on Parlett's book
 	function singleShiftQL!(S::SymTridiagonal, shift::Number, istart::Integer = 1, iend::Integer = length(S.dv))
 		d = S.dv
 		e = S.ev
@@ -188,7 +188,9 @@ module EigenHermitian
 			ci1 = ci
 			si1 = si
 			ci, si, ζ = givensAlgorithm(π, ei)
-			if i < iend - 1 e[i+1] = si1*ζ end
+			if i < iend - 1
+				e[i+1] = si1*ζ
+			end
 			di = d[i]
 			γi1 = γi
 			γi = ci*ci*(di - shift) - si*si*γi1
@@ -200,6 +202,7 @@ module EigenHermitian
 		S
 	end
 
+	# Own implementation based on Parlett's book
 	function singleShiftQR!(S::SymTridiagonal, shift::Number, istart::Integer = 1, iend::Integer = length(S.dv))
 		d = S.dv
 		e = S.ev
@@ -213,7 +216,9 @@ module EigenHermitian
 			ci1 = ci
 			si1 = si
 			ci, si, ζ = givensAlgorithm(π, ei)
-			if i > istart+1 e[i-2] = si1*ζ end
+			if i > istart+1
+				e[i-2] = si1*ζ
+			end
 			di = d[i-1]
 			γi1 = γi
 			γi = ci*ci*(di - shift) - si*si*γi1
@@ -222,44 +227,6 @@ module EigenHermitian
 		end
 		e[iend-1] = si*π
 		d[iend] = shift + γi
-		S
-	end
-
-	function singleShiftQRv2!(S::SymTridiagonal, shift::Number, istart::Integer = 1, iend::Integer = length(S.dv))
-		d = S.dv
-		e = S.ev
-		n = length(d)
-		@inbounds begin
-			G = givens(d[istart]-shift, e[istart],istart,istart+1,n)
-			c, s, r = G.c, G.s, G.r
-			csq = c*c
-			ssq = abs2(s)
-			d1 = d[istart]
-			d2 = d[istart+1]
-			e1 = e[istart]
-			d[istart] = csq*d1 + 2*c*real(s*e1) + ssq*d2
-			d[istart+1] = ssq*d1 - 2*c*real(conj(s)*e1) + csq*d2
-			e[istart] = c*(conj(s)*d2 - s*d1) + 2*csq*real(e1) - conj(e1)
-			bulge = conj(s)*e[2]
-			e[istart+1] *= c
-			for i = istart:iend-2
-				G = givens(e[i],bulge,i,i+1,n)
-				c, s, r = G.c, G.s, G.r
-				csq = c*c
-				ssq = abs2(s)
-				d1 = d[i+1]
-				d2 = d[i+2]
-				e1 = e[i+1]
-				d[i+1] = csq*d1 + 2*c*real(s*e1) + ssq*d2
-				d[i+2] = ssq*d1 - 2*c*real(conj(s)*e1) + csq*d2
-				e[i] = r
-				e[i+1] = c*(conj(s)*d2 - s*d1) + 2*csq*real(e1) - conj(e1)
-				if i < iend-2
-					bulge = conj(s)*e[i+2]
-					e[i+2] *= c
-				end
-			end
-		end
 		S
 	end
 
@@ -272,7 +239,9 @@ module EigenHermitian
 		c = oldc
 		for i = 1:n-1
 			c, s, r = givensAlgorithm(d[i]*c,e[i])
-			if i > 1 e[i-1] = olds*r end
+			if i > 1
+				e[i-1] = olds*r
+			end
 			oldc, olds, d[i] = givensAlgorithm(oldc*r,d[i+1]*s)
 		end
 		h = d[n]*c
@@ -287,40 +256,6 @@ module EigenHermitian
 		# rotationRigth::Rotation{T}
 	# end
 
-	# function singleShiftQR!(S::SymTridiagonal, shift::Number, m::Integer = length(S.S.dv))
-	# 	d = S.dv
-	# 	e = S.ev
-	# 	n = length(d)
-	# 	G = givens(d[1]-shift, e[1], 1, 2, n)
-	# 	csq = G.c*G.c
-	# 	ssq = abs2(G.s)
-	# 	d1 = d[1]
-	# 	d2 = d[2]
-	# 	e1 = e[1]
-	# 	d[1] = csq*d1 + 2*G.c*real(G.s*e1) + ssq*d2
-	# 	d[2] = ssq*d1 - 2*G.c*real(conj(G.s)*e1) + csq*d2
-	# 	e[1] = G.c*(conj(G.s)*d2 - G.s*d1) + 2*csq*real(e1) - conj(e1)
-	# 	bulge = conj(G.s)*e[2]
-	# 	e[2] *= G.c
-	# 	for i = 1:m-2
-	# 		G = givens(e[i],bulge,i+1,i+2,n)
-	# 		csq = G.c*G.c
-	# 		ssq = abs2(G.s)
-	# 		d1 = d[i+1]
-	# 		d2 = d[i+2]
-	# 		e1 = e[i+1]
-	# 		d[i+1] = csq*d1 + 2*G.c*real(G.s*e1) + ssq*d2
-	# 		d[i+2] = ssq*d1 - 2*G.c*real(conj(G.s)*e1) + csq*d2
-	# 		e[i] = G.r
-	# 		e[i+1] = G.c*(conj(G.s)*d2 - G.s*d1) + 2*csq*real(e1) - conj(e1)
-	# 		if i < m-2
-	# 			bulge = conj(G.s)*e[i+2]
-	# 			e[i+2] *= G.c
-	# 		end
-	# 	end
-	# 	S
-	# end
-
 	symtri!(A::Hermitian) = A.uplo == 'L' ? symtriLower!(A.data) : symtriUpper!(A.data)
 	symtri!{T<:Real}(A::Symmetric{T}) = A.uplo == 'L' ? symtriLower!(A.data) : symtriUpper!(A.data)
 
@@ -333,7 +268,9 @@ module EigenHermitian
 			τk = elementaryLeft!(AS,k+1,k)
 			τ[k] = τk
 
-			for i = k+1:n u[i] = AS[i,k+1] end
+			for i = k+1:n
+				u[i] = AS[i,k+1]
+			end
 			for j = k+2:n
 				ASjk = AS[j,k]
 				for i = j:n
@@ -349,7 +286,9 @@ module EigenHermitian
 			end
 
 			vcAv = u[k+1]
-			for i = k+2:n vcAv += AS[i,k]'u[i] end
+			for i = k+2:n
+				vcAv += AS[i,k]'u[i]
+			end
 			ξτ2 = real(vcAv)*abs2(τk)/2
 
 			u[k+1] = u[k+1]*τk - ξτ2
@@ -358,7 +297,9 @@ module EigenHermitian
 			end
 
 			AS[k+1,k+1] -= 2real(u[k+1])
-			for i = k+2:n AS[i,k+1] -= u[i] + AS[i,k]*u[k+1]' end
+			for i = k+2:n
+				AS[i,k+1] -= u[i] + AS[i,k]*u[k+1]'
+			end
 			for j = k+2:n
 				ASjk = AS[j,k]
 				uj = u[j]
