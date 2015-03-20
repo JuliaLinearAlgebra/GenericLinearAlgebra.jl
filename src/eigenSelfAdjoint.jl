@@ -1,4 +1,4 @@
-module EigenHermitian
+module EigenSelfAdjoint
 
 	using Base.LinAlg: chksquare, elementaryLeft!, givensAlgorithm
 
@@ -8,10 +8,35 @@ module EigenHermitian
 		diagonals::SymTridiagonal
 	end
 
-	function eigvals2x2(d1, d2, e)
+	function eigvals2x2(d1::Number, d2::Number, e::Number)
 		r1 = 0.5*(d1 + d2)
 		r2 = 0.5hypot(d1 - d2, 2*e)
 		return r1 + r2, r1 - r2
+	end
+	function eigQL2x2!(d::Vector, e::Vector, j::Integer, vectors::Matrix)
+		dj = d[j]
+		dj1 = d[j + 1]
+		ej = e[j]
+		r1 = 0.5*(dj + dj1)
+		r2 = 0.5hypot(dj - dj1, 2*ej)
+		λ = r1 + r2
+		d[j] = λ
+		d[j + 1] = r1 - r2
+		e[j] = 0
+		c = ej/(dj - λ)
+		h = hypot(one(c), c)
+		c /= h
+		s = inv(h)
+		if vectors != nothing
+			for i = 1:size(vectors, 1)
+				v1 = vectors[i,j + 1]
+				v2 = vectors[i,j]
+				vectors[i, j + 1] = c*v1 + s*v2
+				vectors[i, j]     = c*v2 - s*v1
+			end
+		end
+
+		return c, s
 	end
 
 	function eigvalsPWK!{T<:FloatingPoint}(S::SymTridiagonal{T}, tol = eps(T)^2, debug::Bool=false)
@@ -62,10 +87,18 @@ module EigenHermitian
 		sort!(d)
 	end
 
-	function eigvalsQL!{T<:FloatingPoint}(S::SymTridiagonal{T}, tol = eps(T)^2, debug::Bool=false)
+	function eigQL!{T<:FloatingPoint}(S::SymTridiagonal{T}, vectors::Matrix = zeros(T, 0, size(S, 1)), tol = eps(T)^2, debug::Bool=false)
 		d = S.dv
 		e = S.ev
 		n = length(d)
+
+		if size(vectors, 2) != n
+			throw(DimensionMismatch("eigenvector matrix must have $(n) columns but had $(size(vectors, 2))"))
+		end
+		if size(vectors, 1) > n
+			throw(DimensionMismatch("eigenvector matrix must have at most $(n) rows but had $(size(vectors, 1))"))
+		end
+
 		blockstart = 1
 		blockend = n
 		@inbounds begin
@@ -83,7 +116,7 @@ module EigenHermitian
 					blockstart += 1
 				elseif blockstart + 1 == blockend
 					# Yes, but after solving 2x2 block
-					d[blockstart], d[blockend] = eigvals2x2(d[blockstart], d[blockend], e[blockstart])
+					eigQL2x2!(d, e, blockstart, vectors)
 					blockstart += 1
 				else
 					# Calculate shift
@@ -92,7 +125,7 @@ module EigenHermitian
 					μ = d[blockstart] - (e[blockstart]/(μ + copysign(r, μ)))
 
 					# QL bulk chase
-					singleShiftQL!(S, μ, blockstart, blockend)
+					singleShiftQL!(S, μ, blockstart, blockend, vectors)
 					debug && @printf("QL, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, μ: %f\n", blockstart, blockend, e[blockstart], e[blockend-1], μ)
 				end
 				if blockstart == n
@@ -100,10 +133,11 @@ module EigenHermitian
 				end
 			end
 		end
-		sort!(d)
+		p = sortperm(d)
+		return d[p], vectors[:,p]
 	end
 
-	function eigvalsQR!{T<:FloatingPoint}(S::SymTridiagonal{T}, tol = eps(T)^2, debug::Bool=false)
+	function eigQR!{T<:FloatingPoint}(S::SymTridiagonal{T}, vectors::Matrix = zeros(T, 0, size(A, 1)), tol = eps(T)^2, debug::Bool=false)
 		d = S.dv
 		e = S.ev
 		n = length(d)
@@ -124,7 +158,7 @@ module EigenHermitian
 					blockstart += 1
 				elseif blockstart + 1 == blockend
 					# Yes, but after solving 2x2 block
-					d[blockstart], d[blockend] = eigvals2x2(d[blockstart], d[blockend], e[blockstart])
+					@show eigvals2x2!(d, e, blockstart, vectors)
 					blockstart += 1
 				else
 					# Calculate shift
@@ -133,7 +167,7 @@ module EigenHermitian
 					μ = d[blockend] - (e[blockend - 1]/(μ + copysign(r, μ)))
 
 					# QR bulk chase
-					singleShiftQR!(S, μ, blockstart, blockend)
+					singleShiftQR!(S, μ, blockstart, blockend, vectors)
 
 					debug && @printf("QR, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, d[blockend]: %f, μ: %f\n", blockstart, blockend, e[blockstart], e[blockend-1], d[blockend], μ)
 				end
@@ -142,7 +176,8 @@ module EigenHermitian
 				end
 			end
 		end
-		sort!(d)
+		p = sortperm(d)
+		return d[p], vectors[:,p]
 	end
 
 	# Own implementation based on Parlett's book
@@ -175,7 +210,7 @@ module EigenHermitian
 	end
 
 	# Own implementation based on Parlett's book
-	function singleShiftQL!(S::SymTridiagonal, shift::Number, istart::Integer = 1, iend::Integer = length(S.dv))
+	function singleShiftQL!(S::SymTridiagonal, shift::Number, istart::Integer = 1, iend::Integer = length(S.dv), vectors = zeros(eltype(S), 0, size(S, 1)))
 		d = S.dv
 		e = S.ev
 		n = length(d)
@@ -196,6 +231,14 @@ module EigenHermitian
 			γi = ci*ci*(di - shift) - si*si*γi1
 			d[i+1] = γi1 + di - γi
 			π = ci == 0 ? -ei*ci1 : γi/ci
+
+			# update eigen vectors
+			for k = 1:size(vectors, 1)
+				v1 = vectors[k, i + 1]
+				v2 = vectors[k, i]
+				vectors[k, i + 1]     = ci*v1 + si*v2
+				vectors[k, i] = ci*v2 - si*v1
+			end
 		end
 		e[istart] = si*π
 		d[istart] = shift + γi
@@ -203,7 +246,7 @@ module EigenHermitian
 	end
 
 	# Own implementation based on Parlett's book
-	function singleShiftQR!(S::SymTridiagonal, shift::Number, istart::Integer = 1, iend::Integer = length(S.dv))
+	function singleShiftQR!(S::SymTridiagonal, shift::Number, istart::Integer = 1, iend::Integer = length(S.dv), vectors = zeros(eltype(S), 0, size(S, 1)))
 		d = S.dv
 		e = S.ev
 		n = length(d)
@@ -224,6 +267,14 @@ module EigenHermitian
 			γi = ci*ci*(di - shift) - si*si*γi1
 			d[i] = γi1 + di - γi
 			π = ci == 0 ? -ei*ci1 : γi/ci
+
+			# update eigen vectors
+			for k = 1:size(vectors, 1)
+				v1 = vectors[k, i - 1]
+				v2 = vectors[k, i]
+				vectors[k, i - 1]     = ci*v1 + si*v2
+				vectors[k, i] = ci*v2 - si*v1
+			end
 		end
 		e[iend-1] = si*π
 		d[iend] = shift + γi
@@ -316,5 +367,16 @@ module EigenHermitian
 	eigvals!(A::SymmetricTridiagonalFactorization; tol=eps(eltype(A)), debug=false) = eigvalsPWK!(A.diagonals; tol=tol, debug=debug)
 	eigvals!(A::Hermitian; tol=eps(eltype(A)), debug=false) = eigvals!(symtri!(A); tol=tol, debug=debug)
 	eigvals!{T<:Real}(A::Symmetric{T}; tol=eps(eltype(A)), debug=false) = eigvals!(symtri!(A); tol=tol, debug=debug)
+
+	eigvals!(A::SymTridiagonal) = eigvalsPWK!(A)
+	eig!(A::SymTridiagonal) = eigQL!(A, eye(eltype(A), size(A, 1)))
+	function eig2!(A::SymTridiagonal)
+		V = zeros(eltype(A), 2, size(A, 1))
+		V[1] = 1
+		V[end] = 1
+		eigQL!(A, V)
+	end
+	eig(A::SymTridiagonal) = eig!(copy(A))
+	eig2(A::SymTridiagonal) = eig2!(copy(A))
 
 end

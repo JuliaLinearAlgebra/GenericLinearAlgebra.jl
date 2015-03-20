@@ -42,7 +42,7 @@ module HouseholderModule
     	safmin = realmin(β)/eps(typeof(β))
     	knt = 0
     	if abs(β) < safmin
-    		
+
     		# xnorm, β may be inaccurate; scale x and recompute them
     		rsafmin = inv(safmin)
     		while true
@@ -52,14 +52,14 @@ module HouseholderModule
     			α1 *= rsafmin
     			abs(β) < safmin || break
     		end
-    		
+
     		# new β is at most 1, at least safmin
     		xnorm = norm(x)
     		β = -sign(lapy(α1, xnorm), real(α1))
     	end
     	τ = (β - α1)/β
     	scale!(x, inv(α1 - β))
-    	
+
     	# if α is subnormal, it may lose relative accuracy
     	for i = 1:knt
     		β *= safmin
@@ -150,7 +150,7 @@ module HouseholderModule
 		A1 = view(A, 1:blocksize, 1:nA)
 		A2 = view(A, blocksize+1:mA, 1:nA)
 		copy!(M, A1)
-		Ac_mul_B!(V1, M)		
+		Ac_mul_B!(V1, M)
 		# M = V1'A1
 		Ac_mul_B!(one(T), V2, A2, one(T), M)
 		Ac_mul_B!(H.T, M)

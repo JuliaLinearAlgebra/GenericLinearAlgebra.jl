@@ -5,7 +5,7 @@ include("lapack.jl")
 include("cholesky.jl")
 include("householder.jl")
 include("qr.jl")
-include("eigenHermitian.jl")
+include("eigenSelfAdjoint.jl")
 include("eigenGeneral.jl")
 include("tridiag.jl")
 end
