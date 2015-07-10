@@ -1,7 +1,7 @@
 module JuliaBLAS
 
 using Base.BLAS
-using Base.LinAlg: BlasReal, BlasFloat, UnitLowerTriangular, UnitUpperTriangular
+using Base.LinAlg: BlasComplex, BlasFloat, BlasReal, HermOrSym, UnitLowerTriangular, UnitUpperTriangular
 
 import Base.LinAlg: A_mul_B!, Ac_mul_B!
 
@@ -12,6 +12,7 @@ export rankUpdate!
 ## General
 ### BLAS
 rankUpdate!{T<:BlasReal}(α::T, x::StridedVector{T}, y::StridedVector{T}, A::StridedMatrix{T}) = ger!(α, x, y, A)
+
 ### Generic
 function rankUpdate!(α::Number, x::StridedVector, y::StridedVector, A::StridedMatrix)
     m, n = size(A, 1), size(A, 2)
@@ -25,14 +26,18 @@ function rankUpdate!(α::Number, x::StridedVector, y::StridedVector, A::StridedM
     end
 end
 
-## Symmetric
-rankUpdate!{T<:BlasReal,S<:StridedMatrix}(α::T, a::StridedVector{T}, A::Symmetric{T,S}) = syr!(A.uplo, α, a, A.data)
-rankUpdate!{T<:BlasReal,S<:StridedMatrix}(a::StridedVector{T}, A::Symmetric{T,S}) = rankUpdate!(one(T), a, A)
+## Hermitian
+rankUpdate!{T<:BlasReal,S<:StridedMatrix}(α::T, a::StridedVector{T}, A::HermOrSym{T,S}) = syr!(A.uplo, α, a, A.data)
+rankUpdate!{T<:BlasReal,S<:StridedMatrix}(a::StridedVector{T}, A::HermOrSym{T,S}) = rankUpdate!(one(T), a, A)
 
 # Rank k update
-rankUpdate!{T<:BlasReal,S<:StridedMatrix}(α::T, A::StridedMatrix{T}, β::T, C::Symmetric{T,S}) = syrk!(C.uplo, 'N', α, A, β, C.data)
-rankUpdate!{T<:BlasReal,S<:StridedMatrix}(α::T, A::StridedMatrix{T}, C::Symmetric{T,S}) = rankUpdate!(α, A, one(T), C)
-rankUpdate!{T<:BlasReal,S<:StridedMatrix}(A::StridedMatrix{T}, C::Symmetric{T,S}) = rankUpdate!(one(T), A, one(T), C)
+## Real
+rankUpdate!{T<:BlasReal,S<:StridedMatrix}(α::T, A::StridedMatrix{T}, β::T, C::HermOrSym{T,S}) = syrk!(C.uplo, 'N', α, A, β, C.data)
+rankUpdate!{T<:Real,S<:StridedMatrix}(α::T, A::StridedMatrix{T}, C::HermOrSym{T,S}) = rankUpdate!(α, A, one(T), C)
+rankUpdate!{T<:Real,S<:StridedMatrix}(A::StridedMatrix{T}, C::HermOrSym{T,S}) = rankUpdate!(one(T), A, one(T), C)
+
+## Complex
+rankUpdate!{T<:BlasReal,S<:StridedMatrix}(α::T, A::StridedMatrix{Complex{T}}, β::T, C::Hermitian{T,S}) = herk!(C.uplo, 'N', α, A, β, C.data)
 
 # BLAS style A_mul_B!
 ## gemv

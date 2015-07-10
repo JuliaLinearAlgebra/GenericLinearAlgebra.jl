@@ -13,7 +13,7 @@ module EigenSelfAdjoint
 		r2 = 0.5hypot(d1 - d2, 2*e)
 		return r1 + r2, r1 - r2
 	end
-	function eigQL2x2!(d::Vector, e::Vector, j::Integer, vectors::Matrix)
+	function eigQL2x2!(d::StridedVector, e::StridedVector, j::Integer, vectors::Matrix)
 		dj = d[j]
 		dj1 = d[j + 1]
 		ej = e[j]
@@ -364,18 +364,20 @@ module EigenSelfAdjoint
 		SymmetricTridiagonalFactorization(AS,τ,SymTridiagonal(real(diag(AS)),real(diag(AS,-1))))
 	end
 
-	eigvals!(A::SymmetricTridiagonalFactorization; tol=eps(eltype(A)), debug=false) = eigvalsPWK!(A.diagonals; tol=tol, debug=debug)
-	eigvals!(A::Hermitian; tol=eps(eltype(A)), debug=false) = eigvals!(symtri!(A); tol=tol, debug=debug)
-	eigvals!{T<:Real}(A::Symmetric{T}; tol=eps(eltype(A)), debug=false) = eigvals!(symtri!(A); tol=tol, debug=debug)
+	eigvals!(A::SymmetricTridiagonalFactorization, tol = eps(real(float(one(eltype(A))))), debug = false) = eigvalsPWK!(A.diagonals, tol, debug)
+	eigvals!(A::Hermitian, tol = eps(real(float(one(eltype(A))))), debug = false) = eigvals!(symtri!(A), tol, debug)
+	eigvals!{T<:Real}(A::Symmetric{T}, tol = eps(real(float(one(eltype(A))))), debug = false) = eigvals!(symtri!(A), tol, debug)
 
-	eigvals!(A::SymTridiagonal) = eigvalsPWK!(A)
-	eig!(A::SymTridiagonal) = eigQL!(A, eye(eltype(A), size(A, 1)))
+	eigvals!(A::SymTridiagonal, tol = eps(real(float(one(eltype(A))))), debug = false) = eigvalsPWK!(A, tol, debug)
+	eig!(A::SymTridiagonal, tol = eps(real(float(one(eltype(A))))), debug = false) = eigQL!(A, eye(eltype(A), size(A, 1)), tol, debug)
 	function eig2!(A::SymTridiagonal)
 		V = zeros(eltype(A), 2, size(A, 1))
 		V[1] = 1
 		V[end] = 1
 		eigQL!(A, V)
 	end
+
+	eigvals(A::SymTridiagonal, tol = eps(real(float(one(eltype(A))))), debug = false) = eigvals!(copy(A), tol, debug)
 	eig(A::SymTridiagonal) = eig!(copy(A))
 	eig2(A::SymTridiagonal) = eig2!(copy(A))
 

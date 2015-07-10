@@ -48,7 +48,7 @@ module QRModule
 			A_mul_B!(UpperTriangular(view(Tmat, 1:i-1, 1:i-1)), t12)
 			scale!(t12, Tmat[i,i])
 		end
-		HouseholderBlock{T,typeof(D)}(D, UpperTriangular(Tmat))
+		HouseholderBlock{T,typeof(D),Matrix{T}}(D, UpperTriangular(Tmat))
 	end
 
 	size(A::QR2) = size(A.data)

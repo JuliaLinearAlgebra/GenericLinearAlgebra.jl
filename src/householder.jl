@@ -11,9 +11,9 @@ module HouseholderModule
 		v::S
 		τ::T
 	end
-	immutable HouseholderBlock{T,S<:DenseMatrix}
+	immutable HouseholderBlock{T,S<:DenseMatrix,U<:DenseMatrix}
 		V::S
-		T::UpperTriangular{T,S}
+		T::UpperTriangular{T,U}
 	end
 
 	# see dlapy2.f in LAPACK
@@ -145,7 +145,7 @@ module HouseholderModule
 		nH, blocksize = size(V)
 		nH == mA || throw(DimensionMismatch(""))
 
-		V1 = Triangular(view(V, 1:blocksize, 1:blocksize), :L, true)
+		V1 = LinAlg.UnitLowerTriangular(view(V, 1:blocksize, 1:blocksize))
 		V2 = view(V, blocksize+1:mA, 1:blocksize)
 		A1 = view(A, 1:blocksize, 1:nA)
 		A2 = view(A, blocksize+1:mA, 1:nA)
