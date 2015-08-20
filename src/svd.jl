@@ -1,0 +1,143 @@
+module SVDModule
+
+import Base: A_mul_B!, A_mul_Bc!
+
+A_mul_B!(G::LinAlg.Givens, ::Void) = nothing
+A_mul_Bc!(::Void, G::LinAlg.Givens) = nothing
+
+function svdvals2x2(d1, d2, e)
+    d1sq = d1*d1
+    d2sq = d2*d2
+    esq  = e*e
+    b = d1sq + d2sq + esq
+    D = sqrt(abs2((d1 + d2)*(d1 - d2)) + esq*(2*(d1sq + d2sq) + esq))
+    D2 = b + D
+    λ1 = 2*d1sq*d2sq/D2
+    λ2 = D2/2
+    return minmax(sqrt(λ1), sqrt(λ2))
+end
+
+function svdIter!{T<:Real}(B::Bidiagonal{T}, n1, n2, shift, U = nothing, Vt = nothing)
+
+    if istriu(B)
+
+        d = B.dv
+        e = B.ev
+
+        G, r = givens(d[n1] - abs2(shift)/d[n1], e[n1], 1, 2)
+        A_mul_B!(G, Vt)
+
+        ditmp       = d[n1]
+        ei1         = e[n1]
+        di          = ditmp*G.c + ei1*G.s
+        ei1         = -ditmp*G.s + ei1*G.c
+        di1         = d[n1 + 1]
+        bulge       = di1*G.s
+        di1        *= G.c
+
+        for i = n1:n2 - 2
+            G, r      = givens(di, bulge, i, i + 1)
+            A_mul_Bc!(U, G)
+            d[i]      = G.c*di + G.s*bulge
+            ei        = G.c*ei1 + G.s*di1
+            di1       = -G.s*ei1 + G.c*di1
+            ei1       = e[i + 1]
+            bulge     = G.s*ei1
+            ei1      *= G.c
+
+            G, r      = givens(ei, bulge, i + 1, i + 2)
+            A_mul_B!(G, Vt)
+            e[i]      = ei*G.c + bulge*G.s
+            di        = di1*G.c + ei1*G.s
+            ei1       = -di1*G.s + ei1*G.c
+            di2       = d[i + 2]
+            bulge     = di2*G.s
+            di1       = di2*G.c
+        end
+
+        G, r      = givens(di, bulge, n2 - 1, n2)
+        A_mul_Bc!(U, G)
+        d[n2 - 1] = G.c*di + G.s*bulge
+        e[n2 - 1] = G.c*ei1 + G.s*di1
+        d[n2]     = -G.s*ei1 + G.c*di1
+
+    else
+        throw(ArgumentError("lower bidiagonal version not implemented yet"))
+    end
+
+    return B
+end
+
+function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T))
+    n = size(B, 1)
+    n2 = n
+    d = B.dv
+    e = B.ev
+    count = 0
+
+    if istriu(B)
+        while true
+            while abs(e[n2 - 1]) < tol*abs(d[n2 - 1])*abs(d[n2])
+                n2 -= 1
+                if n2 == 1
+                    return sort(abs(diag(B)), rev = true), count # done
+                end
+            end
+            n1 = n2 - 1
+            while n1 > 1 && abs(e[n1 - 1]) > tol*abs(d[n1 - 1])*abs(d[n1])
+                n1 -= 1
+            end
+            if n2 - n1 == 1 # 2x2 block
+                s1, s2 = svdvals2x2(d[n1], d[n2], e[n1])
+                d[n1] = s2
+                d[n2] = s1
+                e[n1] = 0
+            end
+
+            shift = svdvals2x2(d[n2 - 1], d[n2], e[n2 - 1])[1]
+            svdIter!(B, n1, n2, ifelse(count == 0, zero(shift), shift))
+            count += 1
+        end
+    else
+        throw(ArgumentError("lower bidiagonal version not implemented yet"))
+    end
+end
+
+function svd!{T<:Real}(B::Bidiagonal{T}, tol = eps(T))
+    n = size(B, 1)
+    n2 = n
+    d = B.dv
+    e = B.ev
+    U = eye(T, n)
+    Vt = eye(T, n)
+    count = 0
+
+    if istriu(B)
+        while true
+            while abs(e[n2 - 1]) < tol*abs(d[n2 - 1])*abs(d[n2])
+                n2 -= 1
+                if n2 == 1
+                    return sort(abs(diag(B)), rev = true), count # done
+                end
+            end
+            n1 = n2 - 1
+            while n1 > 1 && abs(e[n1 - 1]) > tol*abs(d[n1 - 1])*abs(d[n1])
+                n1 -= 1
+            end
+            if n2 - n1 == 1 # 2x2 block
+                s1, s2 = svdvals2x2(d[n1], d[n2], e[n1])
+                d[n1] = s2
+                d[n2] = s1
+                e[n1] = 0
+            end
+
+            shift = svdvals2x2(d[n2 - 1], d[n2], e[n2 - 1])[1]
+            svdIter!(B, n1, n2, ifelse(count == 0, zero(shift), shift), U, Vt)
+            count += 1
+        end
+    else
+        throw(ArgumentError("lower bidiagonal version not implemented yet"))
+    end
+end
+
+end #module
