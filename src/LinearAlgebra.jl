@@ -8,4 +8,5 @@ include("qr.jl")
 include("eigenSelfAdjoint.jl")
 include("eigenGeneral.jl")
 include("tridiag.jl")
+include("svd.jl")
 end

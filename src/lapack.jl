@@ -1,7 +1,7 @@
 module LAPACK2
 
-    using Base.LinAlg: BlasInt, chkstride1, LAPACKException
-    using Base.LinAlg.LAPACK: @lapackerror
+    using Base: blasfunc
+    using Base.LinAlg: BlasInt, chksquare, chkstride1, LAPACKException
 
     # LAPACK wrappers
 
@@ -200,9 +200,153 @@ module LAPACK2
         d, Z
     end
 
-### Rectangular full packed format
+    # Gu's dnc eigensolver
+    @eval begin
+        function syevd!(jobz, uplo, A)
+            n = chksquare(A)
+            lda = stride(A, 2)
+            w = Array(Float64, n)
+            work = Array(Float64, 1)
+            lwork = BlasInt(-1)
+            iwork = Array(BlasInt, 1)
+            liwork = BlasInt(-1)
+            info = BlasInt[0]
+            for i = 1:2
+                ccall(($(blasfunc(:dsyevd_)), Base.liblapack_name), Void,
+                # ccall((:dsyevd_, :liblapack), Void,
+                    (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{Float64},
+                     Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64}, Ptr{BlasInt},
+                     Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt}),
+                    &jobz, &uplo, &n, A,
+                    &lda, w, work, &lwork,
+                    iwork, &liwork, info)
+                if i == 1
+                    lwork = BlasInt(work[1])
+                    work = Array(Float64, lwork)
+                    liwork = iwork[1]
+                    iwork = Array(BlasInt, liwork)
+                end
+            end
+            return w, A
+        end
+    end
 
-# Symmetric rank-k operation for matrix in RFP format.
+# Generalized Eigen
+## Eigenvectors of (pseudo) triangular matrices
+for (fn, elty) in ((:dtgevc_, :Float64),
+                   (:stgevc_, :Float32))
+    @eval begin
+        function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty}, VL::StridedMatrix{$elty}, VR::StridedMatrix{$elty}, work::Vector{$elty})
+
+            n = chksquare(S)
+            if chksquare(P) != n
+                throw(DimensionMismatch("the two matrices must have same size"))
+            end
+
+            lds, ldp, ldvl, ldvr = stride(S, 2), stride(P, 2), stride(VL, 2), stride(VR, 2)
+            if side == 'L'
+                mm = size(VL, 2)
+                if size(VL, 1) != n
+                    throw(DimensionMismatch("first dimension of output is $size(VL, 1) but should be $n"))
+                end
+            elseif side == 'R'
+                mm = size(VR, 2)
+                if size(VR, 1) != n
+                    throw(DimensionMismatch("first dimension of output is $size(VR, 1) but should be $n"))
+                end
+            elseif side == 'B'
+                mm = size(VL, 2)
+                if mm != size(VR, 2)
+                    throw(DimensionMismatch("the matrices for storing the left and right eigenvectors must have the same number of columns when side == 'B'"))
+                end
+                if size(VL, 1) != n
+                    throw(DimensionMismatch("first dimension of output is $size(VL, 1) but should be $n"))
+                end            else
+                if size(VR, 1) != n
+                    throw(DimensionMismatch("first dimension of output is $size(VR, 1) but should be $n"))
+                end
+                throw(ArgumentError("side must be either 'L', 'R', or 'B'"))
+            end
+            if howmny == 'A' || howmny == 'B'
+                if mm != n
+                    throw(DimensionMismatch("the number of columne in the output matrices are $mm, but should be $n"))
+                end
+            elseif howmny == 'S'
+                mx, mn = extrama(select)
+                if mx > 1 || nm < 0
+                    throw(ArgumentError("the elements of select must be either 0 or 1"))
+                end
+                if sum(howmny) != mm
+                    throw(DimensionMismatch("the number of columns in the output arrays is $mm, but you have selected $(sum(howmny)) vectors"))
+                end
+            else
+                throw(ArgumentError("howmny must be either A, B, or S"))
+            end
+
+            m = BlasInt[0]
+            info = BlasInt[0]
+
+            ccall(($(blasfunc(fn)), Base.liblapack_name), Void,
+                (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{BlasInt},
+                 Ptr{$elty}, Ptr{BlasInt}, Ptr{$elty}, Ptr{BlasInt},
+                 Ptr{$elty}, Ptr{BlasInt}, Ptr{$elty}, Ptr{BlasInt},
+                 Ptr{BlasInt}, Ptr{BlasInt}, Ptr{$elty}, Ptr{BlasInt}),
+                &side, &howmny, select, &n,
+                S, &lds, P, &ldp,
+                VL, &ldvl, VR, &ldvr,
+                &mm, m, work, info)
+
+            if info[1] != 0
+                throw(LAPACKException(info[1]))
+            end
+
+            return VL, VR, m[1]
+        end
+
+        function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty}, VL::StridedMatrix{$elty}, VR::StridedMatrix{$elty})
+
+            n = chksquare(S)
+            work = Array($elty, 6n)
+
+            return tgevc!(side, howmny, select, S, P, VL, VR, work)
+        end
+
+        function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty})
+            # No checks here as they are done in method above
+            n = chksquare(S)
+            if side == 'L'
+                VR = Array($elty, n, 0)
+                if howmny == 'A' || howmny == 'B'
+                    VL = Array($elty, n, n)
+                else
+                    VL = Array($elty, n, sum(select))
+                end
+            elseif side == 'R'
+                VL = Array($elty, n, 0)
+                if howmny == 'A' || howmny == 'B'
+                    VR = Array($elty, n, n)
+                else
+                    VR = Array($elty, n, sum(select))
+                end
+            else
+                if howmny == 'A' || howmny == 'B'
+                    VL = Array($elty, n, n)
+                    VR = Array($elty, n, n)
+                else
+                    VL = Array($elty, n, sum(select))
+                    VR = Array($elty, n, sum(select))
+                end
+            end
+
+            return tgevc!(side, howmny, select, S, P, VL, VR)
+        end
+    end
+end
+
+
+# Rectangular full packed format
+
+## Symmetric rank-k operation for matrix in RFP format.
 for (fn, elty, relty) in ((:dsfrk_, :Float64, :Float64),
                    (:ssfrk_, :Float32, :Float32),
                    (:zhfrk_, :Complex128, :Float64),
@@ -244,8 +388,6 @@ for (fn, elty) in ((:dpftrf_, :Float64),
                  Ptr{BlasInt}),
                 &transr, &uplo, &n, A,
                 info)
-            @assertargsok
-            @assertnonsingular
             A
         end
     end
@@ -266,8 +408,6 @@ for (fn, elty) in ((:dpftri_, :Float64),
                  Ptr{BlasInt}),
                 &transr, &uplo, &n, A,
                 info)
-            @assertargsok
-            @assertnonsingular
             A
         end
     end
@@ -294,8 +434,6 @@ for (fn, elty) in ((:dpftrs_, :Float64),
                  Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt}, Ptr{BlasInt}),
                 &transr, &uplo, &n, &nhrs,
                 A, B, &ldb, info)
-            @assertargsok
-            @assertposdef
             B
         end
     end
@@ -345,8 +483,6 @@ for (fn, elty) in ((:dtftri_, :Float64),
                  Ptr{$elty}, Ptr{BlasInt}),
                 &transr, &uplo, &diag, &n,
                 A, info)
-            @assertargsok
-            @assertnonsingular
             A
         end
     end
@@ -368,7 +504,6 @@ for (fn, elty) in ((:dtfttr_, :Float64),
                  Ptr{$elty}, Ptr{BlasInt}, Ptr{BlasInt}),
                 &transr, &uplo, &n, Arf,
                 A, &n, info)
-            @assertargsok
             A
         end
     end
@@ -392,7 +527,6 @@ for (fn, elty) in ((:dtrttf_, :Float64),
                  Ptr{BlasInt}, Ptr{$elty}, Ptr{BlasInt}),
                 &transr, &uplo, &n, A,
                 &lda, Arf, info)
-            @assertargsok
             Arf
         end
     end
