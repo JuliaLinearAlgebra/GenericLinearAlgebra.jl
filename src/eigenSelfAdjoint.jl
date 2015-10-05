@@ -1,6 +1,6 @@
 module EigenSelfAdjoint
 
-	using Base.LinAlg: chksquare, elementaryLeft!, givensAlgorithm
+	using Base.LinAlg: chksquare, givensAlgorithm
 
 	immutable SymmetricTridiagonalFactorization{T} <: Factorization{T}
 		factors::Matrix{T}
@@ -316,7 +316,7 @@ module EigenSelfAdjoint
 		u = Array(T,n,1)
 		@inbounds begin
 		for k = 1:n-2+!(T<:Real)
-			τk = elementaryLeft!(AS,k+1,k)
+			τk = LinAlg.reflector!(slice(AS, k + 1:n, k))
 			τ[k] = τk
 
 			for i = k+1:n
@@ -370,11 +370,11 @@ module EigenSelfAdjoint
 
 	eigvals!(A::SymTridiagonal, tol = eps(real(float(one(eltype(A))))), debug = false) = eigvalsPWK!(A, tol, debug)
 	eig!(A::SymTridiagonal, tol = eps(real(float(one(eltype(A))))), debug = false) = eigQL!(A, eye(eltype(A), size(A, 1)), tol, debug)
-	function eig2!(A::SymTridiagonal)
+	function eig2!(A::SymTridiagonal, tol = eps(real(float(one(eltype(A))))), debug = false)
 		V = zeros(eltype(A), 2, size(A, 1))
 		V[1] = 1
 		V[end] = 1
-		eigQL!(A, V)
+		eigQL!(A, V, tol, debug)
 	end
 
 	eigvals(A::SymTridiagonal, tol = eps(real(float(one(eltype(A))))), debug = false) = eigvals!(copy(A), tol, debug)

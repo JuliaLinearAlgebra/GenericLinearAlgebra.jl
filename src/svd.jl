@@ -140,4 +140,72 @@ function svd!{T<:Real}(B::Bidiagonal{T}, tol = eps(T))
     end
 end
 
+function elementaryLeftAndApply!(A::AbstractMatrix, row::Integer, column::Integer)
+    τ = LinAlg.elementaryLeft!(A, row, column)
+    for j = column + 1:size(A, 2)
+        tmp = A[row, j]
+        for i = row + 1:size(A, 1)
+            tmp += A[i, column]'*A[i, j]
+        end
+        tmp *= τ'
+        A[row,j] -= tmp
+        for i = row + 1:size(A, 1)
+            A[i, j] -= A[i, column]*tmp
+        end
+    end
+    return τ
+end
+
+function elementaryRightAndApply!(A::AbstractMatrix, row::Integer, column::Integer)
+    τ = LinAlg.elementaryRight!(A, row, column)
+    for i = row + 1:size(A, 1)
+        tmp = A[i, column]
+        for j = column + 1:size(A, 2)
+            tmp += A[i, j]*A[row, j]'
+        end
+        tmp *= τ
+        A[i, column] -= tmp
+        for j = column + 1:size(A, 2)
+            A[i, j] -= tmp*A[row, j]
+        end
+    end
+    return τ
+end
+
+function bidiagonalize!(A::AbstractMatrix)
+    m, n = size(A)
+    τl, τr = eltype(A)[], eltype(A)[]
+    if m >= n
+        for i = 1:min(m, n)
+            x = slice(A, i:m, i)
+            τi = LinAlg.reflector!(x)
+            push!(τl, τi)
+            LinAlg.reflectorApply!(x, τi, slice(A, i:m, i + 1:n))
+            if i < n
+                x = slice(A, i, i + 1:n)
+                τi = LinAlg.reflector!(x)'
+                push!(τr, τi)
+                LinAlg.reflectorApply!(x, τi, slice(A, i + 1:m, i + 1:n))
+            end
+        end
+        return Bidiagonal(real(diag(A)), real(diag(A, 1)), true), A, τl, τr
+    else
+        for i = 1:min(m, n)
+            x = slice(A, i, i:n)
+            τi = LinAlg.reflector!(x)'
+            push!(τr, τi)
+            LinAlg.reflectorApply!(x, τi, slice(A, i + 1:m, i:n))
+            if i < m
+                x = slice(A, i + 1:m, i)
+                τi = LinAlg.reflector!(x)
+                push!(τl, τi)
+                LinAlg.reflectorApply!(x, τi, slice(A, i + 1:m, i + 1:n))
+            end
+        end
+        return Bidiagonal(real(diag(A)), real(diag(A, -1)), false), A, τl, τr
+    end
+end
+
+svdvals!(A::StridedMatrix) = svdvals!(bidiagonalize!(A)[1])
+
 end #module

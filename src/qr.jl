@@ -5,6 +5,28 @@ module QRModule
 	using ArrayViews
 
 	import Base: getindex, size
+	import Base.LinAlg: reflectorApply!
+
+	@inline function reflectorApply!(A::StridedMatrix, x::AbstractVector, τ::Number) # apply reflector from right (assume conjugation)
+	    m, n = size(A)
+	    if length(x) != n
+	        throw(DimensionMismatch("reflector must have same length as second dimension of matrix"))
+	    end
+	    @inbounds begin
+	        for j = 1:n
+	            vAj = A[1, j]
+	            for i = 2:m
+	                vAj += x[i]'*A[i, j]
+	            end
+	            vAj = τ'*vAj
+	            A[1, j] -= vAj
+	            for i = 2:m
+	                A[i, j] -= x[i]*vAj
+	            end
+	        end
+	    end
+	    return A
+	end
 
 	immutable QR2{T,S<:AbstractMatrix,U} <: Factorization{T}
 		data::S
