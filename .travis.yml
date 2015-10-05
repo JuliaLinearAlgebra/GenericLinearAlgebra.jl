@@ -1,5 +1,9 @@
-language: julia 
-    julia: 
-        - nightly 
-    after_success:
-        - julia -e 'cd(Pkg.dir("LinearAlgebra")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
+language: julia
+os:
+  - linux
+  - osx
+julia:
+  - 0.4
+  - nightly
+after_success:
+  - julia -e 'cd(Pkg.dir("LinearAlgebra")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
