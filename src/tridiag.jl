@@ -1,5 +1,5 @@
 ################################################
-## Specialized routines for tridiagonal matrices 
+## Specialized routines for tridiagonal matrices
 ################################################
 
 export numnegevals
@@ -26,11 +26,11 @@ function numnegevals{S}(T::SymTridiagonal{S}, σ::S = zero(S))
     ν = δ < 0 ? 1 : 0
     for k = 1:n - 1
         if δ == 0
-	    info("zero in iteration $k")
-	    δ = ϵ * (β[k]+ϵ) #Parlett prefers adjusting σ and starting again
-	end
+        info("zero in iteration $k")
+        δ = ϵ * (β[k]+ϵ) #Parlett prefers adjusting σ and starting again
+    end
         δ = (α[k + 1] - σ) - β[k]*(β[k]/δ)
-	ν += (δ < 0)
+    ν += (δ < 0)
     end
     ν
 end

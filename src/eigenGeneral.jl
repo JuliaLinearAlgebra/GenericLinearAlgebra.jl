@@ -77,27 +77,27 @@ module EigenGeneral
         τ = Rotation(Givens{T}[])
         @inbounds begin
         while true
-        	# Determine if the matrix splits. Find lowest positioned subdiagonal "zero"
-        	for istart = iend - 1:-1:1
-        		# debug && @printf("istart: %6d, iend %6d\n", istart, iend)
-            	# istart == minstart && break
-        		if abs(HH[istart + 1, istart]) < tol*(abs(HH[istart, istart]) + abs(HH[istart + 1, istart + 1]))
-                	istart += 1
-                	debug && @printf("Top deflation! Subdiagonal element is: %10.3e and istart now %6d\n", HH[istart, istart - 1], istart)
-                	break
-            	elseif istart > 1 && abs(HH[istart, istart - 1]) < tol*(abs(HH[istart - 1, istart - 1]) + abs(HH[istart, istart]))
-            		debug && @printf("Top deflation! Next subdiagonal element is: %10.3e and istart now %6d\n", HH[istart, istart - 1], istart)
-            		break
-            	end
+            # Determine if the matrix splits. Find lowest positioned subdiagonal "zero"
+            for istart = iend - 1:-1:1
+                # debug && @printf("istart: %6d, iend %6d\n", istart, iend)
+                # istart == minstart && break
+                if abs(HH[istart + 1, istart]) < tol*(abs(HH[istart, istart]) + abs(HH[istart + 1, istart + 1]))
+                    istart += 1
+                    debug && @printf("Top deflation! Subdiagonal element is: %10.3e and istart now %6d\n", HH[istart, istart - 1], istart)
+                    break
+                elseif istart > 1 && abs(HH[istart, istart - 1]) < tol*(abs(HH[istart - 1, istart - 1]) + abs(HH[istart, istart]))
+                    debug && @printf("Top deflation! Next subdiagonal element is: %10.3e and istart now %6d\n", HH[istart, istart - 1], istart)
+                    break
+                end
             end
 
             # if block size is one we deflate
             if istart >= iend
-            	iend -= 1
+                iend -= 1
 
             # and the same for a 2x2 block
             elseif istart + 1 == iend
-            	iend -= 2
+                iend -= 2
 
             # if we don't deflate we'll run either a single or double shift bulge chase
             else
@@ -134,7 +134,7 @@ module EigenGeneral
             end
             if iend <= 2 break end
         end
-    	end
+        end
         return Schur{T,typeof(HH)}(HH, τ)
     end
     schurfact!(A::StridedMatrix; tol = eps(), debug = false) = schurfact!(hessfact!(A), tol = tol, debug = debug)
@@ -194,8 +194,8 @@ module EigenGeneral
                 HH[i + j + 1, i] = Htmp11
                 Htmp11 = Htmp21
                 # if i + j + 2 <= iend
-                	# Htmp21 = HH[i + j + 2, i + 1]
-                	# HH[i + j + 2, i + 1] = 0
+                    # Htmp21 = HH[i + j + 2, i + 1]
+                    # HH[i + j + 2, i + 1] = 0
                 # end
                 if i + 4 <= iend
                     Htmp22 = HH[i + 4, i + j]
