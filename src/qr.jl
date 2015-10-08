@@ -27,52 +27,9 @@ module QRModule
         return A
     end
 
-    # immutable QR2{T,S<:AbstractMatrix,U} <: Factorization{T}
-    #     data::S
-    #     reflectors::Vector{U}
-    # end
-
     immutable Q{T,S<:QR} <: AbstractMatrix{T}
         data::S
     end
-
-    # This one is similar to the definition in base
-    # function qrUnblocked!{T}(A::StridedMatrix{T})
-    #     m, n = size(A)
-    #     minmn = min(m,n)
-    #     τ = Array(T, minmn)
-    #     for i = 1:min(m,n)
-    #         x = slice(A, i:m, i)
-    #         τi = LinAlg.reflector!(x)
-    #         τ[i] = τi
-    #         LinAlg.reflectorApply!(x, τi, sub(A, i:m, i + 1:n))
-    #     end
-    #     QR{T,typeof(A)}(A, τ)
-    # end
-
-    # getindex{T,S,U<:Householder}(A::QR2{T,S,U}, ::Type{Val{:Q}}) = Q{T,typeof(A)}(A)
-    # function getindex{T,S,U<:Householder}(A::QR2{T,S,U}, ::Type{Val{:R}})
-    #     m, n = size(A)
-    #     m >= n ? UpperTriangular(sub(A.data, 1:n, 1:n)) : error("R matrix is trapezoid and cannot be extracted with indexing")
-    # end
-
-    # This method extracts the Q part of the factorization in the block form H = I - VTV' where V is a matrix the reflectors and T is an upper triangular matrix
-    # function getindex{T,S,U}(A::QR2{T,S,U}, ::Type{Val{:QBlocked}})
-    #     m, n = size(A)
-    #     D = A.data
-    #     ref = A.reflectors
-    #     Tmat = Array(T, n, n)
-    #     Tmat[1,1] = ref[1].τ
-    #     for i = 2:n
-    #         Tmat[i,i] = ref[i].τ
-    #         t12 = sub(Tmat, 1:i-1, i)
-    #         Ac_mul_B!(-one(T), sub(D, i+1:m, 1:i-1), sub(D, i+1:m, i), zero(T), t12)
-    #         axpy!(-one(T), sub(D, i, 1:i-1), t12)
-    #         A_mul_B!(UpperTriangular(sub(Tmat, 1:i-1, 1:i-1)), t12)
-    #         scale!(t12, Tmat[i,i])
-    #     end
-    #     HouseholderBlock{T,typeof(D),Matrix{T}}(D, UpperTriangular(Tmat))
-    # end
 
     getindex{T,S}(A::QR{T,S}, ::Type{Tuple{:Q}}) = Q{T,typeof(A)}(A)
     function getindex{T,S}(A::QR{T,S}, ::Type{Tuple{:R}})
@@ -113,10 +70,10 @@ module QRModule
     end
     function qrBlocked!(A::StridedMatrix, blocksize::Integer, work = Array(eltype(A), blocksize, size(A, 2)))
         m, n = size(A)
-        A1 = sub(A, 1:m, 1:min(n, blocksize))
-        F = LinAlg.qrUnblocked!(A1)
+        A1 = sub(A, :, 1:min(n, blocksize))
+        F = qrUnblocked!(A1)
         if n > blocksize
-            A2 = sub(A, 1:m, blocksize + 1:n)
+            A2 = sub(A, :, blocksize + 1:n)
             Ac_mul_B!(F[Tuple{:QBlocked}], A2, sub(work, 1:blocksize, 1:n - blocksize))
             qrBlocked!(sub(A, blocksize + 1:m, blocksize + 1:n), blocksize, work)
         end
@@ -127,7 +84,7 @@ module QRModule
         m, n = size(B)
         Ad = A.data
         for i = 1:m
-            H = householder!(sub(Ad,i,i), sub(B,1:m,i))
+            H = householder!(sub(Ad,i,i), sub(B, :, i))
             Ac_mul_B!(H, )
         end
     end
