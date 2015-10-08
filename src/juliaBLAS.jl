@@ -47,8 +47,50 @@ Ac_mul_B!{T<:BlasFloat}(α::T, A::StridedMatrix{T}, x::StridedVector{T}, β::T, 
 ## gemm
 A_mul_B!{T<:BlasFloat}(α::T, A::StridedMatrix{T}, B::StridedMatrix{T}, β::T, C::StridedMatrix{T}) = gemm!('N', 'N', α, A, B, β, C)
 Ac_mul_B!{T<:BlasFloat}(α::T, A::StridedMatrix{T}, B::StridedMatrix{T}, β::T, C::StridedMatrix{T}) = gemm!('C', 'N', α, A, B, β, C)
+# Not optimized since it is a generic fallback. Can probably soon be removed when the signatures in base have been updated.
+function A_mul_B!(α::Number, A::StridedMatrix, B::StridedVecOrMat, β::Number, C::StridedVecOrMat)
+    m, n = size(C, 1), size(C, 2)
+    k = size(A, 2)
+
+    if β != 1
+        if β == 0
+            fill!(C, 0)
+        else
+            scale!(C, β)
+        end
+    end
+    for j = 1:n
+        for i = 1:m
+            for l = 1:k
+                C[i,j] += α*A[i,l]*B[l,j]
+            end
+        end
+    end
+    return C
+end
+function Ac_mul_B!(α::Number, A::StridedMatrix, B::StridedVecOrMat, β::Number, C::StridedVecOrMat)
+    m, n = size(C, 1), size(C, 2)
+    k = size(A, 1)
+
+    if β != 1
+        if β == 0
+            fill!(C, 0)
+        else
+            scale!(C, β)
+        end
+    end
+    for j = 1:n
+        for i = 1:m
+            for l = 1:k
+                C[i,j] += α*A[l,i]'*B[l,j]
+            end
+        end
+    end
+    return C
+end
 
 ## trmm
+### BLAS versions
 A_mul_B!{T<:BlasFloat,S}(α::T, A::UpperTriangular{T,S}, B::StridedMatrix{T}) = trmm!('L', 'U', 'N', 'N', α, A.data, B)
 A_mul_B!{T<:BlasFloat,S}(α::T, A::LowerTriangular{T,S}, B::StridedMatrix{T}) = trmm!('L', 'L', 'N', 'N', α, A.data, B)
 A_mul_B!{T<:BlasFloat,S}(α::T, A::UnitUpperTriangular{T,S}, B::StridedMatrix{T}) = trmm!('L', 'U', 'N', 'U', α, A.data, B)
@@ -57,4 +99,111 @@ Ac_mul_B!{T<:BlasFloat,S}(α::T, A::UpperTriangular{T,S}, B::StridedMatrix{T}) =
 Ac_mul_B!{T<:BlasFloat,S}(α::T, A::LowerTriangular{T,S}, B::StridedMatrix{T}) = trmm!('L', 'L', 'C', 'N', α, A.data, B)
 Ac_mul_B!{T<:BlasFloat,S}(α::T, A::UnitUpperTriangular{T,S}, B::StridedMatrix{T}) = trmm!('L', 'U', 'C', 'U', α, A.data, B)
 Ac_mul_B!{T<:BlasFloat,S}(α::T, A::UnitLowerTriangular{T,S}, B::StridedMatrix{T}) = trmm!('L', 'L', 'C', 'U', α, A.data, B)
+
+### Generic fallbacks
+function A_mul_B!{T<:Number,S}(α::T, A::UpperTriangular{T,S}, B::StridedMatrix{T})
+    AA = A.data
+    m, n = size(B)
+    for i = 1:m
+        for j = 1:n
+            B[i,j] = α*AA[i,i]*B[i,j]
+            for l = i + 1:m
+                B[i,j] += α*AA[i,l]*B[l,j]
+            end
+        end
+    end
+    return B
+end
+function A_mul_B!{T<:Number,S}(α::T, A::LowerTriangular{T,S}, B::StridedMatrix{T})
+    AA = A.data
+    m, n = size(B)
+    for i = m:-1:1
+        for j = 1:n
+            B[i,j] = α*AA[i,i]*B[i,j]
+            for l = 1:i - 1
+                B[i,j] += α*AA[i,l]*B[l,j]
+            end
+        end
+    end
+    return B
+end
+function A_mul_B!{T<:Number,S}(α::T, A::UnitUpperTriangular{T,S}, B::StridedMatrix{T})
+    AA = A.data
+    m, n = size(B)
+    for i = 1:m
+        for j = 1:n
+            B[i,j] = α*B[i,j]
+            for l = i + 1:m
+                B[i,j] = α*AA[i,l]*B[l,j]
+            end
+        end
+    end
+    return B
+end
+function A_mul_B!{T<:Number,S}(α::T, A::UnitLowerTriangular{T,S}, B::StridedMatrix{T})
+    AA = A.data
+    m, n = size(B)
+    for i = m:-1:1
+        for j = 1:n
+            B[i,j] = α*B[i,j]
+            for l = 1:i - 1
+                B[i,j] += α*AA[i,l]*B[l,j]
+            end
+        end
+    end
+    return B
+end
+function Ac_mul_B!{T<:Number,S}(α::T, A::UpperTriangular{T,S}, B::StridedMatrix{T})
+    AA = A.data
+    m, n = size(B)
+    for i = m:-1:1
+        for j = 1:n
+            B[i,j] = α*AA[i,i]*B[i,j]
+            for l = 1:i - 1
+                B[i,j] += α*AA[l,i]'*B[l,j]
+            end
+        end
+    end
+    return B
+end
+function Ac_mul_B!{T<:Number,S}(α::T, A::LowerTriangular{T,S}, B::StridedMatrix{T})
+    AA = A.data
+    m, n = size(B)
+    for i = 1:m
+        for j = 1:n
+            B[i,j] = α*AA[i,i]*B[i,j]
+            for l = i + 1:m
+                B[i,j] += α*AA[l,i]'*B[l,j]
+            end
+        end
+    end
+    return B
+end
+function Ac_mul_B!{T<:Number,S}(α::T, A::UnitUpperTriangular{T,S}, B::StridedMatrix{T})
+    AA = A.data
+    m, n = size(B)
+    for i = m:-1:1
+        for j = 1:n
+            B[i,j] = α*B[i,j]
+            for l = 1:i - 1
+                B[i,j] += α*AA[l,i]'*B[l,j]
+            end
+        end
+    end
+    return B
+end
+function Ac_mul_B!{T<:Number,S}(α::T, A::UnitLowerTriangular{T,S}, B::StridedMatrix{T})
+    AA = A.data
+    m, n = size(B)
+    for i = 1:m
+        for j = 1:n
+            B[i,j] = α*B[i,j]
+            for l = i + 1:m
+                B[i,j] = α*AA[l,i]'*B[l,j]
+            end
+        end
+    end
+    return B
+end
+
 end

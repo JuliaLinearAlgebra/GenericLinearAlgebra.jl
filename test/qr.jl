@@ -3,6 +3,10 @@ using Base.LAPACK
 using LinearAlgebra
 using LinearAlgebra.QRModule.qrUnblocked!
 
-A = randn(10,5)
+m, n = 10, 5
+
+A = randn(m, n)
 Aqr = qrUnblocked!(copy(A))
-@test_approx_eq A Aqr[Val{:QBlocked}]*Aqr[Val{:R}]
+AqrQ = Aqr[Tuple{:QBlocked}]
+@test AqrQ'A ≈ [Aqr[Tuple{:R}]; zeros(m - n, n)]
+@test AqrQ'*(AqrQ*A) ≈ A

@@ -39,7 +39,7 @@ module EigenSelfAdjoint
         return c, s
     end
 
-    function eigvalsPWK!{T<:FloatingPoint}(S::SymTridiagonal{T}, tol = eps(T)^2, debug::Bool=false)
+    function eigvalsPWK!{T<:AbstractFloat}(S::SymTridiagonal{T}, tol = eps(T)^2, debug::Bool=false)
         d = S.dv
         e = S.ev
         n = length(d)
@@ -87,7 +87,7 @@ module EigenSelfAdjoint
         sort!(d)
     end
 
-    function eigQL!{T<:FloatingPoint}(S::SymTridiagonal{T}, vectors::Matrix = zeros(T, 0, size(S, 1)), tol = eps(T)^2, debug::Bool=false)
+    function eigQL!{T<:AbstractFloat}(S::SymTridiagonal{T}, vectors::Matrix = zeros(T, 0, size(S, 1)), tol = eps(T)^2, debug::Bool=false)
         d = S.dv
         e = S.ev
         n = length(d)
@@ -137,7 +137,7 @@ module EigenSelfAdjoint
         return d[p], vectors[:,p]
     end
 
-    function eigQR!{T<:FloatingPoint}(S::SymTridiagonal{T}, vectors::Matrix = zeros(T, 0, size(A, 1)), tol = eps(T)^2, debug::Bool=false)
+    function eigQR!{T<:AbstractFloat}(S::SymTridiagonal{T}, vectors::Matrix = zeros(T, 0, size(A, 1)), tol = eps(T)^2, debug::Bool=false)
         d = S.dv
         e = S.ev
         n = length(d)

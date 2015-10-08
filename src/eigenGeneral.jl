@@ -2,9 +2,8 @@
 
 module EigenGeneral
 
-    using ..HouseholderModule: Householder, householder!
+    using ..HouseholderModule: Householder
     using Base.LinAlg: Givens, Rotation, chksquare
-    using ArrayViews
 
     import Base: A_mul_B!, A_mul_Bc!, Ac_mul_B, A_mul_Bc, A_ldiv_B!, ctranspose, full, getindex, size
     import Base.LinAlg: QRPackedQ
@@ -37,7 +36,7 @@ module EigenGeneral
         Hd = H.data
         for i = 1:n-1
             G, _ = givens!(Hd, i, i+1, i)
-            A_mul_B!(G, view(Hd, 1:n, i+1:n))
+            A_mul_B!(G, sub(Hd, 1:n, i+1:n))
             A_mul_B!(G, B)
         end
         A_ldiv_B!(Triangular(Hd, :U), B)
@@ -49,17 +48,17 @@ module EigenGeneral
         τ::Vector{U}
     end
 
-    function hessfact!{T}(A::StridedMatrix{T})
-        n = chksquare(A)
-        τ = Array(Householder{T}, n - 1)
-        for i = 1:n - 1
-            H = householder!(view(A, i + 1, i), view(A, i + 2:n, i))
-            τ[i] = H
-            Ac_mul_B!(H, view(A, i + 1:n, i + 1:n))
-            A_mul_B!(view(A, :, i + 1:n), H)
-        end
-        return HessenbergFactorization{T, typeof(A), eltype(τ)}(A, τ)
-    end
+    # function hessfact!{T}(A::StridedMatrix{T})
+    #     n = chksquare(A)
+    #     τ = Array(Householder{T}, n - 1)
+    #     for i = 1:n - 1
+    #         H = householder!(sub(A, i + 1, i), sub(A, i + 2:n, i))
+    #         τ[i] = H
+    #         Ac_mul_B!(H, sub(A, i + 1:n, i + 1:n))
+    #         A_mul_B!(sub(A, :, i + 1:n), H)
+    #     end
+    #     return HessenbergFactorization{T, typeof(A), eltype(τ)}(A, τ)
+    # end
 
     size(H::HessenbergFactorization, args...) = size(H.data, args...)
 
@@ -148,18 +147,18 @@ module EigenGeneral
             HH[istart + 2, istart] = 0
         end
         G, _ = givens(H11 - shift, H21, istart, istart + 1)
-        A_mul_B!(G, view(HH, :, istart:m))
-        A_mul_Bc!(view(HH, 1:min(istart + 2, iend), :), G)
+        A_mul_B!(G, sub(HH, :, istart:m))
+        A_mul_Bc!(sub(HH, 1:min(istart + 2, iend), :), G)
         A_mul_B!(G, τ)
         for i = istart:iend - 2
             G, _ = givens(HH[i + 1, i], HH[i + 2, i], i + 1, i + 2)
-            A_mul_B!(G, view(HH, :, i:m))
+            A_mul_B!(G, sub(HH, :, i:m))
             HH[i + 2, i] = Htmp
             if i < iend - 2
                 Htmp = HH[i + 3, i + 1]
                 HH[i + 3, i + 1] = 0
             end
-            A_mul_Bc!(view(HH, 1:min(i + 3, iend), :), G)
+            A_mul_Bc!(sub(HH, 1:min(i + 3, iend), :), G)
             # A_mul_B!(G, τ)
         end
         return HH
@@ -177,10 +176,10 @@ module EigenGeneral
         HH[istart + 3, istart + 1] = 0
         G1, _ = givens(H11*H11 + HH[istart, istart + 1]*H21 - shiftTrace*H11 + shiftDeterminant, H21*(H11 + HH[istart + 1, istart + 1] - shiftTrace), istart, istart + 1)
         G2, _ = givens(G1.r, H21*HH[istart + 2, istart + 1], istart, istart + 2)
-        vHH = view(HH, :, istart:m)
+        vHH = sub(HH, :, istart:m)
         A_mul_B!(G1, vHH)
         A_mul_B!(G2, vHH)
-        vHH = view(HH, 1:istart + 3, :)
+        vHH = sub(HH, 1:istart + 3, :)
         A_mul_Bc!(vHH, G1)
         A_mul_Bc!(vHH, G2)
         A_mul_B!(G1, τ)
@@ -190,7 +189,7 @@ module EigenGeneral
                 if i + j + 1 > iend break end
                 # G, _ = givens(H.H,i+1,i+j+1,i)
                 G, _ = givens(HH[i + 1, i], HH[i + j + 1, i], i + 1, i + j + 1)
-                A_mul_B!(G, view(HH, :, i:m))
+                A_mul_B!(G, sub(HH, :, i:m))
                 HH[i + j + 1, i] = Htmp11
                 Htmp11 = Htmp21
                 # if i + j + 2 <= iend
@@ -201,7 +200,7 @@ module EigenGeneral
                     Htmp22 = HH[i + 4, i + j]
                     HH[i + 4, i + j] = 0
                 end
-                A_mul_Bc!(view(HH, 1:min(i + j + 2, iend), :), G)
+                A_mul_Bc!(sub(HH, 1:min(i + j + 2, iend), :), G)
                 # A_mul_B!(G, τ)
             end
         end
