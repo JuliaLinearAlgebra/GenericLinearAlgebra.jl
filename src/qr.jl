@@ -84,10 +84,10 @@ module QRModule
     size(A::Q) = size(A.data)
     size(A::Q, i::Integer) = size(A.data, i)
 
-    if VERSION < v"0.5.0" # Change when #13480 has been merged
+    if VERSION < v"0.5.0-"
         qrUnblocked!{T}(A::StridedMatrix{T}) = invoke(LinAlg.qrfact!, (AbstractArray{T,2}, Union{Type{Val{false}},Type{Val{true}}}), A, Val{false})
     else
-        using Base.LinAlg: qrUnblocked!
+        qrUnblocked!(A::StridedMatrix) = LinAlg.qrfactUnblocked!(A)
     end
     function qrBlocked!(A::StridedMatrix, blocksize::Integer, work = Array(eltype(A), blocksize, size(A, 2)))
         m, n = size(A)
