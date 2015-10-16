@@ -175,7 +175,9 @@ end
 function bidiagonalize!(A::AbstractMatrix)
     m, n = size(A)
     τl, τr = eltype(A)[], eltype(A)[]
+
     if m >= n
+        # tall case: lower bidiagonal
         for i = 1:min(m, n)
             x = slice(A, i:m, i)
             τi = LinAlg.reflector!(x)
@@ -183,23 +185,26 @@ function bidiagonalize!(A::AbstractMatrix)
             LinAlg.reflectorApply!(x, τi, slice(A, i:m, i + 1:n))
             if i < n
                 x = slice(A, i, i + 1:n)
-                τi = LinAlg.reflector!(x)'
+                conj!(x)
+                τi = LinAlg.reflector!(x)
                 push!(τr, τi)
-                LinAlg.reflectorApply!(x, τi, slice(A, i + 1:m, i + 1:n))
+                LinAlg.reflectorApply!(slice(A, i + 1:m, i + 1:n), x, τi)
             end
         end
         return Bidiagonal(real(diag(A)), real(diag(A, 1)), true), A, τl, τr
     else
+        # wide vase: upper bidiagonal
         for i = 1:min(m, n)
             x = slice(A, i, i:n)
-            τi = LinAlg.reflector!(x)'
+            conj(x)
+            τi = LinAlg.reflector!(x)
             push!(τr, τi)
             LinAlg.reflectorApply!(x, τi, slice(A, i + 1:m, i:n))
             if i < m
                 x = slice(A, i + 1:m, i)
                 τi = LinAlg.reflector!(x)
                 push!(τl, τi)
-                LinAlg.reflectorApply!(x, τi, slice(A, i + 1:m, i + 1:n))
+                LinAlg.reflectorApply!(slice(A, i + 1:m, i + 1:n), x, τi)
             end
         end
         return Bidiagonal(real(diag(A)), real(diag(A, -1)), false), A, τl, τr

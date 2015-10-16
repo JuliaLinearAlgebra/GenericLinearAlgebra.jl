@@ -17,16 +17,22 @@ module EigenSelfAdjoint
         dj = d[j]
         dj1 = d[j + 1]
         ej = e[j]
-        r1 = 0.5*(dj + dj1)
-        r2 = 0.5hypot(dj - dj1, 2*ej)
+        r1 = (dj + dj1)/2
+        r2 = hypot(dj - dj1, 2*ej)/2
         λ = r1 + r2
         d[j] = λ
         d[j + 1] = r1 - r2
         e[j] = 0
         c = ej/(dj - λ)
-        h = hypot(one(c), c)
-        c /= h
-        s = inv(h)
+        if isfinite(c) # FixMe! is this the right fix for onverflow?
+            h = hypot(one(c), c)
+            c /= h
+            s = inv(h)
+        else
+            @show 
+            c = one(c)
+            s = zero(c)
+        end
         if vectors != nothing
             for i = 1:size(vectors, 1)
                 v1 = vectors[i,j + 1]
@@ -39,7 +45,7 @@ module EigenSelfAdjoint
         return c, s
     end
 
-    function eigvalsPWK!{T<:AbstractFloat}(S::SymTridiagonal{T}, tol = eps(T)^2, debug::Bool=false)
+    function eigvalsPWK!{T<:AbstractFloat}(S::SymTridiagonal{T}, tol = eps(T), debug::Bool=false)
         d = S.dv
         e = S.ev
         n = length(d)
@@ -53,7 +59,7 @@ module EigenSelfAdjoint
             while true
                 # Check for zero off diagonal elements
                 for blockend = blockstart + 1:n
-                    if abs(e[blockend - 1]) <= tol*abs(d[blockend - 1]*d[blockend])
+                    if abs(e[blockend - 1]) < tol*sqrt(abs(d[blockend - 1]))*sqrt(abs(d[blockend]))
                         blockend -= 1
                         break
                     end
@@ -87,7 +93,7 @@ module EigenSelfAdjoint
         sort!(d)
     end
 
-    function eigQL!{T<:AbstractFloat}(S::SymTridiagonal{T}, vectors::Matrix = zeros(T, 0, size(S, 1)), tol = eps(T)^2, debug::Bool=false)
+    function eigQL!{T<:AbstractFloat}(S::SymTridiagonal{T}, vectors::Matrix = zeros(T, 0, size(S, 1)), tol = eps(T), debug::Bool=false)
         d = S.dv
         e = S.ev
         n = length(d)
@@ -105,7 +111,7 @@ module EigenSelfAdjoint
             while true
                 # Check for zero off diagonal elements
                 for blockend = blockstart+1:n
-                    if abs(e[blockend-1]) <= tol*abs(d[blockend-1]*d[blockend])
+                    if abs(e[blockend-1]) < tol*sqrt(abs(d[blockend-1]))*sqrt(abs(d[blockend]))
                         blockend -= 1
                         break
                     end
@@ -137,7 +143,7 @@ module EigenSelfAdjoint
         return d[p], vectors[:,p]
     end
 
-    function eigQR!{T<:AbstractFloat}(S::SymTridiagonal{T}, vectors::Matrix = zeros(T, 0, size(A, 1)), tol = eps(T)^2, debug::Bool=false)
+    function eigQR!{T<:AbstractFloat}(S::SymTridiagonal{T}, vectors::Matrix = zeros(T, 0, size(A, 1)), tol = eps(T), debug::Bool=false)
         d = S.dv
         e = S.ev
         n = length(d)
@@ -147,7 +153,7 @@ module EigenSelfAdjoint
             while true
                 # Check for zero off diagonal elements
                 for blockend = blockstart+1:n
-                    if abs(e[blockend - 1]) <= tol*abs(d[blockend - 1]*d[blockend])
+                    if abs(e[blockend - 1]) <= tol*sqrt(abs(d[blockend - 1]))*sqrt(abs(d[blockend]))
                         blockend -= 1
                         break
                     end

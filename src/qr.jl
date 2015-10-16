@@ -6,21 +6,42 @@ module QRModule
     import Base: getindex, size
     import Base.LinAlg: reflectorApply!
 
-    @inline function reflectorApply!(A::StridedMatrix, x::AbstractVector, τ::Number) # apply reflector from right (assume conjugation)
+    # @inline function reflectorApply!(A::StridedMatrix, x::AbstractVector, τ::Number) # apply reflector from right. It is assumed that the reflector is calculated on the transposed matrix so we apply Q^T, i.e. no conjugation.
+    #     m, n = size(A)
+    #     if length(x) != n
+    #         throw(DimensionMismatch("reflector must have same length as second dimension of matrix"))
+    #     end
+    #     @inbounds begin
+    #         for i = 1:m
+    #             Aiv = A[i, 1]
+    #             for j = 2:n
+    #                 Aiv += A[i, j]*x[j]'
+    #             end
+    #             Aiv = Aiv*τ
+    #             A[i, 1] -= Aiv
+    #             for j = 2:n
+    #                 A[i, j] -= Aiv*x[j]
+    #             end
+    #         end
+    #     end
+    #     return A
+    # end
+
+    @inline function reflectorApply!(A::StridedMatrix, x::AbstractVector, τ::Number) # apply conjugate transpose reflector from right.
         m, n = size(A)
         if length(x) != n
             throw(DimensionMismatch("reflector must have same length as second dimension of matrix"))
         end
         @inbounds begin
-            for j = 1:n
-                vAj = A[1, j]
-                for i = 2:m
-                    vAj += x[i]'*A[i, j]
+            for i = 1:m
+                Aiv = A[i, 1]
+                for j = 2:n
+                    Aiv += A[i, j]*x[j]
                 end
-                vAj = τ'*vAj
-                A[1, j] -= vAj
-                for i = 2:m
-                    A[i, j] -= x[i]*vAj
+                Aiv = Aiv*τ
+                A[i, 1] -= Aiv
+                for j = 2:n
+                    A[i, j] -= Aiv*x[j]'
                 end
             end
         end
