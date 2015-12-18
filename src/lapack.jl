@@ -201,33 +201,78 @@ module LAPACK2
     end
 
     # Gu's dnc eigensolver
-    @eval begin
-        function syevd!(jobz, uplo, A)
-            n = chksquare(A)
-            lda = stride(A, 2)
-            w = Array(Float64, n)
-            work = Array(Float64, 1)
-            lwork = BlasInt(-1)
-            iwork = Array(BlasInt, 1)
-            liwork = BlasInt(-1)
-            info = BlasInt[0]
-            for i = 1:2
-                ccall(($(blasfunc(:dsyevd_)), Base.liblapack_name), Void,
-                # ccall((:dsyevd_, :liblapack), Void,
-                    (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{Float64},
-                     Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64}, Ptr{BlasInt},
-                     Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt}),
-                    &jobz, &uplo, &n, A,
-                    &lda, w, work, &lwork,
-                    iwork, &liwork, info)
-                if i == 1
-                    lwork = BlasInt(work[1])
-                    work = Array(Float64, lwork)
-                    liwork = iwork[1]
-                    iwork = Array(BlasInt, liwork)
+    for (f, elty) in ((:dsyevd_, :Float64),
+                      (:ssyevd_, :Float32))
+        @eval begin
+            function syevd!(jobz::Char, uplo::Char, A::StridedMatrix{$elty})
+                n = chksquare(A)
+                lda = stride(A, 2)
+                w = Array($elty, n)
+                work = Array($elty, 1)
+                lwork = BlasInt(-1)
+                iwork = Array(BlasInt, 1)
+                liwork = BlasInt(-1)
+                info = BlasInt[0]
+                for i = 1:2
+                    ccall(($(blasfunc(f)), Base.liblapack_name), Void,
+                        (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
+                         Ptr{BlasInt}, Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt},
+                         Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt}),
+                        &jobz, &uplo, &n, A,
+                        &lda, w, work, &lwork,
+                        iwork, &liwork, info)
+                    if info[1] != 0
+                        return LinAlg.LAPACKException(info[1])
+                    end
+                    if i == 1
+                        lwork = BlasInt(work[1])
+                        work = Array($elty, lwork)
+                        liwork = iwork[1]
+                        iwork = Array(BlasInt, liwork)
+                    end
                 end
+                return w, A
             end
-            return w, A
+        end
+    end
+    for (f, elty, relty) in ((:zheevd_, :Complex128, :Float64),
+                             (:cheevd_, :Complex64, :Float32))
+        @eval begin
+            function heevd!(jobz::Char, uplo::Char, A::StridedMatrix{$elty})
+                n = chksquare(A)
+                lda = stride(A, 2)
+                w = Array($relty, n)
+                work = Array($elty, 1)
+                lwork = BlasInt(-1)
+                rwork = Array($relty, 1)
+                lrwork = BlasInt(-1)
+                iwork = Array(BlasInt, 1)
+                liwork = BlasInt(-1)
+                info = BlasInt[0]
+                for i = 1:2
+                    ccall(($(blasfunc(f)), Base.liblapack_name), Void,
+                        (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
+                         Ptr{BlasInt}, Ptr{$relty}, Ptr{$elty}, Ptr{BlasInt},
+                         Ptr{$relty}, Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt},
+                         Ptr{BlasInt}),
+                        &jobz, &uplo, &n, A,
+                        &lda, w, work, &lwork,
+                        rwork, &lrwork, iwork, &liwork,
+                        info)
+                    if info[1] != 0
+                        return LinAlg.LAPACKException(info[1])
+                    end
+                    if i == 1
+                        lwork = BlasInt(work[1])
+                        work = Array($elty, lwork)
+                        lrwork = BlasInt(rwork[1])
+                        rwork = Array($relty, lrwork)
+                        liwork = iwork[1]
+                        iwork = Array(BlasInt, liwork)
+                    end
+                end
+                return w, A
+            end
         end
     end
 
