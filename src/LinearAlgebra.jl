@@ -9,4 +9,5 @@ include("eigenSelfAdjoint.jl")
 include("eigenGeneral.jl")
 include("tridiag.jl")
 include("svd.jl")
+include("lapackTests.jl")
 end
