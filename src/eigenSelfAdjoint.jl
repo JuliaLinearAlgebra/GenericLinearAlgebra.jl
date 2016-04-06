@@ -1,6 +1,6 @@
 module EigenSelfAdjoint
 
-    using Base.LinAlg: chksquare, givensAlgorithm
+    using Base.LinAlg: givensAlgorithm
 
     immutable SymmetricTridiagonalFactorization{T} <: Factorization{T}
         factors::Matrix{T}
