@@ -1,9 +1,16 @@
 module LAPACK2
 
-    using Base: blasfunc
-    using Base.LinAlg: BlasInt, chksquare, chkstride1, LAPACKException
+    using Base.LinAlg: BlasInt, chkstride1, LAPACKException
 
     # LAPACK wrappers
+
+    if VERSION < v"0.5.0-dev"
+        macro blasfunc(x)
+            return :( $(Base.blasfunc(x) ))
+        end
+    else
+        import Base.@blasfunc
+    end
 
     ## Standard QR/QL
     function steqr!(compz::Char, d::StridedVector{Float64}, e::StridedVector{Float64}, Z::StridedMatrix{Float64}, work::StridedVector{Float64} = compz == 'N' ? Array(Float64, 0) : Array(Float64, max(1, 2n-2)))
@@ -72,7 +79,7 @@ module LAPACK2
         # Allocations
         info = BlasInt[0]
 
-        ccall(("dstedc_", Base.liblapack_name), Void,
+        ccall((@blasfunc(:dstedc_), Base.liblapack_name), Void,
                 (Ptr{Uint8}, Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64},
                  Ptr{Float64}, Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt},
                  Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt}),
@@ -117,7 +124,7 @@ module LAPACK2
                 m = Array(BlasInt, 1)
                 tryrac = BlasInt[1]
                 info = Array(BlasInt, 1)
-                ccall(($(string(lsymb)), Base.liblapack_name), Void,
+                ccall((@blasfunc($lsymb), Base.liblapack_name), Void,
                     (Ptr{Char}, Ptr{Char}, Ptr{BlasInt}, Ptr{$elty},
                     Ptr{$elty}, Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt},
                     Ptr{BlasInt}, Ptr{BlasInt}, Ptr{$elty}, Ptr{$elty},
@@ -189,7 +196,7 @@ module LAPACK2
 
         info = Array(BlasInt, 1)
 
-        ccall((:dpteqr_, Base.liblapack_name), Void,
+        ccall((@blasfunc(:dpteqr_), Base.liblapack_name), Void,
             (Ptr{Char}, Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64},
              Ptr{Float64}, Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt}),
             &compz, &n, d, e,
@@ -203,9 +210,10 @@ module LAPACK2
     # Gu's dnc eigensolver
     for (f, elty) in ((:dsyevd_, :Float64),
                       (:ssyevd_, :Float32))
+
         @eval begin
             function syevd!(jobz::Char, uplo::Char, A::StridedMatrix{$elty})
-                n = chksquare(A)
+                n = Compat.LinAlg.checksquare(A)
                 lda = stride(A, 2)
                 w = Array($elty, n)
                 work = Array($elty, 1)
@@ -214,13 +222,14 @@ module LAPACK2
                 liwork = BlasInt(-1)
                 info = BlasInt[0]
                 for i = 1:2
-                    ccall(($(blasfunc(f)), Base.liblapack_name), Void,
+                    ccall((@blasfunc($f), Base.liblapack_name), Void,
                         (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
                          Ptr{BlasInt}, Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt},
                          Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt}),
                         &jobz, &uplo, &n, A,
                         &lda, w, work, &lwork,
                         iwork, &liwork, info)
+
                     if info[1] != 0
                         return LinAlg.LAPACKException(info[1])
                     end
@@ -237,9 +246,10 @@ module LAPACK2
     end
     for (f, elty, relty) in ((:zheevd_, :Complex128, :Float64),
                              (:cheevd_, :Complex64, :Float32))
+
         @eval begin
             function heevd!(jobz::Char, uplo::Char, A::StridedMatrix{$elty})
-                n = chksquare(A)
+                n = Compat.LinAlg.checksquare(A)
                 lda = stride(A, 2)
                 w = Array($relty, n)
                 work = Array($elty, 1)
@@ -250,7 +260,7 @@ module LAPACK2
                 liwork = BlasInt(-1)
                 info = BlasInt[0]
                 for i = 1:2
-                    ccall(($(blasfunc(f)), Base.liblapack_name), Void,
+                    ccall((@blasfunc($f), Base.liblapack_name), Void,
                         (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
                          Ptr{BlasInt}, Ptr{$relty}, Ptr{$elty}, Ptr{BlasInt},
                          Ptr{$relty}, Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt},
@@ -259,9 +269,11 @@ module LAPACK2
                         &lda, w, work, &lwork,
                         rwork, &lrwork, iwork, &liwork,
                         info)
+
                     if info[1] != 0
                         return LinAlg.LAPACKException(info[1])
                     end
+
                     if i == 1
                         lwork = BlasInt(work[1])
                         work = Array($elty, lwork)
@@ -278,13 +290,14 @@ module LAPACK2
 
 # Generalized Eigen
 ## Eigenvectors of (pseudo) triangular matrices
-for (fn, elty) in ((:dtgevc_, :Float64),
+for (f, elty) in ((:dtgevc_, :Float64),
                    (:stgevc_, :Float32))
+
     @eval begin
         function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty}, VL::StridedMatrix{$elty}, VR::StridedMatrix{$elty}, work::Vector{$elty})
 
-            n = chksquare(S)
-            if chksquare(P) != n
+            n = Compat.LinAlg.checksquare(S)
+            if Compat.LinAlg.checksquare(P) != n
                 throw(DimensionMismatch("the two matrices must have same size"))
             end
 
@@ -331,7 +344,7 @@ for (fn, elty) in ((:dtgevc_, :Float64),
             m = BlasInt[0]
             info = BlasInt[0]
 
-            ccall(($(blasfunc(fn)), Base.liblapack_name), Void,
+            ccall((@blasfunc($f), Base.liblapack_name), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{BlasInt},
                  Ptr{$elty}, Ptr{BlasInt}, Ptr{$elty}, Ptr{BlasInt},
                  Ptr{$elty}, Ptr{BlasInt}, Ptr{$elty}, Ptr{BlasInt},
@@ -350,7 +363,7 @@ for (fn, elty) in ((:dtgevc_, :Float64),
 
         function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty}, VL::StridedMatrix{$elty}, VR::StridedMatrix{$elty})
 
-            n = chksquare(S)
+            n = Compat.LinAlg.checksquare(S)
             work = Array($elty, 6n)
 
             return tgevc!(side, howmny, select, S, P, VL, VR, work)
@@ -358,7 +371,7 @@ for (fn, elty) in ((:dtgevc_, :Float64),
 
         function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty})
             # No checks here as they are done in method above
-            n = chksquare(S)
+            n = Compat.LinAlg.checksquare(S)
             if side == 'L'
                 VR = Array($elty, n, 0)
                 if howmny == 'A' || howmny == 'B'
@@ -392,10 +405,11 @@ end
 # Rectangular full packed format
 
 ## Symmetric rank-k operation for matrix in RFP format.
-for (fn, elty, relty) in ((:dsfrk_, :Float64, :Float64),
+for (f, elty, relty) in ((:dsfrk_, :Float64, :Float64),
                    (:ssfrk_, :Float32, :Float32),
                    (:zhfrk_, :Complex128, :Float64),
                    (:chfrk_, :Complex64, :Float32))
+
     @eval begin
         function sfrk!(transr::Char, uplo::Char, trans::Char, alpha::Real, A::StridedMatrix{$elty}, beta::Real, C::StridedVector{$elty})
             chkuplo(uplo)
@@ -406,7 +420,8 @@ for (fn, elty, relty) in ((:dsfrk_, :Float64, :Float64),
                 k, n = size(A)
             end
             lda = max(1, stride(A, 2))
-            ccall(($(blasfunc(fn)), liblapack), Void,
+
+            ccall((@blasfunc($f), liblapack), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt},
                  Ptr{BlasInt}, Ptr{$relty}, Ptr{$elty}, Ptr{BlasInt},
                  Ptr{$relty}, Ptr{$elty}),
@@ -419,16 +434,18 @@ for (fn, elty, relty) in ((:dsfrk_, :Float64, :Float64),
 end
 
 # Cholesky factorization of a real symmetric positive definite matrix A
-for (fn, elty) in ((:dpftrf_, :Float64),
+for (f, elty) in ((:dpftrf_, :Float64),
                    (:spftrf_, :Float32),
                    (:zpftrf_, :Complex128),
                    (:cpftrf_, :Complex64))
+
     @eval begin
         function pftrf!(transr::Char, uplo::Char, A::StridedVector{$elty})
             chkuplo(uplo)
             n = round(Int,div(sqrt(8length(A)), 2))
             info = Array(BlasInt, 1)
-            ccall(($(blasfunc(fn)), liblapack), Void,
+
+            ccall((@blasfunc($f), liblapack), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
                  Ptr{BlasInt}),
                 &transr, &uplo, &n, A,
@@ -439,30 +456,34 @@ for (fn, elty) in ((:dpftrf_, :Float64),
 end
 
 # Computes the inverse of a (real) symmetric positive definite matrix A using the Cholesky factorization
-for (fn, elty) in ((:dpftri_, :Float64),
+for (f, elty) in ((:dpftri_, :Float64),
                    (:spftri_, :Float32),
                    (:zpftri_, :Complex128),
                    (:cpftri_, :Complex64))
+
     @eval begin
         function pftri!(transr::Char, uplo::Char, A::StridedVector{$elty})
             chkuplo(uplo)
             n = round(Int,div(sqrt(8length(A)), 2))
             info = Array(BlasInt, 1)
-            ccall(($(blasfunc(fn)), liblapack), Void,
+
+            ccall((@blasfunc($f), liblapack), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
                  Ptr{BlasInt}),
                 &transr, &uplo, &n, A,
                 info)
+
             A
         end
     end
 end
 
 # DPFTRS solves a system of linear equations A*X = B with a symmetric positive definite matrix A using the Cholesky factorization
-for (fn, elty) in ((:dpftrs_, :Float64),
+for (f, elty) in ((:dpftrs_, :Float64),
                    (:spftrs_, :Float32),
                    (:zpftrs_, :Complex128),
                    (:cpftrs_, :Complex64))
+
     @eval begin
         function pftrs!(transr::Char, uplo::Char, A::StridedVector{$elty}, B::StridedVecOrMat{$elty})
             chkuplo(uplo)
@@ -474,21 +495,24 @@ for (fn, elty) in ((:dpftrs_, :Float64),
             nhrs = size(B, 2)
             ldb = max(1, stride(B, 2))
             info = Array(BlasInt, 1)
-            ccall(($(blasfunc(fn)), liblapack), Void,
+
+            ccall((@blasfunc($f), liblapack), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{BlasInt},
                  Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt}, Ptr{BlasInt}),
-                &transr, &uplo, &n, &nhrs,
-                A, B, &ldb, info)
+                 &transr, &uplo, &n, &nhrs,
+                 A, B, &ldb, info)
+
             B
         end
     end
 end
 
 # Solves a matrix equation (one operand is a triangular matrix in RFP format)
-for (fn, elty) in ((:dtfsm_, :Float64),
+for (f, elty) in ((:dtfsm_, :Float64),
                    (:stfsm_, :Float32),
                    (:ztfsm_, :Complex128),
                    (:ctfsm_, :Complex64))
+
     @eval begin
         function pftrs!(transr::Char, side::Char, uplo::Char, trans::Char, diag::Char, alpha::Real, A::StridedVector{$elty}, B::StridedMatrix{$elty})
             chkuplo(uplo)
@@ -500,65 +524,74 @@ for (fn, elty) in ((:dtfsm_, :Float64),
                 throw(DimensionMismatch("First dimension of B must equal $(round(Int, div(sqrt(8length(A)), 2))), got $m"))
             end
             ldb = max(1, stride(B, 2))
-            ccall(($(blasfunc(fn)), liblapack), Void,
+
+            ccall((@blasfunc($f), liblapack), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8},
                  Ptr{UInt8}, Ptr{BlasInt}, Ptr{BlasInt}, Ptr{$elty},
                  Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt}),
                 &transr, &side, &uplo, &trans,
                 &diag, &m, &n, &alpha,
                 A, B, &ldb)
+
             B
         end
     end
 end
 
 # Computes the inverse of a triangular matrix A stored in RFP format.
-for (fn, elty) in ((:dtftri_, :Float64),
+for (f, elty) in ((:dtftri_, :Float64),
                    (:stftri_, :Float32),
                    (:ztftri_, :Complex128),
                    (:ctftri_, :Complex64))
+
     @eval begin
         function tftri!(transr::Char, uplo::Char, diag::Char, A::StridedVector{$elty})
             chkuplo(uplo)
             chkdiag(diag)
             n = round(Int,div(sqrt(8length(A)), 2))
             info = Array(BlasInt, 1)
-            ccall(($(blasfunc(fn)), liblapack), Void,
+
+            ccall((@blasfunc($f), liblapack), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt},
                  Ptr{$elty}, Ptr{BlasInt}),
                 &transr, &uplo, &diag, &n,
                 A, info)
+
             A
         end
     end
 end
 
 # Copies a triangular matrix from the rectangular full packed format (TF) to the standard full format (TR)
-for (fn, elty) in ((:dtfttr_, :Float64),
+for (f, elty) in ((:dtfttr_, :Float64),
                    (:stfttr_, :Float32),
                    (:ztfttr_, :Complex128),
                    (:ctfttr_, :Complex64))
+
     @eval begin
         function tfttr!(transr::Char, uplo::Char, Arf::StridedVector{$elty})
             chkuplo(uplo)
             n = round(Int,div(sqrt(8length(Arf)), 2))
             info = Array(BlasInt, 1)
             A = similar(Arf, $elty, n, n)
-            ccall(($(blasfunc(fn)), liblapack), Void,
+
+            ccall((@blasfunc($f), liblapack), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
-                 Ptr{$elty}, Ptr{BlasInt}, Ptr{BlasInt}),
+                Ptr{$elty}, Ptr{BlasInt}, Ptr{BlasInt}),
                 &transr, &uplo, &n, Arf,
                 A, &n, info)
+
             A
         end
     end
 end
 
 # Copies a triangular matrix from the standard full format (TR) to the rectangular full packed format (TF).
-for (fn, elty) in ((:dtrttf_, :Float64),
+for (f, elty) in ((:dtrttf_, :Float64),
                    (:strttf_, :Float32),
                    (:ztrttf_, :Complex128),
                    (:ctrttf_, :Complex64))
+
     @eval begin
         function trttf!(transr::Char, uplo::Char, A::StridedMatrix{$elty})
             chkuplo(uplo)
@@ -567,11 +600,13 @@ for (fn, elty) in ((:dtrttf_, :Float64),
             lda = max(1, stride(A, 2))
             info = Array(BlasInt, 1)
             Arf = similar(A, $elty, div(n*(n+1), 2))
-            ccall(($(blasfunc(fn)), liblapack), Void,
+
+            ccall((@blasfunc($f), liblapack), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
                  Ptr{BlasInt}, Ptr{$elty}, Ptr{BlasInt}),
                 &transr, &uplo, &n, A,
                 &lda, Arf, info)
+
             Arf
         end
     end

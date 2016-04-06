@@ -3,7 +3,7 @@
 module EigenGeneral
 
     using ..HouseholderModule: Householder
-    using Base.LinAlg: Givens, Rotation, chksquare
+    using Base.LinAlg: Givens, Rotation
 
     import Base: A_mul_B!, A_mul_Bc!, Ac_mul_B, A_mul_Bc, A_ldiv_B!, ctranspose, full, getindex, size
     import Base.LinAlg: QRPackedQ
@@ -49,7 +49,7 @@ module EigenGeneral
     end
 
     # function hessfact!{T}(A::StridedMatrix{T})
-    #     n = chksquare(A)
+    #     n = Compat.LinAlg.checksquare(A)
     #     τ = Array(Householder{T}, n - 1)
     #     for i = 1:n - 1
     #         H = householder!(sub(A, i + 1, i), sub(A, i + 2:n, i))
