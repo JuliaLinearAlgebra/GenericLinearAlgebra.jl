@@ -69,7 +69,9 @@ function svdIter!{T<:Real}(B::Bidiagonal{T}, n1, n2, shift, U = nothing, Vt = no
 end
 
 function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false)
+
     n = size(B, 1)
+    n1 = 1
     n2 = n
     d = B.dv
     e = B.ev
@@ -77,24 +79,54 @@ function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false)
 
     if istriu(B)
         while true
-            while abs(e[n2 - 1]) <= tol * abs(d[n2 - 1]) * abs(d[n2])
-                n2 -= 1
-                if n2 == 1
+
+            # Search for biggest index for non-zero off diagonal value in e
+            for n2i = n2:-1:1
+                if n2i == 1
                     return sort(abs(diag(B)), rev = true), count # done
+                else
+                    # FixMe!. Use + until zero inflated algorithm has been implemented. Then
+                    # use * because the precision will be much higher then.
+                    tolcritTop = tol * (abs(d[n2i - 1]) + abs(d[n2i]))
+
+                    debug && println("n2i=", i, ", d[n2i-1]=", d[n2i-1], ", d[n2i]=", d[n2i],
+                        ", e[n2i-1]=", e[n2i-1], ", tolcritTop=", tolcritTop)
+
+                    if abs(e[n2i - 1]) > tolcritTop
+                        n2 = n2i
+                        break
+                    end
                 end
             end
-            n1 = n2 - 1
-            while n1 > 1 && abs(e[n1 - 1]) > tol*abs(d[n1 - 1])*abs(d[n1])
-                n1 -= 1
+
+            # Search for largest sub-bidiagonal matrix ending at n2
+            for n1 = n2 - 1:-1:1
+
+                if n1 == 1
+                    break
+                else
+                    # FixMe!. Use + until zero inflated algorithm has been implemented. Then
+                    # use * because the precision will be much higher then.
+                    tolcritBottom = tol * (abs(d[n1 - 1]) + abs(d[n1]))
+
+                    debug && println("n1=", n1, ", d[n1]=", d[n1], ", d[n1-1]=", d[n1-1], ", e[n1-1]", e[n1-1],
+                        ", tolcritBottom=", tolcritBottom)
+
+                    if abs(e[n1 - 1]) < tolcritBottom
+                        break
+                    end
+                end
             end
-            if n2 - n1 == 1 # 2x2 block
+
+            # 2x2 block
+            if n2 - n1 == 1
                 s1, s2 = svdvals2x2(d[n1], d[n2], e[n1])
                 d[n1] = s2
                 d[n2] = s1
                 e[n1] = 0
             end
 
-            debug && println("n1=", n1, ", n2=", n2, ", d[n1]=", d[n1], ", d[n2]=", d[n2], ", e[n1]=", e[n1], ", tolcrit=", tol*abs(d[n2 - 1])*abs(d[n2]))
+            debug && println("n1=", n1, ", n2=", n2, ", d[n1]=", d[n1], ", d[n2]=", d[n2], ", e[n1]=", e[n1])
 
             shift = svdvals2x2(d[n2 - 1], d[n2], e[n2 - 1])[1]
             svdIter!(B, n1, n2, ifelse(count == 0, zero(shift), shift))
@@ -105,42 +137,44 @@ function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false)
     end
 end
 
-function svd!{T<:Real}(B::Bidiagonal{T}, tol = eps(T))
-    n = size(B, 1)
-    n2 = n
-    d = B.dv
-    e = B.ev
-    U = eye(T, n)
-    Vt = eye(T, n)
-    count = 0
+### FixMe!!! svd! doesn't update vectors in all branches. Comment out 7 April 2016
 
-    if istriu(B)
-        while true
-            while abs(e[n2 - 1]) < tol*abs(d[n2 - 1])*abs(d[n2])
-                n2 -= 1
-                if n2 == 1
-                    return sort(abs(diag(B)), rev = true), count # done
-                end
-            end
-            n1 = n2 - 1
-            while n1 > 1 && abs(e[n1 - 1]) > tol*abs(d[n1 - 1])*abs(d[n1])
-                n1 -= 1
-            end
-            if n2 - n1 == 1 # 2x2 block
-                s1, s2 = svdvals2x2(d[n1], d[n2], e[n1])
-                d[n1] = s2
-                d[n2] = s1
-                e[n1] = 0
-            end
+# function svd!{T<:Real}(B::Bidiagonal{T}, tol = eps(T))
+#     n = size(B, 1)
+#     n2 = n
+#     d = B.dv
+#     e = B.ev
+#     U = eye(T, n)
+#     Vt = eye(T, n)
+#     count = 0
 
-            shift = svdvals2x2(d[n2 - 1], d[n2], e[n2 - 1])[1]
-            svdIter!(B, n1, n2, ifelse(count == 0, zero(shift), shift), U, Vt)
-            count += 1
-        end
-    else
-        throw(ArgumentError("lower bidiagonal version not implemented yet"))
-    end
-end
+#     if istriu(B)
+#         while true
+#             while abs(e[n2 - 1]) < tol*abs(d[n2 - 1])*abs(d[n2])
+#                 n2 -= 1
+#                 if n2 == 1
+#                     return sort(abs(diag(B)), rev = true), count # done
+#                 end
+#             end
+#             n1 = n2 - 1
+#             while n1 > 1 && abs(e[n1 - 1]) > tol*abs(d[n1 - 1])*abs(d[n1])
+#                 n1 -= 1
+#             end
+#             if n2 - n1 == 1 # 2x2 block
+#                 s1, s2 = svdvals2x2(d[n1], d[n2], e[n1])
+#                 d[n1] = s2
+#                 d[n2] = s1
+#                 e[n1] = 0
+#             end
+
+#             shift = svdvals2x2(d[n2 - 1], d[n2], e[n2 - 1])[1]
+#             svdIter!(B, n1, n2, ifelse(count == 0, zero(shift), shift), U, Vt)
+#             count += 1
+#         end
+#     else
+#         throw(ArgumentError("lower bidiagonal version not implemented yet"))
+#     end
+# end
 
 function elementaryLeftAndApply!(A::AbstractMatrix, row::Integer, column::Integer)
     τ = LinAlg.elementaryLeft!(A, row, column)
