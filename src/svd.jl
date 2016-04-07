@@ -68,7 +68,7 @@ function svdIter!{T<:Real}(B::Bidiagonal{T}, n1, n2, shift, U = nothing, Vt = no
     return B
 end
 
-function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T))
+function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false)
     n = size(B, 1)
     n2 = n
     d = B.dv
@@ -77,7 +77,7 @@ function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T))
 
     if istriu(B)
         while true
-            while abs(e[n2 - 1]) < tol*abs(d[n2 - 1])*abs(d[n2])
+            while abs(e[n2 - 1]) <= tol * abs(d[n2 - 1]) * abs(d[n2])
                 n2 -= 1
                 if n2 == 1
                     return sort(abs(diag(B)), rev = true), count # done
@@ -93,6 +93,8 @@ function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T))
                 d[n2] = s1
                 e[n1] = 0
             end
+
+            debug && println("n1=", n1, ", n2=", n2, ", d[n1]=", d[n1], ", d[n2]=", d[n2], ", e[n1]=", e[n1], ", tolcrit=", tol*abs(d[n2 - 1])*abs(d[n2]))
 
             shift = svdvals2x2(d[n2 - 1], d[n2], e[n2 - 1])[1]
             svdIter!(B, n1, n2, ifelse(count == 0, zero(shift), shift))
