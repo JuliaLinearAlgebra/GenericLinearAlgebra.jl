@@ -68,7 +68,41 @@ function svdIter!{T<:Real}(B::Bidiagonal{T}, n1, n2, shift, U = nothing, Vt = no
     return B
 end
 
-function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false)
+# See LAWN 3
+function svdDemmelKahan!{T<:Real}(B::Bidiagonal{T}, n1, n2, U = nothing, Vt = nothing)
+
+    if istriu(B)
+
+        d = B.dv
+        e = B.ev
+
+        oldcs = one(T)
+        G     = LinAlg.Givens(1, 2, one(T), zero(T))
+        Gold  = G
+
+        for i = n1:n2 - 1
+            G, r  = givens(d[i] * G.c, e[i], i, i + 1)
+            A_mul_B!(G, Vt) # FixMe! Vt update might be wrong
+            if i != n1
+                e[i - 1] = Gold.s * r
+            end
+
+            Gold, d[i] = givens(Gold.c * r, d[i + 1] * G.s, i + 1, i + 2)
+            A_mul_Bc!(U, G)  # FixMe! U update might be wrong
+        end
+
+        h         = d[n2] * G.c
+        e[n2 - 1] = h * Gold.s
+        d[n2]     = h * Gold.c
+
+    else
+        throw(ArgumentError("lower bidiagonal version not implemented yet"))
+    end
+
+    return B
+end
+
+function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false, Demmel = false)
 
     n = size(B, 1)
     n1 = 1
@@ -83,14 +117,14 @@ function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false)
             # Search for biggest index for non-zero off diagonal value in e
             for n2i = n2:-1:1
                 if n2i == 1
-                    return sort(abs(diag(B)), rev = true), count # done
+                    return sort(abs(diag(B)), rev = true) # done
                 else
-                    # FixMe!. Use + until zero inflated algorithm has been implemented. Then
+                    # FixMe!. Use + until zero shifted algorithm has been implemented. Then
                     # use * because the precision will be much higher then.
                     tolcritTop = tol * (abs(d[n2i - 1]) + abs(d[n2i]))
 
-                    debug && println("n2i=", i, ", d[n2i-1]=", d[n2i-1], ", d[n2i]=", d[n2i],
-                        ", e[n2i-1]=", e[n2i-1], ", tolcritTop=", tolcritTop)
+                    # debug && println("n2i=", n2i, ", d[n2i-1]=", d[n2i-1], ", d[n2i]=", d[n2i],
+                        # ", e[n2i-1]=", e[n2i-1], ", tolcritTop=", tolcritTop)
 
                     if abs(e[n2i - 1]) > tolcritTop
                         n2 = n2i
@@ -105,12 +139,12 @@ function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false)
                 if n1 == 1
                     break
                 else
-                    # FixMe!. Use + until zero inflated algorithm has been implemented. Then
+                    # FixMe!. Use + until zero shifted algorithm has been implemented. Then
                     # use * because the precision will be much higher then.
                     tolcritBottom = tol * (abs(d[n1 - 1]) + abs(d[n1]))
 
-                    debug && println("n1=", n1, ", d[n1]=", d[n1], ", d[n1-1]=", d[n1-1], ", e[n1-1]", e[n1-1],
-                        ", tolcritBottom=", tolcritBottom)
+                    # debug && println("n1=", n1, ", d[n1]=", d[n1], ", d[n1-1]=", d[n1-1], ", e[n1-1]", e[n1-1],
+                        # ", tolcritBottom=", tolcritBottom)
 
                     if abs(e[n1 - 1]) < tolcritBottom
                         break
@@ -128,9 +162,16 @@ function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false)
 
             debug && println("n1=", n1, ", n2=", n2, ", d[n1]=", d[n1], ", d[n2]=", d[n2], ", e[n1]=", e[n1])
 
-            shift = svdvals2x2(d[n2 - 1], d[n2], e[n2 - 1])[1]
-            svdIter!(B, n1, n2, ifelse(count == 0, zero(shift), shift))
+            # FixMe! Calling the zero shifted version only the first time is adhoc but seems
+            # to work well. Reexamine analysis in LAWN 3 to improve this later.
+            if count == 0
+                svdDemmelKahan!(B, n1, n2)
+            else
+                shift = svdvals2x2(d[n2 - 1], d[n2], e[n2 - 1])[1]
+                svdIter!(B, n1, n2, shift)
+            end
             count += 1
+            debug && println("count=", count)
         end
     else
         throw(ArgumentError("lower bidiagonal version not implemented yet"))
