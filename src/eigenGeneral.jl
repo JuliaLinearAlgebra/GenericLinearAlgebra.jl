@@ -4,6 +4,7 @@ module EigenGeneral
 
     using ..HouseholderModule: Householder
     using Base.LinAlg: Givens, Rotation
+    using Compat
 
     import Base: A_mul_B!, A_mul_Bc!, Ac_mul_B, A_mul_Bc, A_ldiv_B!, ctranspose, full, getindex, size
     import Base.LinAlg: QRPackedQ
@@ -48,17 +49,19 @@ module EigenGeneral
         τ::Vector{U}
     end
 
-    # function hessfact!{T}(A::StridedMatrix{T})
-    #     n = Compat.LinAlg.checksquare(A)
-    #     τ = Array(Householder{T}, n - 1)
-    #     for i = 1:n - 1
-    #         H = householder!(sub(A, i + 1, i), sub(A, i + 2:n, i))
-    #         τ[i] = H
-    #         Ac_mul_B!(H, sub(A, i + 1:n, i + 1:n))
-    #         A_mul_B!(sub(A, :, i + 1:n), H)
-    #     end
-    #     return HessenbergFactorization{T, typeof(A), eltype(τ)}(A, τ)
-    # end
+    function hessfact!{T}(A::StridedMatrix{T})
+        n = Compat.LinAlg.checksquare(A)
+        τ = Array(Householder{T}, n - 1)
+        for i = 1:n - 1
+            xi = sub(A, i + 1:n, i)
+            t  = LinAlg.reflector!(xi)
+            H  = Householder{T,typeof(xi)}(sub(xi, 2:n - i), t)
+            τ[i] = H
+            Ac_mul_B!(H, sub(A, i + 1:n, i + 1:n))
+            A_mul_B!(sub(A, :, i + 1:n), H)
+        end
+        return HessenbergFactorization{T, typeof(A), eltype(τ)}(A, τ)
+    end
 
     size(H::HessenbergFactorization, args...) = size(H.data, args...)
 
@@ -174,8 +177,8 @@ module EigenGeneral
         HH[istart + 3, istart] = 0
         Htmp22 = HH[istart + 3, istart + 1]
         HH[istart + 3, istart + 1] = 0
-        G1, _ = givens(H11*H11 + HH[istart, istart + 1]*H21 - shiftTrace*H11 + shiftDeterminant, H21*(H11 + HH[istart + 1, istart + 1] - shiftTrace), istart, istart + 1)
-        G2, _ = givens(G1.r, H21*HH[istart + 2, istart + 1], istart, istart + 2)
+        G1, r = givens(H11*H11 + HH[istart, istart + 1]*H21 - shiftTrace*H11 + shiftDeterminant, H21*(H11 + HH[istart + 1, istart + 1] - shiftTrace), istart, istart + 1)
+        G2, _ = givens(r, H21*HH[istart + 2, istart + 1], istart, istart + 2)
         vHH = sub(HH, :, istart:m)
         A_mul_B!(G1, vHH)
         A_mul_B!(G2, vHH)
