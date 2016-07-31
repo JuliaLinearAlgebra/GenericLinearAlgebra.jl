@@ -39,11 +39,11 @@ module HouseholderModule
     function A_mul_B!(H::Householder, A::StridedMatrix)
         m, n = size(A)
         length(H.v) == m - 1 || throw(DimensionMismatch(""))
-        v = sub(H.v, 1:m - 1)
+        v = view(H.v, 1:m - 1)
         τ = H.τ
         for j = 1:n
             va = A[1,j]
-            Aj = sub(A, 2:m, j)
+            Aj = view(A, 2:m, j)
             va += dot(v, Aj)
             va = τ*va
             A[1,j] -= va
@@ -55,10 +55,10 @@ module HouseholderModule
     function A_mul_B!(A::StridedMatrix, H::Householder)
         m, n = size(A)
         length(H.v) == n - 1 || throw(DimensionMismatch(""))
-        v = sub(H.v, :)
+        v = view(H.v, :)
         τ = H.τ
-        a1 = sub(A, :, 1)
-        A1 = sub(A, :, 2:n)
+        a1 = view(A, :, 1)
+        A1 = view(A, :, 2:n)
         x = A1*v
         axpy!(one(τ), a1, x)
         axpy!(-τ, x, a1)
@@ -69,11 +69,11 @@ module HouseholderModule
     function Ac_mul_B!(H::Householder, A::StridedMatrix)
         m, n = size(A)
         length(H.v) == m - 1 || throw(DimensionMismatch(""))
-        v = sub(H.v, 1:m - 1)
+        v = view(H.v, 1:m - 1)
         τ = H.τ
         for j = 1:n
             va = A[1,j]
-            Aj = sub(A, 2:m, j)
+            Aj = view(A, 2:m, j)
             va += dot(v, Aj)
             va = τ'va
             A[1,j] -= va
@@ -88,10 +88,10 @@ module HouseholderModule
         nH, blocksize = size(V)
         nH == mA || throw(DimensionMismatch(""))
 
-        V1 = LinAlg.UnitLowerTriangular(sub(V, 1:blocksize, 1:blocksize))
-        V2 = sub(V, blocksize+1:mA, 1:blocksize)
-        A1 = sub(A, 1:blocksize, 1:nA)
-        A2 = sub(A, blocksize+1:mA, 1:nA)
+        V1 = LinAlg.UnitLowerTriangular(view(V, 1:blocksize, 1:blocksize))
+        V2 = view(V, blocksize+1:mA, 1:blocksize)
+        A1 = view(A, 1:blocksize, 1:nA)
+        A2 = view(A, blocksize+1:mA, 1:nA)
         copy!(M, A1)
         Ac_mul_B!(V1, M)
         # M = V1'A1
@@ -110,10 +110,10 @@ module HouseholderModule
         nH, blocksize = size(V)
         nH == mA || throw(DimensionMismatch(""))
 
-        V1 = LinAlg.UnitLowerTriangular(sub(V, 1:blocksize, 1:blocksize))
-        V2 = sub(V, blocksize+1:mA, 1:blocksize)
-        A1 = sub(A, 1:blocksize, 1:nA)
-        A2 = sub(A, blocksize+1:mA, 1:nA)
+        V1 = LinAlg.UnitLowerTriangular(view(V, 1:blocksize, 1:blocksize))
+        V2 = view(V, blocksize+1:mA, 1:blocksize)
+        A1 = view(A, 1:blocksize, 1:nA)
+        A2 = view(A, blocksize+1:mA, 1:nA)
         copy!(M, A1)
         Ac_mul_B!(V1, M)
         # M = V1'A1

@@ -322,7 +322,7 @@ module EigenSelfAdjoint
         u = Array(T,n,1)
         @inbounds begin
         for k = 1:n-2+!(T<:Real)
-            τk = LinAlg.reflector!(slice(AS, k + 1:n, k))
+            τk = LinAlg.reflector!(view(AS, k + 1:n, k))
             τ[k] = τk
 
             for i = k+1:n
