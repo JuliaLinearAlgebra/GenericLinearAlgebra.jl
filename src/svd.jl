@@ -1,5 +1,8 @@
 module SVDModule
 
+using Compat
+import Compat.view
+
 import Base: A_mul_B!, A_mul_Bc!
 
 A_mul_B!(G::LinAlg.Givens, ::Void) = nothing

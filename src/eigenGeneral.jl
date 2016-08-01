@@ -4,10 +4,12 @@ module EigenGeneral
 
     using ..HouseholderModule: Householder
     using Base.LinAlg: Givens, Rotation
-    using Compat
 
     import Base: A_mul_B!, A_mul_Bc!, Ac_mul_B, A_mul_Bc, A_ldiv_B!, ctranspose, full, getindex, size
     import Base.LinAlg: QRPackedQ
+
+    using Compat
+    import Compat.view
 
     # Auxiliary
     function adiagmax(A::StridedMatrix)

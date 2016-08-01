@@ -3,6 +3,9 @@ module CholeskyModule
     using ..JuliaBLAS
     using Base.LinAlg: A_rdiv_Bc!
 
+    using Compat
+    import Compat.view
+
     function cholUnblocked!{T<:Number}(A::AbstractMatrix{T}, ::Type{Val{:L}})
         n = Compat.LinAlg.checksquare(A)
         A[1,1] = sqrt(A[1,1])
