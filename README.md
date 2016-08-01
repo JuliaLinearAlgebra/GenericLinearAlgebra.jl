@@ -1,5 +1,6 @@
 # LinearAlgebra.jl
-========
+<!-- [![StatsBase](http://pkg.julialang.org/badges/StatsBase_0.4.svg)](http://pkg.julialang.org/?pkg=StatsBase&ver=0.4) -->
+[![Build Status](https://travis-ci.org/andreasnoack/LinearAlgebra.jl.svg?branch=master)](https://travis-ci.org/andreasnoack/LinearAlgebra.jl)
 
 ### A fresh approach to numerical linear algebra in Julia
 
@@ -23,7 +24,7 @@ The package also includes functions for the blocked Cholesky and QR factorizatio
 
 ```jl
 julia> using LinearAlgebra
-A
+
 julia> A = randn(1000,1000); A = A'A;
 
 julia> @time cholfact(A)
@@ -36,6 +37,3 @@ julia> LinearAlgebra.CholeskyModule.cholRec!(copy(A), Val{:L});
 julia> @time LinearAlgebra.CholeskyModule.cholRec!(copy(A), Val{:L});
   0.012098 seconds (7.00 k allocations: 7.934 MB)
 ```
-
-<!-- [![StatsBase](http://pkg.julialang.org/badges/StatsBase_0.4.svg)](http://pkg.julialang.org/?pkg=StatsBase&ver=0.4) -->
-[![Build Status](https://travis-ci.org/andreasnoack/LinearAlgebra.jl.svg?branch=master)](https://travis-ci.org/andreasnoack/LinearAlgebra.jl)
