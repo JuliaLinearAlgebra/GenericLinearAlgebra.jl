@@ -27,7 +27,7 @@ julia> using LinearAlgebra
 
 julia> A = randn(1000,1000); A = A'A;
 
-julia> @time cholfact(A)
+julia> cholfact(A);
 
 julia> @time cholfact(A);
   0.013036 seconds (16 allocations: 7.630 MB)
