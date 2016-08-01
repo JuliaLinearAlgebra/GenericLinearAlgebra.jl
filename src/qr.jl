@@ -6,6 +6,9 @@ module QRModule
     import Base: getindex, size
     import Base.LinAlg: reflectorApply!
 
+    using Compat
+    import Compat.view
+
     # @inline function reflectorApply!(A::StridedMatrix, x::AbstractVector, τ::Number) # apply reflector from right. It is assumed that the reflector is calculated on the transposed matrix so we apply Q^T, i.e. no conjugation.
     #     m, n = size(A)
     #     if length(x) != n
@@ -55,17 +58,22 @@ module QRModule
     getindex{T,S}(A::QR{T,S}, ::Type{Tuple{:Q}}) = Q{T,typeof(A)}(A)
     function getindex{T,S}(A::QR{T,S}, ::Type{Tuple{:R}})
         m, n = size(A)
-        m >= n ? UpperTriangular(sub(A.factors, 1:n, 1:n)) : error("R matrix is trapezoid and cannot be extracted with indexing")
+        if m >= n
+            UpperTriangular(view(A.factors, 1:n, 1:n))
+        else
+            error("R matrix is trapezoid and cannot be extracted with indexing")
+        end
     end
 
     function getindex{T,S}(A::QR{T,S}, ::Type{Tuple{:QBlocked}})
         m, n = size(A)
+        mmn = min(m,n)
         F = A.factors
         τ = A.τ
-        Tmat = zeros(T, n, n)
-        for j = 1:min(m,n)
+        Tmat = zeros(T, mmn, mmn)
+        for j = 1:mmn
             for i = 1:j - 1
-                Tmat[i,j] = τ[i]*(F[j,i] + dot(sub(F, j + 1:m, i), sub(F, j + 1:m, j)))
+                Tmat[i,j] = τ[i]*(F[j,i] + dot(view(F, j + 1:m, i), view(F, j + 1:m, j)))
             end
         end
         LinAlg.inv!(LinAlg.UnitUpperTriangular(Tmat))
@@ -91,12 +99,12 @@ module QRModule
     end
     function qrBlocked!(A::StridedMatrix, blocksize::Integer, work = Array(eltype(A), blocksize, size(A, 2)))
         m, n = size(A)
-        A1 = sub(A, :, 1:min(n, blocksize))
+        A1 = view(A, :, 1:min(n, blocksize))
         F = qrUnblocked!(A1)
         if n > blocksize
-            A2 = sub(A, :, blocksize + 1:n)
-            Ac_mul_B!(F[Tuple{:QBlocked}], A2, sub(work, 1:blocksize, 1:n - blocksize))
-            qrBlocked!(sub(A, blocksize + 1:m, blocksize + 1:n), blocksize, work)
+            A2 = view(A, :, blocksize + 1:n)
+            Ac_mul_B!(F[Tuple{:QBlocked}], A2, view(work, 1:blocksize, 1:n - blocksize))
+            qrBlocked!(view(A, blocksize + 1:m, blocksize + 1:n), blocksize, work)
         end
         A
     end
@@ -105,7 +113,7 @@ module QRModule
         m, n = size(B)
         Ad = A.data
         for i = 1:m
-            H = householder!(sub(Ad,i,i), sub(B, :, i))
+            H = householder!(view(Ad,i,i), view(B, :, i))
             Ac_mul_B!(H, )
         end
     end

@@ -1,5 +1,8 @@
 module SVDModule
 
+using Compat
+import Compat.view
+
 import Base: A_mul_B!, A_mul_Bc!
 
 A_mul_B!(G::LinAlg.Givens, ::Void) = nothing
@@ -102,7 +105,7 @@ function svdDemmelKahan!{T<:Real}(B::Bidiagonal{T}, n1, n2, U = nothing, Vt = no
     return B
 end
 
-function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false, Demmel = false)
+function Base.svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false)
 
     n = size(B, 1)
     n1 = 1
@@ -119,9 +122,7 @@ function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false, Demmel
                 if n2i == 1
                     return sort(abs(diag(B)), rev = true) # done
                 else
-                    # FixMe!. Use + until zero shifted algorithm has been implemented. Then
-                    # use * because the precision will be much higher then.
-                    tolcritTop = tol * (abs(d[n2i - 1]) + abs(d[n2i]))
+                    tolcritTop = tol * abs(d[n2i - 1] * d[n2i])
 
                     # debug && println("n2i=", n2i, ", d[n2i-1]=", d[n2i-1], ", d[n2i]=", d[n2i],
                         # ", e[n2i-1]=", e[n2i-1], ", tolcritTop=", tolcritTop)
@@ -139,9 +140,7 @@ function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false, Demmel
                 if n1 == 1
                     break
                 else
-                    # FixMe!. Use + until zero shifted algorithm has been implemented. Then
-                    # use * because the precision will be much higher then.
-                    tolcritBottom = tol * (abs(d[n1 - 1]) + abs(d[n1]))
+                    tolcritBottom = tol * abs(d[n1 - 1] * d[n1])
 
                     # debug && println("n1=", n1, ", d[n1]=", d[n1], ", d[n1-1]=", d[n1-1], ", e[n1-1]", e[n1-1],
                         # ", tolcritBottom=", tolcritBottom)
@@ -174,7 +173,9 @@ function svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false, Demmel
             debug && println("count=", count)
         end
     else
-        throw(ArgumentError("lower bidiagonal version not implemented yet"))
+        # Just transpose the matrix. Since we are only interested in the
+        # values here it doesn't matter.
+        return svdvals!(Bidiagonal(d, e, true), tol; debug = debug)
     end
 end
 
@@ -256,38 +257,37 @@ function bidiagonalize!(A::AbstractMatrix)
     if m >= n
         # tall case: lower bidiagonal
         for i = 1:min(m, n)
-            x = slice(A, i:m, i)
+            x = view(A, i:m, i)
             τi = LinAlg.reflector!(x)
             push!(τl, τi)
-            LinAlg.reflectorApply!(x, τi, slice(A, i:m, i + 1:n))
+            LinAlg.reflectorApply!(x, τi, view(A, i:m, i + 1:n))
             if i < n
-                x = slice(A, i, i + 1:n)
+                x = view(A, i, i + 1:n)
                 conj!(x)
                 τi = LinAlg.reflector!(x)
                 push!(τr, τi)
-                LinAlg.reflectorApply!(slice(A, i + 1:m, i + 1:n), x, τi)
+                LinAlg.reflectorApply!(view(A, i + 1:m, i + 1:n), x, τi)
             end
         end
         return Bidiagonal(real(diag(A)), real(diag(A, 1)), true), A, τl, τr
     else
-        # wide vase: upper bidiagonal
+        # wide case: upper bidiagonal
         for i = 1:min(m, n)
-            x = slice(A, i, i:n)
-            conj(x)
+            x = view(A, i, i:n)
             τi = LinAlg.reflector!(x)
             push!(τr, τi)
-            LinAlg.reflectorApply!(x, τi, slice(A, i + 1:m, i:n))
+            LinAlg.reflectorApply!(view(A, i + 1:m, i:n), x, τi)
             if i < m
-                x = slice(A, i + 1:m, i)
+                x = view(A, i + 1:m, i)
                 τi = LinAlg.reflector!(x)
                 push!(τl, τi)
-                LinAlg.reflectorApply!(slice(A, i + 1:m, i + 1:n), x, τi)
+                LinAlg.reflectorApply!(x, τi, view(A, i + 1:m, i + 1:n))
             end
         end
         return Bidiagonal(real(diag(A)), real(diag(A, -1)), false), A, τl, τr
     end
 end
 
-svdvals!(A::StridedMatrix) = svdvals!(bidiagonalize!(A)[1])
+Base.svdvals!(A::StridedMatrix) = svdvals!(bidiagonalize!(A)[1])
 
 end #module

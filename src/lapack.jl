@@ -9,7 +9,7 @@ module LAPACK2
             return :( $(Base.blasfunc(x) ))
         end
     else
-        import Base.@blasfunc
+        import Base.BLAS.@blasfunc
     end
 
     ## Standard QR/QL
