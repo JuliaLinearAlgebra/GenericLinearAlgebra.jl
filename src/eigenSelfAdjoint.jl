@@ -29,7 +29,6 @@ module EigenSelfAdjoint
             c /= h
             s = inv(h)
         else
-            @show 
             c = one(c)
             s = zero(c)
         end
@@ -149,6 +148,7 @@ module EigenSelfAdjoint
         n = length(d)
         blockstart = 1
         blockend = n
+        rotations = Givens{T}[]
         @inbounds begin
             while true
                 # Check for zero off diagonal elements
@@ -173,7 +173,7 @@ module EigenSelfAdjoint
                     μ = d[blockend] - (e[blockend - 1]/(μ + copysign(r, μ)))
 
                     # QR bulk chase
-                    singleShiftQR!(S, μ, blockstart, blockend, vectors)
+                    singleShiftQR!(S, μ, blockstart, blockend, rotations)
 
                     debug && @printf("QR, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, d[blockend]: %f, μ: %f\n", blockstart, blockend, e[blockstart], e[blockend-1], d[blockend], μ)
                 end
@@ -248,43 +248,45 @@ module EigenSelfAdjoint
         end
         e[istart] = si*π
         d[istart] = shift + γi
-        S
+        nothing
     end
 
     # Own implementation based on Parlett's book
-    function singleShiftQR!(S::SymTridiagonal, shift::Number, istart::Integer = 1, iend::Integer = length(S.dv), vectors = zeros(eltype(S), 0, size(S, 1)))
-        d = S.dv
-        e = S.ev
-        n = length(d)
+    function singleShiftQR!(d::AbstractVector, e::AbstractVector, shift::Number, istart::Integer = 1, iend::Integer = length(d), rotations = LinAlg.Givens{eltype(d)}[])
+        # d = S.dv
+        # e = S.ev
         γi = d[istart] - shift
         π = γi
-        ci = one(eltype(S))
-        si = zero(eltype(S))
+        ci = one(eltype(d))
+        si = zero(eltype(e))
         for i = istart+1:iend
             ei = e[i-1]
             ci1 = ci
             si1 = si
-            ci, si, ζ = givensAlgorithm(π, ei)
+            G, ζ = givens(π, ei, i - 1, i)
+            ci, si = G.c, G.s
+            # ci, si, ζ = givensAlgorithm(π, ei)
             if i > istart+1
                 e[i-2] = si1*ζ
             end
-            di = d[i-1]
+            di = d[i]
             γi1 = γi
             γi = ci*ci*(di - shift) - si*si*γi1
-            d[i] = γi1 + di - γi
+            d[i-1] = γi1 + di - γi
             π = ci == 0 ? -ei*ci1 : γi/ci
 
             # update eigen vectors
-            for k = 1:size(vectors, 1)
-                v1 = vectors[k, i - 1]
-                v2 = vectors[k, i]
-                vectors[k, i - 1]     = ci*v1 + si*v2
-                vectors[k, i] = ci*v2 - si*v1
-            end
+            # for k = 1:size(vectors, 1)
+            #     v1 = vectors[k, i - 1]
+            #     v2 = vectors[k, i]
+            #     vectors[k, i - 1]     = ci*v1 + si*v2
+            #     vectors[k, i] = ci*v2 - si*v1
+            # end
+            push!(rotations, G)
         end
         e[iend-1] = si*π
         d[iend] = shift + γi
-        S
+        nothing
     end
 
     function zeroshiftQR!{T}(A::Bidiagonal{T})
