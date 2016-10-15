@@ -1,6 +1,7 @@
 module LAPACK2
 
     using Base.LinAlg: BlasInt, chkstride1, LAPACKException
+    using Base.LinAlg.LAPACK: chkuplo
 
     # LAPACK wrappers
 
@@ -414,14 +415,14 @@ for (f, elty, relty) in ((:dsfrk_, :Float64, :Float64),
         function sfrk!(transr::Char, uplo::Char, trans::Char, alpha::Real, A::StridedMatrix{$elty}, beta::Real, C::StridedVector{$elty})
             chkuplo(uplo)
             chkstride1(A)
-            if trans == 'N' || trans == 'n'
+            if trans in ('N', 'n')
                 n, k = size(A)
-            elseif trans == 'T' || trans == 't'
+            elseif trans in ('T', 't', 'C', 'c')
                 k, n = size(A)
             end
             lda = max(1, stride(A, 2))
 
-            ccall((@blasfunc($f), liblapack), Void,
+            ccall((@blasfunc($f), Base.liblapack_name), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt},
                  Ptr{BlasInt}, Ptr{$relty}, Ptr{$elty}, Ptr{BlasInt},
                  Ptr{$relty}, Ptr{$elty}),
@@ -445,7 +446,7 @@ for (f, elty) in ((:dpftrf_, :Float64),
             n = round(Int,div(sqrt(8length(A)), 2))
             info = Array(BlasInt, 1)
 
-            ccall((@blasfunc($f), liblapack), Void,
+            ccall((@blasfunc($f), Base.liblapack_name), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
                  Ptr{BlasInt}),
                 &transr, &uplo, &n, A,
@@ -467,7 +468,7 @@ for (f, elty) in ((:dpftri_, :Float64),
             n = round(Int,div(sqrt(8length(A)), 2))
             info = Array(BlasInt, 1)
 
-            ccall((@blasfunc($f), liblapack), Void,
+            ccall((@blasfunc($f), Base.liblapack_name), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
                  Ptr{BlasInt}),
                 &transr, &uplo, &n, A,
@@ -496,7 +497,7 @@ for (f, elty) in ((:dpftrs_, :Float64),
             ldb = max(1, stride(B, 2))
             info = Array(BlasInt, 1)
 
-            ccall((@blasfunc($f), liblapack), Void,
+            ccall((@blasfunc($f), Base.liblapack_name), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{BlasInt},
                  Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt}, Ptr{BlasInt}),
                  &transr, &uplo, &n, &nhrs,
@@ -525,7 +526,7 @@ for (f, elty) in ((:dtfsm_, :Float64),
             end
             ldb = max(1, stride(B, 2))
 
-            ccall((@blasfunc($f), liblapack), Void,
+            ccall((@blasfunc($f), Base.liblapack_name), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8},
                  Ptr{UInt8}, Ptr{BlasInt}, Ptr{BlasInt}, Ptr{$elty},
                  Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt}),
@@ -551,7 +552,7 @@ for (f, elty) in ((:dtftri_, :Float64),
             n = round(Int,div(sqrt(8length(A)), 2))
             info = Array(BlasInt, 1)
 
-            ccall((@blasfunc($f), liblapack), Void,
+            ccall((@blasfunc($f), Base.liblapack_name), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt},
                  Ptr{$elty}, Ptr{BlasInt}),
                 &transr, &uplo, &diag, &n,
@@ -575,7 +576,7 @@ for (f, elty) in ((:dtfttr_, :Float64),
             info = Array(BlasInt, 1)
             A = similar(Arf, $elty, n, n)
 
-            ccall((@blasfunc($f), liblapack), Void,
+            ccall((@blasfunc($f), Base.liblapack_name), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
                 Ptr{$elty}, Ptr{BlasInt}, Ptr{BlasInt}),
                 &transr, &uplo, &n, Arf,
@@ -601,7 +602,7 @@ for (f, elty) in ((:dtrttf_, :Float64),
             info = Array(BlasInt, 1)
             Arf = similar(A, $elty, div(n*(n+1), 2))
 
-            ccall((@blasfunc($f), liblapack), Void,
+            ccall((@blasfunc($f), Base.liblapack_name), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
                  Ptr{BlasInt}, Ptr{$elty}, Ptr{BlasInt}),
                 &transr, &uplo, &n, A,
