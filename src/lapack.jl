@@ -35,7 +35,7 @@ module LAPACK2
         info = Array(BlasInt,1)
 
         ccall(("dsteqr_", Base.liblapack_name),Void,
-            (Ptr{Uint8}, Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64},
+            (Ptr{UInt8}, Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64},
              Ptr{Float64}, Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt}),
              &compz, &n, d, e,
              Z, &max(1, ldz), work, info)
@@ -81,7 +81,7 @@ module LAPACK2
         info = BlasInt[0]
 
         ccall((@blasfunc(:dstedc_), Base.liblapack_name), Void,
-                (Ptr{Uint8}, Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64},
+                (Ptr{UInt8}, Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64},
                  Ptr{Float64}, Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt},
                  Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt}),
                 &compz, &n, d, e,
