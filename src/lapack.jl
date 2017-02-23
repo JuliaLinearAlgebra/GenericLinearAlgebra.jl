@@ -4,14 +4,7 @@ module LAPACK2
     using Base.LinAlg.LAPACK: chkuplo
 
     # LAPACK wrappers
-
-    if VERSION < v"0.5.0-dev"
-        macro blasfunc(x)
-            return :( $(Base.blasfunc(x) ))
-        end
-    else
-        import Base.BLAS.@blasfunc
-    end
+    import Base.BLAS.@blasfunc
 
     ## Standard QR/QL
     function steqr!(compz::Char, d::StridedVector{Float64}, e::StridedVector{Float64}, Z::StridedMatrix{Float64}, work::StridedVector{Float64} = compz == 'N' ? Array(Float64, 0) : Array(Float64, max(1, 2n-2)))
@@ -214,7 +207,7 @@ module LAPACK2
 
         @eval begin
             function syevd!(jobz::Char, uplo::Char, A::StridedMatrix{$elty})
-                n = Compat.LinAlg.checksquare(A)
+                n = LinAlg.checksquare(A)
                 lda = stride(A, 2)
                 w = Array($elty, n)
                 work = Array($elty, 1)
@@ -250,7 +243,7 @@ module LAPACK2
 
         @eval begin
             function heevd!(jobz::Char, uplo::Char, A::StridedMatrix{$elty})
-                n = Compat.LinAlg.checksquare(A)
+                n = LinAlg.checksquare(A)
                 lda = stride(A, 2)
                 w = Array($relty, n)
                 work = Array($elty, 1)
@@ -297,8 +290,8 @@ for (f, elty) in ((:dtgevc_, :Float64),
     @eval begin
         function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty}, VL::StridedMatrix{$elty}, VR::StridedMatrix{$elty}, work::Vector{$elty})
 
-            n = Compat.LinAlg.checksquare(S)
-            if Compat.LinAlg.checksquare(P) != n
+            n = LinAlg.checksquare(S)
+            if LinAlg.checksquare(P) != n
                 throw(DimensionMismatch("the two matrices must have same size"))
             end
 
@@ -364,7 +357,7 @@ for (f, elty) in ((:dtgevc_, :Float64),
 
         function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty}, VL::StridedMatrix{$elty}, VR::StridedMatrix{$elty})
 
-            n = Compat.LinAlg.checksquare(S)
+            n = LinAlg.checksquare(S)
             work = Array($elty, 6n)
 
             return tgevc!(side, howmny, select, S, P, VL, VR, work)
@@ -372,7 +365,7 @@ for (f, elty) in ((:dtgevc_, :Float64),
 
         function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty})
             # No checks here as they are done in method above
-            n = Compat.LinAlg.checksquare(S)
+            n = LinAlg.checksquare(S)
             if side == 'L'
                 VR = Array($elty, n, 0)
                 if howmny == 'A' || howmny == 'B'

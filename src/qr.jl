@@ -6,9 +6,6 @@ module QRModule
     import Base: getindex, size
     import Base.LinAlg: reflectorApply!
 
-    using Compat
-    import Compat.view
-
     # @inline function reflectorApply!(A::StridedMatrix, x::AbstractVector, τ::Number) # apply reflector from right. It is assumed that the reflector is calculated on the transposed matrix so we apply Q^T, i.e. no conjugation.
     #     m, n = size(A)
     #     if length(x) != n

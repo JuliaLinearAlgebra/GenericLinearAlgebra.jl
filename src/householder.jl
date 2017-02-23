@@ -7,9 +7,6 @@ module HouseholderModule
     import Base: Ac_mul_B, convert, full, size
     import Base.LinAlg: A_mul_B!, Ac_mul_B!
 
-    using Compat
-    import Compat.view
-
     immutable Householder{T,S<:StridedVector}
         v::S
         τ::T

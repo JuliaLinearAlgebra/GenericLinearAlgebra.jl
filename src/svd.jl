@@ -1,8 +1,5 @@
 module SVDModule
 
-using Compat
-import Compat.view
-
 import Base: A_mul_B!, A_mul_Bc!
 
 A_mul_B!(G::LinAlg.Givens, ::Void) = nothing
@@ -120,7 +117,7 @@ function Base.svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false)
             # Search for biggest index for non-zero off diagonal value in e
             for n2i = n2:-1:1
                 if n2i == 1
-                    return sort(@compat(abs.(diag(B))), rev = true) # done
+                    return sort(abs.(diag(B)), rev = true) # done
                 else
                     tolcritTop = tol * abs(d[n2i - 1] * d[n2i])
 
