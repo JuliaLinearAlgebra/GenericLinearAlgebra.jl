@@ -6,9 +6,6 @@ module QRModule
     import Base: getindex, size
     import Base.LinAlg: reflectorApply!
 
-    using Compat
-    import Compat.view
-
     # @inline function reflectorApply!(A::StridedMatrix, x::AbstractVector, τ::Number) # apply reflector from right. It is assumed that the reflector is calculated on the transposed matrix so we apply Q^T, i.e. no conjugation.
     #     m, n = size(A)
     #     if length(x) != n
@@ -97,7 +94,7 @@ module QRModule
     else
         qrUnblocked!(A::StridedMatrix) = LinAlg.qrfactUnblocked!(A)
     end
-    function qrBlocked!(A::StridedMatrix, blocksize::Integer, work = Array(eltype(A), blocksize, size(A, 2)))
+    function qrBlocked!(A::StridedMatrix, blocksize::Integer, work = Matrix{eltype(A)}(blocksize, size(A, 2)))
         m, n = size(A)
         A1 = view(A, :, 1:min(n, blocksize))
         F = qrUnblocked!(A1)

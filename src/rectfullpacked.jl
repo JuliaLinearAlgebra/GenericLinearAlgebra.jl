@@ -71,10 +71,10 @@ end
 function Ac_mul_A_RFP{T<:BlasFloat}(A::Matrix{T}, uplo = :U)
     n = size(A, 2)
     if uplo == :U
-        C = LAPACK2.sfrk!('N', 'U', T <: Complex ? 'C' : 'T', 1.0, A, 0.0, Array(T, n*(n + 1) >> 1))
+        C = LAPACK2.sfrk!('N', 'U', T <: Complex ? 'C' : 'T', 1.0, A, 0.0, Vector{T}(n*(n + 1) >> 1))
         return HermitianRFP(C, 'N', 'U')
     elseif uplo == :L
-        C = LAPACK2.sfrk!('N', 'L', T <: Complex ? 'C' : 'T', 1.0, A, 0.0, Array(T, n*(n + 1) >> 1))
+        C = LAPACK2.sfrk!('N', 'L', T <: Complex ? 'C' : 'T', 1.0, A, 0.0, Vector{T}(n*(n + 1) >> 1))
        return  HermitianRFP(C, 'N', 'L')
    else
         throw(ArgumentError("uplo must be either :L or :U"))

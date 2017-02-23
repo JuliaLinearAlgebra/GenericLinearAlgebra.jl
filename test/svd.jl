@@ -33,7 +33,7 @@ using Quaternions
                (9,10)) # wide
 
         A = randn(m,n)
-        @test svdvals(A) ≈ Vector{Float64}(svdvals(big(A)))
-        @test cond(A) ≈ Float64(cond(big(A)))
+        @test svdvals(A) ≈ Vector{Float64}(svdvals(big.(A)))
+        @test cond(A) ≈ Float64(cond(big.(A)))
     end
 end

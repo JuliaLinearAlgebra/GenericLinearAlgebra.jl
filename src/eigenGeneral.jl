@@ -8,9 +8,6 @@ module EigenGeneral
     import Base: A_mul_B!, A_mul_Bc!, Ac_mul_B, A_mul_Bc, A_ldiv_B!, ctranspose, full, getindex, size
     import Base.LinAlg: QRPackedQ
 
-    using Compat
-    import Compat.view
-
     # Auxiliary
     function adiagmax(A::StridedMatrix)
         adm = zero(typeof(real(A[1])))
@@ -52,8 +49,8 @@ module EigenGeneral
     end
 
     function hessfact!{T}(A::StridedMatrix{T})
-        n = Compat.LinAlg.checksquare(A)
-        τ = Array(Householder{T}, n - 1)
+        n = LinAlg.checksquare(A)
+        τ = Vector{Householder{T}}(n - 1)
         for i = 1:n - 1
             xi = view(A, i + 1:n, i)
             t  = LinAlg.reflector!(xi)
@@ -219,7 +216,7 @@ module EigenGeneral
     function eigvals!{T}(S::Schur{T}; tol = eps(T))
         HH = S.data
         n = size(HH, 1)
-        vals = Array(Complex{T}, n)
+        vals = Vector{Complex{T}}(n)
         i = 1
         while i < n
             Hii = HH[i, i]
