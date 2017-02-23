@@ -319,7 +319,7 @@ module EigenSelfAdjoint
     function symtriLower!{T}(AS::Matrix{T}) # Assume that lower triangle stores the relevant part
         n = size(AS,1)
         τ = zeros(T,n-1)
-        u = Array(T,n,1)
+        u = Matrix{T}(n, 1)
         @inbounds begin
         for k = 1:n-2+!(T<:Real)
             τk = LinAlg.reflector!(view(AS, k + 1:n, k))

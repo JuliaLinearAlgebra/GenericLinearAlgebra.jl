@@ -7,7 +7,9 @@ module LAPACK2
     import Base.BLAS.@blasfunc
 
     ## Standard QR/QL
-    function steqr!(compz::Char, d::StridedVector{Float64}, e::StridedVector{Float64}, Z::StridedMatrix{Float64}, work::StridedVector{Float64} = compz == 'N' ? Array(Float64, 0) : Array(Float64, max(1, 2n-2)))
+    function steqr!(compz::Char, d::StridedVector{Float64}, e::StridedVector{Float64},
+        Z::StridedMatrix{Float64}, work::StridedVector{Float64} = compz == 'N' ? Vector{Float64}(0) :
+                                                                                 Vector{Float64}(max(1, 2n - 2)))
 
         # Extract sizes
         n = length(d)
@@ -25,7 +27,7 @@ module LAPACK2
         end
 
         # Allocations
-        info = Array(BlasInt,1)
+        info = Vector{BlasInt}(1)
 
         ccall(("dsteqr_", Base.liblapack_name),Void,
             (Ptr{UInt8}, Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64},
@@ -93,9 +95,9 @@ module LAPACK2
         stedc!(compz, d, e, Z, work, -1, iwork, -1)
 
         lwork::BlasInt = work[1]
-        work = Array(Float64, lwork)
+        work = Vector{Float64}(lwork)
         liwork = iwork[1]
-        iwork = Array(BlasInt, liwork)
+        iwork = Vector{BlasInt}(liwork)
 
         return stedc!(compz, d, e, Z, work, lwork, iwork, liwork)
     end
@@ -114,10 +116,10 @@ module LAPACK2
 
                 # Allocations
                 eev::Vector{$elty} = length(ev) == n - 1 ? [ev, zero($elty)] : copy(ev)
-                abstol = Array($elty, 1)
-                m = Array(BlasInt, 1)
+                abstol = Vector{$elty}(1)
+                m      = Vector{BlasInt}(1)
                 tryrac = BlasInt[1]
-                info = Array(BlasInt, 1)
+                info   = Vector{BlasInt}(1)
                 ccall((@blasfunc($lsymb), Base.liblapack_name), Void,
                     (Ptr{Char}, Ptr{Char}, Ptr{BlasInt}, Ptr{$elty},
                     Ptr{$elty}, Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt},
@@ -139,11 +141,11 @@ module LAPACK2
 
             function stemr!(jobz::Char, range::Char, dv::StridedVector{$elty}, ev::StridedVector{$elty}, vl::$elty = typemin($elty), vu::$elty = typemax($elty), il::BlasInt = 1, iu::BlasInt = length(dv))
                 n = length(dv)
-                w = Array($elty, n)
+                w = Vector{$elty}(n)
                 if jobz == 'N'
-                    # Z = Array($elty, 0, 0)
+                    # Z = Matrix{$elty}(0, 0)
                     nzc::BlasInt = 0
-                    isuppz = Array(BlasInt, 0)
+                    isuppz = Vector{BlasInt}(0)
                 elseif jobz == 'V'
                     nzc = -1
                     isuppz = similar(dv, BlasInt, 2n)
@@ -151,19 +153,19 @@ module LAPACK2
                     throw(ArgumentError("jobz must be either 'N' or 'V'"))
                 end
 
-                work = Array($elty, 1)
+                work = Vector{$elty}(1)
                 lwork::BlasInt = -1
                 iwork = BlasInt[0]
                 liwork::BlasInt = -1
-                Z = Array($elty, 1, 1)
+                Z = Matrix{$elty}(1, 1)
                 nzc = -1
 
                 stemr!(jobz, range, dv, ev, vl, vu, il, iu, w, Z, nzc, isuppz, work, lwork, iwork, liwork)
 
                 lwork = work[1]
-                work = Array($elty, lwork)
+                work = Vector{$elty}(lwork)
                 liwork = iwork[1]
-                iwork = Array(BlasInt, liwork)
+                iwork = Vector{BlasInt}(liwork)
                 nzc = Z[1]
                 Z = similar(dv, $elty, n, nzc)
 
@@ -173,7 +175,8 @@ module LAPACK2
     end
 
     ## Cholesky + singular values
-    function spteqr!(compz::Char, d::StridedVector{Float64}, e::StridedVector{Float64}, Z::StridedMatrix{Float64}, work::StridedVector{Float64} = Array(Float64, 4length(d)))
+    function spteqr!(compz::Char, d::StridedVector{Float64}, e::StridedVector{Float64}, Z::StridedMatrix{Float64},
+        work::StridedVector{Float64} = Vector{Float64}(4length(d)))
 
         n = length(d)
         ldz = stride(Z, 2)
@@ -188,7 +191,7 @@ module LAPACK2
             throw(ArgumentError("compz must be either 'N', 'V', or 'I'"))
         end
 
-        info = Array(BlasInt, 1)
+        info = Vector{BlasInt}(1)
 
         ccall((@blasfunc(:dpteqr_), Base.liblapack_name), Void,
             (Ptr{Char}, Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64},
@@ -207,12 +210,12 @@ module LAPACK2
 
         @eval begin
             function syevd!(jobz::Char, uplo::Char, A::StridedMatrix{$elty})
-                n = LinAlg.checksquare(A)
-                lda = stride(A, 2)
-                w = Array($elty, n)
-                work = Array($elty, 1)
-                lwork = BlasInt(-1)
-                iwork = Array(BlasInt, 1)
+                n      = LinAlg.checksquare(A)
+                lda    = stride(A, 2)
+                w      = Vector{$elty}(n)
+                work   = Vector{$elty}(1)
+                lwork  = BlasInt(-1)
+                iwork  = Vector{BlasInt}(1)
                 liwork = BlasInt(-1)
                 info = BlasInt[0]
                 for i = 1:2
@@ -228,10 +231,10 @@ module LAPACK2
                         return LinAlg.LAPACKException(info[1])
                     end
                     if i == 1
-                        lwork = BlasInt(work[1])
-                        work = Array($elty, lwork)
+                        lwork  = BlasInt(work[1])
+                        resize!(work, lwork)
                         liwork = iwork[1]
-                        iwork = Array(BlasInt, liwork)
+                        resize!(iwork, liwork)
                     end
                 end
                 return w, A
@@ -243,14 +246,14 @@ module LAPACK2
 
         @eval begin
             function heevd!(jobz::Char, uplo::Char, A::StridedMatrix{$elty})
-                n = LinAlg.checksquare(A)
-                lda = stride(A, 2)
-                w = Array($relty, n)
-                work = Array($elty, 1)
-                lwork = BlasInt(-1)
-                rwork = Array($relty, 1)
+                n      = LinAlg.checksquare(A)
+                lda    = stride(A, 2)
+                w      = Vector{$relty}(n)
+                work   = Vector{$elty}(1)
+                lwork  = BlasInt(-1)
+                rwork  = Vector{$relty}(1)
                 lrwork = BlasInt(-1)
-                iwork = Array(BlasInt, 1)
+                iwork  = Vector{BlasInt}(1)
                 liwork = BlasInt(-1)
                 info = BlasInt[0]
                 for i = 1:2
@@ -270,11 +273,11 @@ module LAPACK2
 
                     if i == 1
                         lwork = BlasInt(work[1])
-                        work = Array($elty, lwork)
+                        resize!(work, lwork)
                         lrwork = BlasInt(rwork[1])
-                        rwork = Array($relty, lrwork)
+                        resize!(rwork, lrwork)
                         liwork = iwork[1]
-                        iwork = Array(BlasInt, liwork)
+                        resize!(iwork, liwork)
                     end
                 end
                 return w, A
@@ -358,7 +361,7 @@ for (f, elty) in ((:dtgevc_, :Float64),
         function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty}, VL::StridedMatrix{$elty}, VR::StridedMatrix{$elty})
 
             n = LinAlg.checksquare(S)
-            work = Array($elty, 6n)
+            work = Vector{$elty}(6n)
 
             return tgevc!(side, howmny, select, S, P, VL, VR, work)
         end
@@ -367,26 +370,26 @@ for (f, elty) in ((:dtgevc_, :Float64),
             # No checks here as they are done in method above
             n = LinAlg.checksquare(S)
             if side == 'L'
-                VR = Array($elty, n, 0)
+                VR = Matrix{$elty}(n, 0)
                 if howmny == 'A' || howmny == 'B'
-                    VL = Array($elty, n, n)
+                    VL = Matrix{$elty}(n, n)
                 else
-                    VL = Array($elty, n, sum(select))
+                    VL = Matrix{$elty}(n, sum(select))
                 end
             elseif side == 'R'
-                VL = Array($elty, n, 0)
+                VL = Matrix{$elty}(n, 0)
                 if howmny == 'A' || howmny == 'B'
-                    VR = Array($elty, n, n)
+                    VR = Matrix{$elty}(n, n)
                 else
-                    VR = Array($elty, n, sum(select))
+                    VR = Matrix{$elty}(n, sum(select))
                 end
             else
                 if howmny == 'A' || howmny == 'B'
-                    VL = Array($elty, n, n)
-                    VR = Array($elty, n, n)
+                    VL = Matrix{$elty}(n, n)
+                    VR = Matrix{$elty}(n, n)
                 else
-                    VL = Array($elty, n, sum(select))
-                    VR = Array($elty, n, sum(select))
+                    VL = Matrix{$elty}(n, sum(select))
+                    VR = Matrix{$elty}(n, sum(select))
                 end
             end
 
@@ -437,7 +440,7 @@ for (f, elty) in ((:dpftrf_, :Float64),
         function pftrf!(transr::Char, uplo::Char, A::StridedVector{$elty})
             chkuplo(uplo)
             n = round(Int,div(sqrt(8length(A)), 2))
-            info = Array(BlasInt, 1)
+            info = Vector{BlasInt}(1)
 
             ccall((@blasfunc($f), Base.liblapack_name), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
@@ -459,7 +462,7 @@ for (f, elty) in ((:dpftri_, :Float64),
         function pftri!(transr::Char, uplo::Char, A::StridedVector{$elty})
             chkuplo(uplo)
             n = round(Int,div(sqrt(8length(A)), 2))
-            info = Array(BlasInt, 1)
+            info = Vector{BlasInt}(1)
 
             ccall((@blasfunc($f), Base.liblapack_name), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
@@ -488,7 +491,7 @@ for (f, elty) in ((:dpftrs_, :Float64),
             end
             nhrs = size(B, 2)
             ldb = max(1, stride(B, 2))
-            info = Array(BlasInt, 1)
+            info = Vector{BlasInt}(1)
 
             ccall((@blasfunc($f), Base.liblapack_name), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{BlasInt},
@@ -543,7 +546,7 @@ for (f, elty) in ((:dtftri_, :Float64),
             chkuplo(uplo)
             chkdiag(diag)
             n = round(Int,div(sqrt(8length(A)), 2))
-            info = Array(BlasInt, 1)
+            info = Vector{BlasInt}(1)
 
             ccall((@blasfunc($f), Base.liblapack_name), Void,
                 (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt},
@@ -566,7 +569,7 @@ for (f, elty) in ((:dtfttr_, :Float64),
         function tfttr!(transr::Char, uplo::Char, Arf::StridedVector{$elty})
             chkuplo(uplo)
             n = round(Int,div(sqrt(8length(Arf)), 2))
-            info = Array(BlasInt, 1)
+            info = Vector{BlasInt}(1)
             A = similar(Arf, $elty, n, n)
 
             ccall((@blasfunc($f), Base.liblapack_name), Void,
@@ -592,7 +595,7 @@ for (f, elty) in ((:dtrttf_, :Float64),
             chkstride1(A)
             n = size(A, 1)
             lda = max(1, stride(A, 2))
-            info = Array(BlasInt, 1)
+            info = Vector{BlasInt}(1)
             Arf = similar(A, $elty, div(n*(n+1), 2))
 
             ccall((@blasfunc($f), Base.liblapack_name), Void,

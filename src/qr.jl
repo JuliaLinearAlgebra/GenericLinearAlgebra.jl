@@ -94,7 +94,7 @@ module QRModule
     else
         qrUnblocked!(A::StridedMatrix) = LinAlg.qrfactUnblocked!(A)
     end
-    function qrBlocked!(A::StridedMatrix, blocksize::Integer, work = Array(eltype(A), blocksize, size(A, 2)))
+    function qrBlocked!(A::StridedMatrix, blocksize::Integer, work = Matrix{eltype(A)}(blocksize, size(A, 2)))
         m, n = size(A)
         A1 = view(A, :, 1:min(n, blocksize))
         F = qrUnblocked!(A1)

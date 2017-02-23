@@ -50,7 +50,7 @@ module EigenGeneral
 
     function hessfact!{T}(A::StridedMatrix{T})
         n = LinAlg.checksquare(A)
-        τ = Array(Householder{T}, n - 1)
+        τ = Vector{Householder{T}}(n - 1)
         for i = 1:n - 1
             xi = view(A, i + 1:n, i)
             t  = LinAlg.reflector!(xi)
@@ -216,7 +216,7 @@ module EigenGeneral
     function eigvals!{T}(S::Schur{T}; tol = eps(T))
         HH = S.data
         n = size(HH, 1)
-        vals = Array(Complex{T}, n)
+        vals = Vector{Complex{T}}(n)
         i = 1
         while i < n
             Hii = HH[i, i]
