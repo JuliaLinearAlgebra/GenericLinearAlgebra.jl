@@ -52,6 +52,16 @@ module EigenSelfAdjoint
 
     Base.LinAlg.full(Q::EigenQ) = A_mul_B!(Q, eye(eltype(Q), size(Q, 1), size(Q, 1)))
 
+    function _updateVectors!(c, s, j, vectors)
+        @inbounds for i = 1:size(vectors, 1)
+            v1 = vectors[i, j + 1]
+            v2 = vectors[i, j]
+            vectors[i, j + 1] = c*v1 + s*v2
+            vectors[i, j]     = c*v2 - s*v1
+        end
+    end
+
+
     function eigvals2x2(d1::Number, d2::Number, e::Number)
         r1 = (d1 + d2)/2
         r2 = hypot(d1 - d2, 2*e)/2
@@ -68,7 +78,7 @@ module EigenSelfAdjoint
         d[j + 1] = r1 - r2
         e[j] = 0
         c = ej/(dj - λ)
-        if isfinite(c) # FixMe! is this the right fix for onverflow?
+        if isfinite(c) # FixMe! is this the right fix for overflow?
             h = hypot(one(c), c)
             c /= h
             s = inv(h)
@@ -76,14 +86,8 @@ module EigenSelfAdjoint
             c = one(c)
             s = zero(c)
         end
-        if vectors != nothing
-            for i = 1:size(vectors, 1)
-                v1 = vectors[i, j + 1]
-                v2 = vectors[i, j]
-                vectors[i, j + 1] = c*v1 + s*v2
-                vectors[i, j]     = c*v2 - s*v1
-            end
-        end
+
+        _updateVectors!(c, s, j, vectors)
 
         return c, s
     end
@@ -112,7 +116,7 @@ module EigenSelfAdjoint
                     # Yes
                     blockstart += 1
                 elseif blockstart + 1 == blockend
-                    # Yes, but after solving 2x2 block
+                    debug && println("Yes, but after sreolving 2x2 block")
                     d[blockstart], d[blockend] = eigvals2x2(d[blockstart], d[blockend], sqrt(e[blockstart]))
                     e[blockstart] = zero(T)
                     blockstart += 1
@@ -167,7 +171,7 @@ module EigenSelfAdjoint
                     # Yes!
                     blockstart += 1
                 elseif blockstart + 1 == blockend
-                    # Yes, but after solving 2x2 block
+                    debug && println("Yes, but after solving 2x2 block")
                     eigQL2x2!(d, e, blockstart, vectors)
                     blockstart += 1
                 else
@@ -189,7 +193,10 @@ module EigenSelfAdjoint
         return d[p], vectors[:,p]
     end
 
-    function eigQR!{T<:Real}(S::SymTridiagonal{T}, vectors::Matrix = zeros(T, 0, size(A, 1)), tol = eps(T), debug::Bool=false)
+    function eigQR!{T<:Real}(S::SymTridiagonal{T},
+                             vectors::Matrix = zeros(T, 0, size(S, 1)),
+                             tol = eps(T),
+                             debug::Bool=false)
         d = S.dv
         e = S.ev
         n = length(d)
@@ -198,7 +205,7 @@ module EigenSelfAdjoint
         @inbounds begin
             while true
                 # Check for zero off diagonal elements
-                for blockend = blockstart+1:n
+                for blockend in (blockstart + 1):n
                     if abs(e[blockend - 1]) <= tol*sqrt(abs(d[blockend - 1]))*sqrt(abs(d[blockend]))
                         blockend -= 1
                         break
@@ -209,8 +216,8 @@ module EigenSelfAdjoint
                     # Yes!
                     blockstart += 1
                 elseif blockstart + 1 == blockend
-                    # Yes, but after solving 2x2 block
-                    @show eigvals2x2!(d, e, blockstart, vectors)
+                    debug && println("Yes, but after solving 2x2 block")
+                    eigQL2x2!(d, e, blockstart, vectors)
                     blockstart += 1
                 else
                     # Calculate shift
@@ -270,34 +277,27 @@ module EigenSelfAdjoint
                             istart::Integer = 1,
                             iend::Integer = length(S.dv),
                             vectors = zeros(eltype(S), 0, size(S, 1)))
-        d = S.dv
-        e = S.ev
-        n = length(d)
-        γi = d[iend] - shift
-        π = γi
-        ci = one(eltype(S))
-        si = zero(eltype(S))
-        @inbounds for i = iend-1:-1:istart
-            ei = e[i]
-            ci1 = ci
-            si1 = si
+        d, e   = S.dv, S.ev
+        n      = length(d)
+        γi     = d[iend] - shift
+        π      = γi
+        ci, si = one(eltype(S)), zero(eltype(S))
+        @inbounds for i = (iend - 1):-1:istart
+            ei        = e[i]
+            ci1       = ci
+            si1       = si
             ci, si, ζ = givensAlgorithm(π, ei)
             if i < iend - 1
-                e[i+1] = si1*ζ
+                e[i + 1] = si1*ζ
             end
-            di = d[i]
-            γi1 = γi
-            γi = ci*ci*(di - shift) - si*si*γi1
-            d[i+1] = γi1 + di - γi
-            π = ci == 0 ? -ei*ci1 : γi/ci
+            di       = d[i]
+            γi1      = γi
+            γi       = ci*ci*(di - shift) - si*si*γi1
+            d[i + 1] = γi1 + di - γi
+            π        = ci == 0 ? -ei*ci1 : γi/ci
 
             # update eigen vectors
-            for k = 1:size(vectors, 1)
-                v1 = vectors[k, i + 1]
-                v2 = vectors[k, i]
-                vectors[k, i + 1] = ci*v1 + si*v2
-                vectors[k, i]     = ci*v2 - si*v1
-            end
+            _updateVectors!(ci, si, i, vectors)
         end
         e[istart] = si*π
         d[istart] = shift + γi
@@ -310,37 +310,30 @@ module EigenSelfAdjoint
                             istart::Integer = 1,
                             iend::Integer = length(S.dv),
                             vectors = zeros(eltype(S), 0, size(S, 1)))
-        d = S.dv
-        e = S.ev
-        n = length(d)
-        γi = d[istart] - shift
-        π = γi
-        ci = one(eltype(S))
-        si = zero(eltype(S))
-        for i = istart+1:iend
-            ei = e[i-1]
-            ci1 = ci
-            si1 = si
+        d, e   = S.dv, S.ev
+        n      = length(d)
+        γi     = d[istart] - shift
+        π      = γi
+        ci, si = one(eltype(S)), zero(eltype(S))
+        for i = (istart + 1):iend
+            ei        = e[i - 1]
+            ci1       = ci
+            si1       = si
             ci, si, ζ = givensAlgorithm(π, ei)
-            if i > istart+1
-                e[i-2] = si1*ζ
+            if i > istart + 1
+                e[i - 2] = si1*ζ
             end
-            di = d[i-1]
-            γi1 = γi
-            γi = ci*ci*(di - shift) - si*si*γi1
-            d[i] = γi1 + di - γi
-            π = ci == 0 ? -ei*ci1 : γi/ci
+            di       = d[i]
+            γi1      = γi
+            γi       = ci*ci*(di - shift) - si*si*γi1
+            d[i - 1] = γi1 + di - γi
+            π        = ci == 0 ? -ei*ci1 : γi/ci
 
             # update eigen vectors
-            for k = 1:size(vectors, 1)
-                v1 = vectors[k, i - 1]
-                v2 = vectors[k, i]
-                vectors[k, i - 1]     = ci*v1 + si*v2
-                vectors[k, i] = ci*v2 - si*v1
-            end
+            _updateVectors!(ci, -si, i - 1, vectors)
         end
-        e[iend-1] = si*π
-        d[iend] = shift + γi
+        e[iend - 1] = si*π
+        d[iend]     = shift + γi
         S
     end
 
