@@ -21,7 +21,7 @@ function rankUpdate!(α::Number, x::StridedVector, y::StridedVector, A::StridedM
     for j = 1:n
         yjc = y[j]'
         for i = 1:m
-            A[i,j] += α*x[i]*yjc
+            A[i,j] += x[i]*α*yjc
         end
     end
 end
@@ -30,14 +30,51 @@ end
 rankUpdate!{T<:BlasReal,S<:StridedMatrix}(α::T, a::StridedVector{T}, A::HermOrSym{T,S}) = syr!(A.uplo, α, a, A.data)
 rankUpdate!{T<:BlasReal,S<:StridedMatrix}(a::StridedVector{T}, A::HermOrSym{T,S}) = rankUpdate!(one(T), a, A)
 
+### Generic
+function rankUpdate!(α::Real, a::StridedVector, A::Hermitian)
+    n = size(A, 1)
+    n == length(a) || throw(DimensionMismatch("a vector has wrong length"))
+    @inbounds for j in 1:n
+        ajc = a[j]'
+        for i in ((A.uplo == 'L') ? (j:n) : (1:j))
+            A.data[i,j] += a[i]*α*ajc
+        end
+    end
+    return A
+end
+
 # Rank k update
 ## Real
 rankUpdate!{T<:BlasReal,S<:StridedMatrix}(α::T, A::StridedMatrix{T}, β::T, C::HermOrSym{T,S}) = syrk!(C.uplo, 'N', α, A, β, C.data)
-rankUpdate!{T<:Real,S<:StridedMatrix}(α::T, A::StridedMatrix{T}, C::HermOrSym{T,S}) = rankUpdate!(α, A, one(T), C)
-rankUpdate!{T<:Real,S<:StridedMatrix}(A::StridedMatrix{T}, C::HermOrSym{T,S}) = rankUpdate!(one(T), A, one(T), C)
 
 ## Complex
 rankUpdate!{T<:BlasReal,S<:StridedMatrix}(α::T, A::StridedMatrix{Complex{T}}, β::T, C::Hermitian{T,S}) = herk!(C.uplo, 'N', α, A, β, C.data)
+
+### Generic
+function rankUpdate!(α::Real, A::StridedVecOrMat, C::Hermitian)
+    n = size(C, 1)
+    n == size(A, 1) || throw(DimensionMismatch("first dimension of A has wrong size"))
+    @inbounds if C.uplo == 'L' # branch outside the loop to have larger loop to optimize
+        for k in 1:size(A, 2)
+            for j in 1:n
+                ajkc = A[j,k]'
+                for i in j:n
+                    C.data[i,j] += A[i,k]*α*ajkc
+                end
+            end
+        end
+    else
+        for k in 1:size(A, 2)
+            for j in 1:n
+                ajkc = A[j,k]'
+                for i in 1:j
+                    C.data[i,j] += A[i,k]*α*ajkc
+                end
+            end
+        end
+    end
+    return C
+end
 
 # BLAS style A_mul_B!
 ## gemv

@@ -1,14 +1,6 @@
-if VERSION >= v"0.5.0-dev+7720"
-    using Base.Test
-else
-    using BaseTestNext
-    const Test = BaseTestNext
-end
-
 using Base.LAPACK
 using LinearAlgebra
 using LinearAlgebra.QRModule.qrUnblocked!
-
 
 @testset "The QR decomposition. Problem dimension ($m,$n)" for (m, n) = ((10, 5), (10, 10), (5, 10))
 

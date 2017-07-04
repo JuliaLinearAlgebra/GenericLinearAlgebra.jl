@@ -11,7 +11,7 @@ module CholeskyModule
             scale!(a21, inv(real(A[1,1])))
 
             A22 = view(A, 2:n, 2:n)
-            rankUpdate!(-one(T), a21, Hermitian(A22, :L))
+            rankUpdate!(-one(real(T)), a21, Hermitian(A22, :L))
             cholUnblocked!(A22, Val{:L})
         end
         A
@@ -23,17 +23,17 @@ module CholeskyModule
         A11 = view(A, 1:mnb, 1:mnb)
         cholUnblocked!(A11, Val{:L})
         if n > blocksize
-            A21 = view(A, blocksize+1:n, 1:blocksize)
+            A21 = view(A, (blocksize + 1):n, 1:blocksize)
             A_rdiv_Bc!(A21, LowerTriangular(A11))
 
-            A22 = view(A, blocksize+1:n, blocksize+1:n)
-            rankUpdate!(-real(one(T)), A21, Hermitian(A22, :L))
+            A22 = view(A, (blocksize + 1):n, (blocksize + 1):n)
+            rankUpdate!(-one(real(T)), A21, Hermitian(A22, :L))
             cholBlocked!(A22, Val{:L}, blocksize)
         end
         A
     end
 
-    function cholRec!{T}(A::StridedMatrix{T}, ::Type{Val{:L}}, cutoff = 1)
+    function cholRecursive!{T}(A::StridedMatrix{T}, ::Type{Val{:L}}, cutoff = 1)
         n = LinAlg.checksquare(A)
         if n == 1
             A[1,1] = sqrt(A[1,1])
@@ -42,13 +42,13 @@ module CholeskyModule
         else
             n2 = div(n, 2)
             A11 = view(A, 1:n2, 1:n2)
-            cholRec!(A11, Val{:L})
+            cholRecursive!(A11, Val{:L})
             A21 = view(A, n2 + 1:n, 1:n2)
             A_rdiv_Bc!(A21, LowerTriangular(A11))
 
             A22 = view(A, n2 + 1:n, n2 + 1:n)
             rankUpdate!(-real(one(T)), A21, Hermitian(A22, :L))
-            cholRec!(A22, Val{:L}, cutoff)
+            cholRecursive!(A22, Val{:L}, cutoff)
         end
         return LowerTriangular(A)
     end

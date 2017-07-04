@@ -6,6 +6,7 @@ else
 end
 
 @testset "The LinearAlgebra Test Suite" begin
+    include("cholesky.jl")
     include("qr.jl")
     include("eigenselfadjoint.jl")
     include("eigengeneral.jl")
