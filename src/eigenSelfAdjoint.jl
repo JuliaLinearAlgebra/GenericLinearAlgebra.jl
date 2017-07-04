@@ -50,6 +50,28 @@ module EigenSelfAdjoint
         return B
     end
 
+    function Base.LinAlg.A_mul_B!(A::StridedMatrix, Q::EigenQ)
+        m, n = size(A)
+        if size(Q, 1) != n
+            throw(DimensionMismatch(""))
+        end
+        for k in 1:length(Q.τ)
+            for i in 1:size(A, 1)
+                a = view(A, i, :)
+                va = A[i, k + 1]
+                for j in (k + 2):n
+                    va += A[i, j]*Q.factors[j, k]
+                end
+                τkva = va*Q.τ[k]'
+                A[i, k + 1] -= τkva
+                for j in (k + 2):n
+                    A[i, j] -= τkva*Q.factors[j, k]'
+                end
+            end
+        end
+        return A
+    end
+
     Base.LinAlg.full(Q::EigenQ) = A_mul_B!(Q, eye(eltype(Q), size(Q, 1), size(Q, 1)))
 
     function _updateVectors!(c, s, j, vectors)
@@ -421,13 +443,19 @@ module EigenSelfAdjoint
     end
 
     eigvals!(         A::SymmetricTridiagonalFactorization, tol = eps(real(float(one(eltype(A))))), debug = false) = eigvalsPWK!(A.diagonals, tol, debug)
-    eigvals!{T<:Real}(A::LinAlg.RealHermSymComplexHerm{T},  tol = eps(real(float(one(eltype(A))))), debug = false) = eigvals!(symtri!(A), tol, debug)
     eigvals!(         A::SymTridiagonal,                    tol = eps(real(float(one(eltype(A))))), debug = false) = eigvalsPWK!(A, tol, debug)
+    eigvals!{T<:Real}(A::LinAlg.RealHermSymComplexHerm{T},  tol = eps(real(float(one(eltype(A))))), debug = false) = eigvals!(symtri!(A), tol, debug)
 
     eig!(A::SymmetricTridiagonalFactorization, tol = eps(real(float(one(eltype(A))))), debug = false) = eigQL!(A.diagonals, full(getq(A)), tol, debug)
     eig!(A::SymTridiagonal,                    tol = eps(real(float(one(eltype(A))))), debug = false) = eigQL!(A, eye(eltype(A), size(A, 1)), tol, debug)
     eig!(A::LinAlg.RealHermSymComplexHerm,     tol = eps(real(float(one(eltype(A))))), debug = false) = eig!(symtri!(A), tol, debug)
 
+    function eig2!(A::SymmetricTridiagonalFactorization, tol = eps(real(float(one(eltype(A))))), debug = false)
+        V = zeros(eltype(A), 2, size(A, 1))
+        V[1] = 1
+        V[end] = 1
+        eigQL!(A.diagonals, A_mul_B!(V, getq(A)), tol, debug)
+    end
     function eig2!(A::SymTridiagonal, tol = eps(real(float(one(eltype(A))))), debug = false)
         V = zeros(eltype(A), 2, size(A, 1))
         V[1] = 1
