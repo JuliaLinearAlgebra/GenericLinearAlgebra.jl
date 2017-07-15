@@ -1,13 +1,14 @@
-using Base.Test, LinearAlgebra
+using Base.Test, LinearAlgebra, Quaternions
+Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
 
 @testset "The selfadjoint eigen problem" begin
-    n = 200
+    n = 50
     @testset "SymTridiagonal" begin
-        T = SymTridiagonal(randn(n), randn(n - 1))
-        vals, vecs  = LinearAlgebra.EigenSelfAdjoint.eig(T)
+        T = SymTridiagonal(big.(randn(n)), big.(randn(n - 1)))
+        vals, vecs  = eig(T)
         @testset "default" begin
             @test (vecs'*T)*vecs ≈ Diagonal(vals)
-            @test LinearAlgebra.EigenSelfAdjoint.eigvals(T) ≈ vals
+            @test eigvals(T) ≈ vals
             @test vecs'vecs ≈ eye(n)
         end
 
@@ -19,20 +20,40 @@ using Base.Test, LinearAlgebra
         end
 
         @testset "QR version (QL is default)" begin
-            vals, vecs = LinearAlgebra.EigenSelfAdjoint.eigQR!(copy(T), eye(n))
+            vals, vecs = LinearAlgebra.EigenSelfAdjoint.eigQR!(copy(T), eye(eltype(T), n))
             @test (vecs'*T)*vecs ≈ Diagonal(vals)
             @test LinearAlgebra.EigenSelfAdjoint.eigvals(T) ≈ vals
             @test vecs'vecs ≈ eye(n)
         end
     end
 
-    @testset "(full) Symmetric" begin
-        A = Symmetric(randn(n, n), :L)
-        vals, vecs = LinearAlgebra.EigenSelfAdjoint.eig(A)
+    @testset "(full) Symmetric" for uplo in (:L, #=:U=#)
+        A = Hermitian(big.(randn(n, n)), uplo)
+        vals, vecs = eig(A)
         @testset "default" begin
             @test vecs'*A*vecs ≈ diagm(vals)
-            @test LinearAlgebra.EigenSelfAdjoint.eigvals(A) ≈ vals
+            @test eigvals(A) ≈ vals
             @test vecs'vecs ≈ eye(n)
+        end
+
+        @testset "eig2" begin
+            vals2, vecs2 = LinearAlgebra.EigenSelfAdjoint.eig2(A)
+            @test vals ≈ vals2
+            @test vecs[[1,n],:] ≈ vecs2
+            @test vecs2*vecs2'  ≈ eye(2)
+        end
+    end
+
+    @testset "(full) Quaternion Hermitian" for uplo in (:L, #=:U=#)
+        V = qr([Quaternion(randn(4)...) for i in 1:n, j in 1:n])[1]
+        λ = logspace(-8, 0, n)
+        A = Hermitian(V*Diagonal(λ)*V' |> t -> (t + t')/2, uplo)
+        vals, vecs = eig(A)
+        @testset "default" begin
+            @test_broken vecs'*A*vecs ≈ diagm(vals)
+            @test eigvals(A)          ≈ vals
+            @test vals                ≈ λ rtol=1e-13*n
+            @test vecs'vecs           ≈ eye(n)
         end
 
         @testset "eig2" begin

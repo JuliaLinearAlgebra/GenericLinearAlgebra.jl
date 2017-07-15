@@ -21,7 +21,7 @@ julia> norm(A)
 6.370285271475041598951769618847832429030388948627697440637424244721679386430589
 ```
 
-The package also includes functions for the blocked Cholesky and QR factorization, the self-adjoint (symmetric) and the general eigenvalue problem. None of these functions are exported or extend Base methods, so, for now, the functions must be fully qualified
+The package also includes functions for the blocked Cholesky and QR factorization, the self-adjoint (symmetric) and the general eigenvalue problem. These routines can be accessed by fully qualifying the names
 
 ```jl
 julia> using LinearAlgebra
@@ -33,8 +33,8 @@ julia> cholfact(A);
 julia> @time cholfact(A);
   0.013036 seconds (16 allocations: 7.630 MB)
 
-julia> LinearAlgebra.CholeskyModule.cholRec!(copy(A), Val{:L});
+julia> LinearAlgebra.CholeskyModule.cholRecursive!(copy(A), Val{:L});
 
-julia> @time LinearAlgebra.CholeskyModule.cholRec!(copy(A), Val{:L});
+julia> @time LinearAlgebra.CholeskyModule.cholRecursive!(copy(A), Val{:L});
   0.012098 seconds (7.00 k allocations: 7.934 MB)
 ```

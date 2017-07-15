@@ -3,6 +3,7 @@ module EigenSelfAdjoint
     using Base.LinAlg: givensAlgorithm
 
     immutable SymmetricTridiagonalFactorization{T} <: Factorization{T}
+        uplo::Char
         factors::Matrix{T}
         τ::Vector{T}
         diagonals::SymTridiagonal
@@ -11,11 +12,12 @@ module EigenSelfAdjoint
     Base.size(S::SymmetricTridiagonalFactorization, i::Integer) = size(S.factors, i)
 
     immutable EigenQ{T} <: AbstractMatrix{T}
+        uplo::Char
         factors::Matrix{T}
         τ::Vector{T}
     end
 
-    getq(S::SymmetricTridiagonalFactorization) = EigenQ(S.factors, S.τ)
+    getq(S::SymmetricTridiagonalFactorization) = EigenQ(S.uplo, S.factors, S.τ)
 
     Base.size(Q::EigenQ) = (size(Q.factors, 1), size(Q.factors, 1))
     function Base.size(Q::EigenQ, i::Integer)
@@ -33,19 +35,23 @@ module EigenSelfAdjoint
         if size(Q, 1) != m
             throw(DimensionMismatch(""))
         end
-        for k in length(Q.τ):-1:1
-            for j in 1:size(B, 2)
-                b = view(B, :, j)
-                vb = B[k + 1, j]
-                for i in (k + 2):m
-                    vb += Q.factors[i, k]'B[i, j]
-                end
-                τkvb = Q.τ[k]'vb
-                B[k + 1, j] -= τkvb
-                for i in (k + 2):m
-                    B[i, j] -= Q.factors[i, k]*τkvb
+        if Q.uplo == 'L'
+            for k in length(Q.τ):-1:1
+                for j in 1:size(B, 2)
+                    b = view(B, :, j)
+                    vb = B[k + 1, j]
+                    for i in (k + 2):m
+                        vb += Q.factors[i, k]'B[i, j]
+                    end
+                    τkvb = Q.τ[k]'vb
+                    B[k + 1, j] -= τkvb
+                    for i in (k + 2):m
+                        B[i, j] -= Q.factors[i, k]*τkvb
+                    end
                 end
             end
+        else
+            error("'U' case not implemented yet")
         end
         return B
     end
@@ -55,19 +61,23 @@ module EigenSelfAdjoint
         if size(Q, 1) != n
             throw(DimensionMismatch(""))
         end
-        for k in 1:length(Q.τ)
-            for i in 1:size(A, 1)
-                a = view(A, i, :)
-                va = A[i, k + 1]
-                for j in (k + 2):n
-                    va += A[i, j]*Q.factors[j, k]
-                end
-                τkva = va*Q.τ[k]'
-                A[i, k + 1] -= τkva
-                for j in (k + 2):n
-                    A[i, j] -= τkva*Q.factors[j, k]'
+        if Q.uplo == 'L'
+            for k in 1:length(Q.τ)
+                for i in 1:size(A, 1)
+                    a = view(A, i, :)
+                    va = A[i, k + 1]
+                    for j in (k + 2):n
+                        va += A[i, j]*Q.factors[j, k]
+                    end
+                    τkva = va*Q.τ[k]'
+                    A[i, k + 1] -= τkva
+                    for j in (k + 2):n
+                        A[i, j] -= τkva*Q.factors[j, k]'
+                    end
                 end
             end
+        else
+            error("'U' case not implemented yet")
         end
         return A
     end
@@ -379,76 +389,111 @@ module EigenSelfAdjoint
         return A
     end
 
-    # immutable BidiagonalFactorization{T,A<:AbstractMatrix{T}} <: Factorization{T}
-        # matrix::A
-        # rotationLeft::Rotation{T}
-        # rotationRigth::Rotation{T}
-    # end
-
-    symtri!(A::Hermitian) = A.uplo == 'L' ? symtriLower!(A.data) : symtriUpper!(A.data)
+    symtri!(A::Hermitian)             = A.uplo == 'L' ? symtriLower!(A.data) : symtriUpper!(A.data)
     symtri!{T<:Real}(A::Symmetric{T}) = A.uplo == 'L' ? symtriLower!(A.data) : symtriUpper!(A.data)
 
-    function symtriLower!{T}(AS::Matrix{T}) # Assume that lower triangle stores the relevant part
-        n = size(AS,1)
-        τ = zeros(T,n-1)
-        u = Matrix{T}(n, 1)
-        @inbounds begin
-        for k = 1:(n - 2 + !(T<:Real))
-            τk = LinAlg.reflector!(view(AS, k + 1:n, k))
+    # Assume that lower triangle stores the relevant part
+    function symtriLower!{T}(AS::StridedMatrix{T},
+                             τ = zeros(T, size(AS, 1) - 1),
+                             u = Vector{T}(size(AS, 1)))
+        n = size(AS, 1)
+
+        @inbounds for k = 1:(n - 2 + !(T<:Real))
+            τk = LinAlg.reflector!(view(AS, (k + 1):n, k))
             τ[k] = τk
 
-            for i = k+1:n
-                u[i] = AS[i,k+1]
+            for i in (k + 1):n
+                u[i] = AS[i, k + 1]
             end
-            for j = k+2:n
-                ASjk = AS[j,k]
-                for i = j:n
-                    u[i] += AS[i,j]*ASjk
+            for j in (k + 2):n
+                ASjk = AS[j, k]
+                for i in j:n
+                    u[i] += AS[i, j]*ASjk
                 end
             end
-            for j = k+1:n-1
+            for j in (k + 1):(n - 1)
                 tmp = zero(T)
-                for i = j+1:n
+                for i in j+1:n
                     tmp += AS[i,j]'AS[i,k]
                 end
                 u[j] += tmp
             end
 
-            vcAv = u[k+1]
-            for i = k+2:n
-                vcAv += AS[i,k]'u[i]
+            vcAv = u[k + 1]
+            for i in (k + 2):n
+                vcAv += AS[i, k]'u[i]
             end
             ξτ2 = real(vcAv)*abs2(τk)/2
 
-            u[k+1] = u[k+1]*τk - ξτ2
-            for i = k+2:n
-                u[i] = u[i]*τk - ξτ2*AS[i,k]
+            u[k + 1] = u[k + 1]*τk - ξτ2
+            for i in (k + 2):n
+                u[i] = u[i]*τk - ξτ2*AS[i, k]
             end
 
-            AS[k+1,k+1] -= 2real(u[k+1])
-            for i = k+2:n
-                AS[i,k+1] -= u[i] + AS[i,k]*u[k+1]'
+            AS[k + 1, k + 1] -= 2real(u[k + 1])
+            for i in (k + 2):n
+                AS[i, k + 1] -= u[i] + AS[i, k]*u[k + 1]'
             end
-            for j = k+2:n
-                ASjk = AS[j,k]
+            for j in (k + 2):n
+                ASjk = AS[j, k]
                 uj = u[j]
                 AS[j,j] -= 2real(uj*ASjk')
-                for i = j+1:n
-                    AS[i,j] -= u[i]*ASjk' + AS[i,k]*uj'
+                for i = (j + 1):n
+                    AS[i, j] -= u[i]*ASjk' + AS[i, k]*uj'
                 end
             end
         end
-        end
-        SymmetricTridiagonalFactorization(AS,τ,SymTridiagonal(real(diag(AS)),real(diag(AS,-1))))
+        SymmetricTridiagonalFactorization('L', AS, τ, SymTridiagonal(real(diag(AS)), real(diag(AS, -1))))
     end
 
-    eigvals!(         A::SymmetricTridiagonalFactorization, tol = eps(real(float(one(eltype(A))))), debug = false) = eigvalsPWK!(A.diagonals, tol, debug)
-    eigvals!(         A::SymTridiagonal,                    tol = eps(real(float(one(eltype(A))))), debug = false) = eigvalsPWK!(A, tol, debug)
-    eigvals!{T<:Real}(A::LinAlg.RealHermSymComplexHerm{T},  tol = eps(real(float(one(eltype(A))))), debug = false) = eigvals!(symtri!(A), tol, debug)
+    # Assume that upper triangle stores the relevant part
+    function symtriUpper!{T}(AS::StridedMatrix{T},
+                             τ = zeros(T, size(AS, 1) - 1),
+                             u = Vector{T}(size(AS, 1)))
+        n = LinAlg.checksquare(AS)
 
-    eig!(A::SymmetricTridiagonalFactorization, tol = eps(real(float(one(eltype(A))))), debug = false) = eigQL!(A.diagonals, full(getq(A)), tol, debug)
-    eig!(A::SymTridiagonal,                    tol = eps(real(float(one(eltype(A))))), debug = false) = eigQL!(A, eye(eltype(A), size(A, 1)), tol, debug)
-    eig!(A::LinAlg.RealHermSymComplexHerm,     tol = eps(real(float(one(eltype(A))))), debug = false) = eig!(symtri!(A), tol, debug)
+        @inbounds for k = 1:(n - 2 + !(T<:Real))
+            τk = LinAlg.reflector!(LinAlg._conj(view(AS, k, (k + 1):n)))
+            τ[k] = τk'
+
+            for j in (k + 1):n
+                tmp = AS[k + 1, j]
+                for i in (k + 2):j
+                    tmp += AS[k, i]*AS[i, j]
+                end
+                for i in (j + 1):n
+                    tmp += AS[k, i]*AS[j, i]'
+                end
+                u[j] = τk'*tmp
+            end
+
+            vcAv = u[k + 1]
+            for i in (k + 2):n
+                vcAv += u[i]*AS[k, i]'
+            end
+            ξ = real(vcAv*τk)
+
+            for j in (k + 1):n
+                ujt       = u[j]
+                hjt       = j > (k + 1) ? AS[k, j] : one(ujt)
+                ξhjt      = ξ*hjt
+                for i in (k + 1):(j - 1)
+                    hit = i > (k + 1) ? AS[k, i] : one(ujt)
+                    AS[i, j] -= hit'*ujt + u[i]'*hjt - hit'*ξhjt
+                end
+                AS[j, j] -= 2*real(hjt'*ujt) - abs2(hjt)*ξ
+            end
+        end
+        SymmetricTridiagonalFactorization('U', AS, τ, SymTridiagonal(real(diag(AS)), real(diag(AS, 1))))
+    end
+
+    Base.LinAlg.eigvals!(A::SymmetricTridiagonalFactorization) = eigvalsPWK!(A.diagonals, eps(eltype(A.diagonals)), false)
+    Base.LinAlg.eigvals!(A::SymTridiagonal                   ) = eigvalsPWK!(A,           eps(eltype(A))          , false)
+    Base.LinAlg.eigvals!(A::Hermitian                        ) = eigvals!(symtri!(A))
+
+    eig!(A::SymmetricTridiagonalFactorization) = eigQL!(A.diagonals, full(getq(A)),    eps(eltype(A.diagonals)), false)
+    eig!(A::SymTridiagonal                   ) = eigQL!(A, eye(eltype(A), size(A, 1)), eps(eltype(A))          , false)
+    eig!(A::Hermitian                        ) = eig!(symtri!(A))
 
     function eig2!(A::SymmetricTridiagonalFactorization, tol = eps(real(float(one(eltype(A))))), debug = false)
         V = zeros(eltype(A), 2, size(A, 1))
@@ -462,16 +507,21 @@ module EigenSelfAdjoint
         V[end] = 1
         eigQL!(A, V, tol, debug)
     end
-    eig2!(A::LinAlg.RealHermSymComplexHerm,   tol = eps(real(float(one(eltype(A))))), debug = false) = eig2!(symtri!(A), tol, debug)
+    eig2!(A::Hermitian, tol = eps(float(real(one(eltype(A))))), debug = false) = eig2!(symtri!(A), tol, debug)
 
-    eigvals(A::SymTridiagonal,                tol = eps(real(float(one(eltype(A))))), debug = false) = eigvals!(copy(A), tol, debug)
-    eigvals(A::LinAlg.RealHermSymComplexHerm, tol = eps(real(float(one(eltype(A))))), debug = false) = eigvals!(copy(A), tol, debug)
+    Base.LinAlg.eigfact!(A::SymTridiagonal)   = LinAlg.Eigen(eig!(A)...)
+    Base.LinAlg.eigfact!(A::LinAlg.Hermitian) = LinAlg.Eigen(eig!(A)...)
 
-    eig(A::SymTridiagonal               ,     tol = eps(real(float(one(eltype(A))))), debug = false) = eig!(copy(A)    , tol, debug)
-    eig(A::LinAlg.RealHermSymComplexHerm,     tol = eps(real(float(one(eltype(A))))), debug = false) = eig!(copy(A)    , tol, debug)
 
-    eig2(A::SymTridiagonal               ,    tol = eps(real(float(one(eltype(A))))), debug = false) = eig2!(copy(A)   , tol, debug)
-    eig2(A::LinAlg.RealHermSymComplexHerm,    tol = eps(real(float(one(eltype(A))))), debug = false) = eig2!(copy(A)   , tol, debug)
+
+    Base.LinAlg.eigvals(A::LinAlg.Hermitian) = eigvals!(copy(A))
+
+    Base.LinAlg.eig(    A::LinAlg.Hermitian) = eig!(copy(A))
+
+    eig2(A::SymTridiagonal, tol = eps(float(real(one(eltype(A))))), debug = false) = eig2!(copy(A), tol, debug)
+    eig2(A::Hermitian     , tol = eps(float(real(one(eltype(A))))), debug = false) = eig2!(copy(A), tol, debug)
+
+    Base.LinAlg.eigfact(A::LinAlg.Hermitian) = eigfact!(copy(A))
 
     # Aux (should go somewhere else at some point)
     function Base.LinAlg.givensAlgorithm(f::Real, g::Real)
