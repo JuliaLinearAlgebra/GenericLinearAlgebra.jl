@@ -7,5 +7,9 @@ julia:
   - 0.6
   - nightly
 
+matrix:
+  allow_failures:
+  - julia: nightly
+
 after_success:
   - julia -e 'cd(Pkg.dir("LinearAlgebra")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
