@@ -50,8 +50,23 @@ module EigenSelfAdjoint
                     end
                 end
             end
+        elseif Q.uplo == 'U'
+            for k in length(Q.τ):-1:1
+                for j in 1:size(B, 2)
+                    b = view(B, :, j)
+                    vb = B[k + 1, j]
+                    for i in (k + 2):m
+                        vb += Q.factors[k, i]*B[i, j]
+                    end
+                    τkvb = Q.τ[k]'vb
+                    B[k + 1, j] -= τkvb
+                    for i in (k + 2):m
+                        B[i, j] -= Q.factors[k, i]'*τkvb
+                    end
+                end
+            end
         else
-            error("'U' case not implemented yet")
+            throw(ArgumentError("Q.uplo is neither 'L' or 'U'. This should never happen."))
         end
         return B
     end
@@ -76,8 +91,23 @@ module EigenSelfAdjoint
                     end
                 end
             end
+        elseif Q.uplo == 'U' # FixMe! Should consider reordering loops
+            for k in 1:length(Q.τ)
+                for i in 1:size(A, 1)
+                    a = view(A, i, :)
+                    va = A[i, k + 1]
+                    for j in (k + 2):n
+                        va += A[i, j]*Q.factors[k, j]'
+                    end
+                    τkva = va*Q.τ[k]'
+                    A[i, k + 1] -= τkva
+                    for j in (k + 2):n
+                        A[i, j] -= τkva*Q.factors[k, j]
+                    end
+                end
+            end
         else
-            error("'U' case not implemented yet")
+            throw(ArgumentError("Q.uplo is neither 'L' or 'U'. This should never happen."))
         end
         return A
     end

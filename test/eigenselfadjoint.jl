@@ -27,7 +27,7 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
         end
     end
 
-    @testset "(full) Symmetric" for uplo in (:L, #=:U=#)
+    @testset "(full) Symmetric" for uplo in (:L, :U)
         A = Hermitian(big.(randn(n, n)), uplo)
         vals, vecs = eig(A)
         @testset "default" begin
@@ -44,16 +44,20 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
         end
     end
 
-    @testset "(full) Quaternion Hermitian" for uplo in (:L, #=:U=#)
+    @testset "(full) Quaternion Hermitian using :$uplo" for uplo in (:L, :U)
         V = qr([Quaternion(randn(4)...) for i in 1:n, j in 1:n])[1]
         λ = logspace(-8, 0, n)
         A = Hermitian(V*Diagonal(λ)*V' |> t -> (t + t')/2, uplo)
         vals, vecs = eig(A)
         @testset "default" begin
-            @test_broken vecs'*A*vecs ≈ diagm(vals)
-            @test eigvals(A)          ≈ vals
-            @test vals                ≈ λ rtol=1e-13*n
-            @test vecs'vecs           ≈ eye(n)
+            if uplo == :L # FixMe! Probably an conjugation is off somewhere. Don't have time to check now.
+                @test_broken vecs'*A*vecs ≈ diagm(vals)
+            else
+                @test vecs'*A*vecs ≈ diagm(vals)
+            end
+            @test eigvals(A)   ≈ vals
+            @test vals         ≈ λ rtol=1e-13*n
+            @test vecs'vecs    ≈ eye(n)
         end
 
         @testset "eig2" begin
