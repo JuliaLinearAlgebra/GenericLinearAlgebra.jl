@@ -1,32 +1,22 @@
 module QRModule
 
     using ..HouseholderModule: Householder, HouseholderBlock
-    using Base.LinAlg: QR, axpy!
+    using Base.LinAlg: QR, axpy!, reflector!
 
     import Base: getindex, size
     import Base.LinAlg: reflectorApply!
 
-    # @inline function reflectorApply!(A::StridedMatrix, x::AbstractVector, τ::Number) # apply reflector from right. It is assumed that the reflector is calculated on the transposed matrix so we apply Q^T, i.e. no conjugation.
-    #     m, n = size(A)
-    #     if length(x) != n
-    #         throw(DimensionMismatch("reflector must have same length as second dimension of matrix"))
-    #     end
-    #     @inbounds begin
-    #         for i = 1:m
-    #             Aiv = A[i, 1]
-    #             for j = 2:n
-    #                 Aiv += A[i, j]*x[j]'
-    #             end
-    #             Aiv = Aiv*τ
-    #             A[i, 1] -= Aiv
-    #             for j = 2:n
-    #                 A[i, j] -= Aiv*x[j]
-    #             end
-    #         end
-    #     end
-    #     return A
-    # end
+    struct QR2{T,S<:AbstractMatrix{T},V<:AbstractVector{T}} <: Factorization{T}
+        factors::S
+        τ::V
+        QR2{T,S,V}(factors::AbstractMatrix{T}, τ::AbstractVector{T}) where {T,S<:AbstractMatrix,V<:AbstractVector} = 
+            new(factors, τ)
+    end
+    QR2(factors::AbstractMatrix{T}, τ::Vector{T}) where {T} = QR2{T,typeof(factors)}(factors, τ)
 
+    size(F::QR2, i::Integer...) = size(F.factors, i...)
+
+    # Similar to the definition in base but applies the reflector from the right
     @inline function reflectorApply!(A::StridedMatrix, x::AbstractVector, τ::Number) # apply conjugate transpose reflector from right.
         m, n = size(A)
         if length(x) != n
@@ -48,21 +38,27 @@ module QRModule
         return A
     end
 
-    immutable Q{T,S<:QR} <: AbstractMatrix{T}
-        data::S
-    end
+    # FixMe! Consider how to represent Q
 
-    getindex{T,S}(A::QR{T,S}, ::Type{Tuple{:Q}}) = Q{T,typeof(A)}(A)
-    function getindex{T,S}(A::QR{T,S}, ::Type{Tuple{:R}})
+    # immutable Q{T,S<:QR2} <: AbstractMatrix{T}
+    #     data::S
+    # end
+
+    # size(A::Q) = size(A.data)
+    # size(A::Q, i::Integer) = size(A.data, i)
+
+    # getindex{T}(A::QR2{T}, ::Type{Tuple{:Q}}) = Q{T,typeof(A)}(A)
+
+    function getindex{T}(A::QR2{T}, ::Type{Tuple{:R}})
         m, n = size(A)
         if m >= n
             UpperTriangular(view(A.factors, 1:n, 1:n))
         else
-            error("R matrix is trapezoid and cannot be extracted with indexing")
+            throw(ArgumentError("R matrix is trapezoid and cannot be extracted with indexing"))
         end
     end
 
-    function getindex{T,S}(A::QR{T,S}, ::Type{Tuple{:QBlocked}})
+    function getindex{T}(A::QR2{T}, ::Type{Tuple{:QBlocked}})
         m, n = size(A)
         mmn = min(m,n)
         F = A.factors
@@ -83,35 +79,60 @@ module QRModule
         HouseholderBlock{T,typeof(F),Matrix{T}}(F, UpperTriangular(Tmat))
     end
 
-    # size(A::QR2) = size(A.data)
-    # size(A::QR2, i::Integer) = size(A.data, i)
+    # qrUnblocked!(A::StridedMatrix) = LinAlg.qrfactUnblocked!(A)
+    function qrUnblocked!(A::StridedMatrix{T},
+                          τ::StridedVector{T} = fill(zero(T), min(size(A)...))) where {T}
 
-    size(A::Q) = size(A.data)
-    size(A::Q, i::Integer) = size(A.data, i)
-
-    if VERSION < v"0.5.0-"
-        qrUnblocked!{T}(A::StridedMatrix{T}) = invoke(LinAlg.qrfact!, (AbstractArray{T,2}, Union{Type{Val{false}},Type{Val{true}}}), A, Val{false})
-    else
-        qrUnblocked!(A::StridedMatrix) = LinAlg.qrfactUnblocked!(A)
-    end
-    function qrBlocked!(A::StridedMatrix, blocksize::Integer, work = Matrix{eltype(A)}(blocksize, size(A, 2)))
         m, n = size(A)
-        A1 = view(A, :, 1:min(n, blocksize))
-        F = qrUnblocked!(A1)
-        if n > blocksize
-            A2 = view(A, :, blocksize + 1:n)
-            Ac_mul_B!(F[Tuple{:QBlocked}], A2, view(work, 1:blocksize, 1:n - blocksize))
-            qrBlocked!(view(A, blocksize + 1:m, blocksize + 1:n), blocksize, work)
+
+        # Make a vector view of the first column
+        a = view(A, :, 1)
+        # Construct the elementary reflector of the first column in-place
+        τ1 = reflector!(a)
+        # Store reflector loading in τ
+        τ[1] = τ1
+
+        # Apply the reflector to the trailing columns if any
+        if n > 1
+            reflectorApply!(a, τ1, view(A, :, 2:n))
         end
-        A
+
+        # Call the function recursively on the submatrix excluding first row and column or return
+        if m > 1 && n > 1
+            qrUnblocked!(view(A, 2:m, 2:n), view(τ, 2:min(m, n)))
+        end
+
+        return QR2{T,typeof(A),typeof(τ)}(A, τ)
     end
 
-    function qrTiledUnblocked!{T,S<:StridedMatrix}(A::UpperTriangular{T,S}, B::StridedMatrix)
-        m, n = size(B)
-        Ad = A.data
-        for i = 1:m
-            H = householder!(view(Ad,i,i), view(B, :, i))
-            Ac_mul_B!(H, )
+    function qrBlocked!(A::StridedMatrix{T},
+                        blocksize::Integer = 12,
+                        τ::StridedVector{T} = fill(zero(T), min(size(A)...)),
+                        work = Matrix{T}(blocksize, size(A, 2))) where T
+
+        m, n = size(A)
+
+        # Make a vector view of the first column block
+        A1 = view(A, :, 1:min(n, blocksize))
+        # Construct QR factorization of first column block in-place
+        F = qrUnblocked!(A1, view(τ, 1:min(m, n, blocksize)))
+
+        # Apply the QR factorization to the trailing columns (if any) and recurse
+        if n > blocksize
+            # Make a view of the trailing columns
+            A2 = view(A, :, blocksize + 1:n)
+            # Apply Q' to the trailing columns
+            Ac_mul_B!(F[Tuple{:QBlocked}], A2, view(work, 1:min(m, blocksize), 1:(n - blocksize)))
         end
+
+        # Compute QR factorization of trailing block
+        if m > blocksize && n > blocksize
+            qrBlocked!(view(A, (blocksize + 1):m, (blocksize + 1):n),
+                       blocksize,
+                       view(τ, (blocksize + 1):min(m, n)),
+                       work)
+        end
+
+        return QR2{T,typeof(A),typeof(τ)}(A, τ)
     end
 end

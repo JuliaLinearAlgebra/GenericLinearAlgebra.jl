@@ -1,6 +1,6 @@
 using Base.Test
 
-@testset "The LinearAlgebra Test Suite" begin
+# @testset "The LinearAlgebra Test Suite" begin
     include("cholesky.jl")
     include("qr.jl")
     include("eigenselfadjoint.jl")
@@ -8,4 +8,4 @@ using Base.Test
     include("tridiag.jl")
     include("svd.jl")
     include("rectfullpacked.jl")
-end
+# end
