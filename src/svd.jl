@@ -215,38 +215,6 @@ end
 #     end
 # end
 
-function elementaryLeftAndApply!(A::AbstractMatrix, row::Integer, column::Integer)
-    τ = LinAlg.elementaryLeft!(A, row, column)
-    for j = column + 1:size(A, 2)
-        tmp = A[row, j]
-        for i = row + 1:size(A, 1)
-            tmp += A[i, column]'*A[i, j]
-        end
-        tmp *= τ'
-        A[row,j] -= tmp
-        for i = row + 1:size(A, 1)
-            A[i, j] -= A[i, column]*tmp
-        end
-    end
-    return τ
-end
-
-function elementaryRightAndApply!(A::AbstractMatrix, row::Integer, column::Integer)
-    τ = LinAlg.elementaryRight!(A, row, column)
-    for i = row + 1:size(A, 1)
-        tmp = A[i, column]
-        for j = column + 1:size(A, 2)
-            tmp += A[i, j]*A[row, j]'
-        end
-        tmp *= τ
-        A[i, column] -= tmp
-        for j = column + 1:size(A, 2)
-            A[i, j] -= tmp*A[row, j]
-        end
-    end
-    return τ
-end
-
 function bidiagonalize!(A::AbstractMatrix)
     m, n = size(A)
     τl, τr = eltype(A)[], eltype(A)[]
