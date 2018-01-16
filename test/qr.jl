@@ -1,5 +1,4 @@
 using Base.Test
-using Base.LAPACK
 using LinearAlgebra
 using LinearAlgebra.QRModule.qrBlocked!
 

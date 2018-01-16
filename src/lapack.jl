@@ -1,15 +1,18 @@
 module LAPACK2
 
     using Base.LinAlg: BlasInt, chkstride1, LAPACKException
+    using Base.LinAlg.BLAS: @blasfunc
     using Base.LinAlg.LAPACK: chkuplo
 
     # LAPACK wrappers
     import Base.BLAS.@blasfunc
 
     ## Standard QR/QL
-    function steqr!(compz::Char, d::StridedVector{Float64}, e::StridedVector{Float64},
-        Z::StridedMatrix{Float64}, work::StridedVector{Float64} = compz == 'N' ? Vector{Float64}(0) :
-                                                                                 Vector{Float64}(max(1, 2n - 2)))
+    function steqr!(compz::Char,
+                    d::StridedVector{Float64},
+                    e::StridedVector{Float64},
+                    Z::StridedMatrix{Float64}    = compz == 'N' ? Matrix{Float64}(0,0) : Matrix{Float64}(length(d), length(d)),
+                    work::StridedVector{Float64} = compz == 'N' ? Vector{Float64}(0)   : Vector{Float64}(max(1, 2*length(d) - 2)))
 
         # Extract sizes
         n = length(d)
@@ -29,7 +32,7 @@ module LAPACK2
         # Allocations
         info = Vector{BlasInt}(1)
 
-        ccall(("dsteqr_", Base.liblapack_name),Void,
+        ccall((@blasfunc("dsteqr_"), Base.liblapack_name),Void,
             (Ptr{UInt8}, Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64},
              Ptr{Float64}, Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt}),
              &compz, &n, d, e,
@@ -51,7 +54,7 @@ module LAPACK2
         # Allocations
         info = BlasInt[0]
 
-        ccall((:dsterf_, Base.liblapack_name), Void,
+        ccall((@blasfunc("dsterf_"), Base.liblapack_name), Void,
             (Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64}, Ptr{BlasInt}),
             &n, d, e, info)
 
@@ -61,7 +64,14 @@ module LAPACK2
     end
 
     ## Divide and Conquer
-    function stedc!(compz::Char, d::StridedVector{Float64}, e::StridedVector{Float64}, Z::StridedMatrix{Float64}, work::StridedVector{Float64}, lwork::BlasInt, iwork::StridedVector{BlasInt}, liwork::BlasInt)
+    function stedc!(compz::Char,
+                    d::StridedVector{Float64},
+                    e::StridedVector{Float64},
+                    Z::StridedMatrix{Float64},
+                    work::StridedVector{Float64},
+                    lwork::BlasInt,
+                    iwork::StridedVector{BlasInt},
+                    liwork::BlasInt)
 
         # Extract sizes
         n = length(d)
@@ -75,7 +85,7 @@ module LAPACK2
         # Allocations
         info = BlasInt[0]
 
-        ccall((@blasfunc(:dstedc_), Base.liblapack_name), Void,
+        ccall((@blasfunc("dstedc_"), Base.liblapack_name), Void,
                 (Ptr{UInt8}, Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64},
                  Ptr{Float64}, Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt},
                  Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt}),
@@ -88,7 +98,10 @@ module LAPACK2
         return d, Z
     end
 
-    function stedc!(compz::Char, d::StridedVector{Float64}, e::StridedVector{Float64}, Z::StridedMatrix{Float64})
+    function stedc!(compz::Char,
+                    d::StridedVector{Float64},
+                    e::StridedVector{Float64},
+                    Z::StridedMatrix{Float64} = compz == 'N' ? Matrix{Float64}(0,0) : Matrix{Float64}(length(d), length(d)))
 
         work::Vector{Float64} = Float64[0]
         iwork::Vector{BlasInt} = BlasInt[0]
@@ -105,7 +118,22 @@ module LAPACK2
     ## RRR
     for (lsymb, elty) in ((:dstemr_, :Float64), (:sstemr_, :Float32))
         @eval begin
-            function stemr!(jobz::Char, range::Char, dv::StridedVector{$elty}, ev::StridedVector{$elty}, vl::$elty, vu::$elty, il::BlasInt, iu::BlasInt, w::StridedVector{$elty}, Z::StridedMatrix{$elty}, nzc::BlasInt, isuppz::StridedVector{BlasInt}, work::StridedVector{$elty}, lwork::BlasInt, iwork::StridedVector{BlasInt}, liwork::BlasInt)
+            function stemr!(jobz::Char,
+                            range::Char,
+                            dv::StridedVector{$elty},
+                            ev::StridedVector{$elty},
+                            vl::$elty,
+                            vu::$elty,
+                            il::BlasInt,
+                            iu::BlasInt,
+                            w::StridedVector{$elty},
+                            Z::StridedMatrix{$elty},
+                            nzc::BlasInt,
+                            isuppz::StridedVector{BlasInt},
+                            work::StridedVector{$elty},
+                            lwork::BlasInt,
+                            iwork::StridedVector{BlasInt},
+                            liwork::BlasInt)
 
                 # Extract sizes
                 n = length(dv)
@@ -115,7 +143,7 @@ module LAPACK2
                 length(ev) >= n - 1 || throw(DimensionMismatch("subdiagonal is too short"))
 
                 # Allocations
-                eev::Vector{$elty} = length(ev) == n - 1 ? [ev, zero($elty)] : copy(ev)
+                eev::Vector{$elty} = length(ev) == n - 1 ? [ev; zero($elty)] : copy(ev)
                 abstol = Vector{$elty}(1)
                 m      = Vector{BlasInt}(1)
                 tryrac = BlasInt[1]
@@ -130,7 +158,7 @@ module LAPACK2
                     &jobz, &range, &n, dv,
                     eev, &vl, &vu, &il,
                     &iu, m, w, Z,
-                    &ldz, &nzc, isuppz, tryrac,
+                    &max(1, ldz), &nzc, isuppz, tryrac,
                     work, &lwork, iwork, &liwork,
                     info)
 
@@ -139,7 +167,15 @@ module LAPACK2
                 w, Z, tryrac[1]
             end
 
-            function stemr!(jobz::Char, range::Char, dv::StridedVector{$elty}, ev::StridedVector{$elty}, vl::$elty = typemin($elty), vu::$elty = typemax($elty), il::BlasInt = 1, iu::BlasInt = length(dv))
+            function stemr!(jobz::Char,
+                            range::Char,
+                            dv::StridedVector{$elty},
+                            ev::StridedVector{$elty},
+                            vl::$elty = typemin($elty),
+                            vu::$elty = typemax($elty),
+                            il::BlasInt = 1,
+                            iu::BlasInt = length(dv))
+
                 n = length(dv)
                 w = Vector{$elty}(n)
                 if jobz == 'N'
@@ -157,7 +193,7 @@ module LAPACK2
                 lwork::BlasInt = -1
                 iwork = BlasInt[0]
                 liwork::BlasInt = -1
-                Z = Matrix{$elty}(1, 1)
+                Z = Matrix{$elty}(jobz == 'N' ? 1 : n, 1)
                 nzc = -1
 
                 stemr!(jobz, range, dv, ev, vl, vu, il, iu, w, Z, nzc, isuppz, work, lwork, iwork, liwork)

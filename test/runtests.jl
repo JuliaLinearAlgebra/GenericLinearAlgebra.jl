@@ -8,4 +8,5 @@ using Base.Test
     include("tridiag.jl")
     include("svd.jl")
     include("rectfullpacked.jl")
+    include("lapack.jl")
 # end
