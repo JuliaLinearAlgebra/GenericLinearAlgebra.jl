@@ -2,8 +2,9 @@
 
 import Base: \
 import Base.LinAlg: BlasFloat
+import ..LinearAlgebra.LAPACK2: trttf!
 
-immutable HermitianRFP{T<:BlasFloat} <: AbstractMatrix{T}
+struct HermitianRFP{T<:BlasFloat} <: AbstractMatrix{T}
     data::Vector{T}
     transr::Char
     uplo::Char
@@ -83,14 +84,37 @@ end
 
 Base.copy(A::HermitianRFP) = HermitianRFP(copy(A.data), A.transr, A.uplo)
 
-immutable TriangularRFP{T<:BlasFloat} <: AbstractMatrix{T}
+struct TriangularRFP{T<:BlasFloat} <: AbstractMatrix{T}
     data::Vector{T}
     transr::Char
     uplo::Char
 end
-TriangularRFP(A::Matrix) = TriangularRFP(trttf!('N', 'U', A), 'N', 'U')
 
-function full(A::TriangularRFP)
+function TriangularRFP(A::StridedMatrix, uplo::Symbol = :U)
+    if uplo == :U
+        return TriangularRFP(trttf!('N', 'U', A), 'N', 'U')
+    elseif uplo == :L
+        return TriangularRFP(trttf!('N', 'L', A), 'N', 'L')
+    else
+        throw(ArgumentError("uplo must be either :U or :L but was :$uplo"))
+    end
+end
+
+function Base.size(A::TriangularRFP, i::Integer)
+    if i == 1 || i == 2
+        return (isqrt(8*length(A.data) + 1) - 1) >> 1
+    elseif i > 2
+        return 1
+    else
+        return size(A.data, i)
+    end
+end
+function Base.size(A::TriangularRFP)
+    n = size(A, 1)
+    return (n, n)
+end
+
+function Base.full(A::TriangularRFP)
     C = LAPACK2.tfttr!(A.transr, A.uplo, A.data)
     if A.uplo == 'U'
         return triu!(C)
@@ -99,7 +123,7 @@ function full(A::TriangularRFP)
     end
 end
 
-type CholeskyRFP{T<:BlasFloat} <: Factorization{T}
+struct CholeskyRFP{T<:BlasFloat} <: Factorization{T}
     data::Vector{T}
     transr::Char
     uplo::Char
@@ -109,10 +133,12 @@ Base.LinAlg.cholfact!{T<:BlasFloat}(A::HermitianRFP{T}) = CholeskyRFP(LAPACK2.pf
 Base.LinAlg.cholfact{T<:BlasFloat}(A::HermitianRFP{T}) = cholfact!(copy(A))
 Base.LinAlg.factorize(A::HermitianRFP) = cholfact(A)
 
+Base.copy(F::CholeskyRFP{T}) where T = CholeskyRFP{T}(copy(F.data), F.transr, F.uplo)
+
 # Solve
 \(A::CholeskyRFP, B::StridedVecOrMat) = LAPACK2.pftrs!(A.transr, A.uplo, A.data, copy(B))
 \(A::HermitianRFP, B::StridedVecOrMat) = cholfact(A)\B
 
 inv!(A::CholeskyRFP) = HermitianRFP(LAPACK2.pftri!(A.transr, A.uplo, A.data), A.transr, A.uplo)
-Base.LinAlg.inv(A::CholeskyRFP)  = inv(copy(A))
+Base.LinAlg.inv(A::CholeskyRFP)  = inv!(copy(A))
 Base.LinAlg.inv(A::HermitianRFP) = inv!(cholfact(A))
