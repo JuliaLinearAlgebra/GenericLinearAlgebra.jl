@@ -210,6 +210,63 @@ module LAPACK2
         end
     end
 
+    # Non-symmetric eigenvalue problem
+    function lahqr!(wantt::Bool,
+                    wantz::Bool,
+                    H::StridedMatrix{Float64},
+                    ilo::Integer,
+                    ihi::Integer,
+                    wr::StridedVector{Float64},
+                    wi::StridedVector{Float64},
+                    iloz::Integer,
+                    ihiz::Integer,
+                    Z::StridedMatrix{Float64})
+        # SUBROUTINE DLAHQR( WANTT, WANTZ, N, ILO, IHI, H, LDH, WR, WI,
+        #                         ILOZ, IHIZ, Z, LDZ, INFO )
+
+        #      .. Scalar Arguments ..
+        #      INTEGER            IHI, IHIZ, ILO, ILOZ, INFO, LDH, LDZ, N
+        #      LOGICAL            WANTT, WANTZ
+        #      ..
+        #      .. Array Arguments ..
+        #      DOUBLE PRECISION   H( LDH, * ), WI( * ), WR( * ), Z( LDZ, * )
+
+        n   = LinAlg.checksquare(H)
+        ldh = stride(H, 2)
+        ldz = stride(Z, 2)
+
+        info = Ref{BlasInt}(0)
+
+        ccall((@blasfunc("dlahqr_"), Base.liblapack_name), Void,
+            (Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt},
+             Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt}, Ptr{Float64},
+             Ptr{Float64}, Ptr{BlasInt}, Ptr{BlasInt}, Ptr{Float64},
+             Ptr{BlasInt}, Ptr{BlasInt}),
+            &wantt, &wantz, &n, &ilo,
+            &ihi, H, &max(1, ldh), wr,
+            wi, &iloz, &ihiz, Z,
+            &max(1, ldz), info)
+
+        if info[] != 0
+            throw(LAPACKException(info[]))
+        end
+
+        return wr, wi, Z
+    end
+    function lahqr!(H::StridedMatrix{Float64})
+        n = size(H, 1)
+        return lahqr!(false,
+                      false,
+                      H,
+                      1,
+                      n,
+                      Vector{Float64}(n),
+                      Vector{Float64}(n),
+                      1,
+                      1,
+                      Matrix{Float64}(0, 0))
+    end
+
     ## Cholesky + singular values
     function spteqr!(compz::Char, d::StridedVector{Float64}, e::StridedVector{Float64}, Z::StridedMatrix{Float64},
         work::StridedVector{Float64} = Vector{Float64}(4length(d)))
