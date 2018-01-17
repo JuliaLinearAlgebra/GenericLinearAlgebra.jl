@@ -1,7 +1,7 @@
 # LinearAlgebra.jl
 <!-- [![StatsBase](http://pkg.julialang.org/badges/StatsBase_0.4.svg)](http://pkg.julialang.org/?pkg=StatsBase&ver=0.4) -->
 [![Build Status](https://travis-ci.org/andreasnoack/LinearAlgebra.jl.svg?branch=master)](https://travis-ci.org/andreasnoack/LinearAlgebra.jl)
-[![Coverage Status](https://coveralls.io/repos/github/andreasnoack/LinearAlgebra.jl/badge.svg?branch=master)](https://coveralls.io/github/andreasnoack/LinearAlgebra.jl?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/andreasnoack/LinearAlgebra.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/andreasnoack/LinearAlgebra.jl?branch=master)
 
 ### A fresh approach to numerical linear algebra in Julia
 
