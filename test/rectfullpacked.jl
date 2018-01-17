@@ -66,5 +66,6 @@ import LinearAlgebra: Ac_mul_A_RFP, TriangularRFP
 
         @test_broken A ≈ A_RFP
         @test        A ≈ full(A_RFP)
+        @test   inv(A) ≈ full(inv(A_RFP))
     end
 end

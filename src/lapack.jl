@@ -2,7 +2,7 @@ module LAPACK2
 
     using Base.LinAlg: BlasInt, chkstride1, LAPACKException
     using Base.LinAlg.BLAS: @blasfunc
-    using Base.LinAlg.LAPACK: chkuplo
+    using Base.LinAlg.LAPACK: chkdiag, chkuplo
 
     # LAPACK wrappers
     import Base.BLAS.@blasfunc

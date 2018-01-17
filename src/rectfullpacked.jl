@@ -114,6 +114,8 @@ function Base.size(A::TriangularRFP)
     return (n, n)
 end
 
+Base.copy(A::TriangularRFP) = TriangularRFP(copy(A.data), A.transr, A.uplo)
+
 function Base.full(A::TriangularRFP)
     C = LAPACK2.tfttr!(A.transr, A.uplo, A.data)
     if A.uplo == 'U'
@@ -122,6 +124,9 @@ function Base.full(A::TriangularRFP)
         return tril!(C)
     end
 end
+
+Base.LinAlg.inv!(A::TriangularRFP) = TriangularRFP(LAPACK2.tftri!(A.transr, A.uplo, 'N', A.data), A.transr, A.uplo)
+Base.LinAlg.inv(A::TriangularRFP)  = Base.LinAlg.inv!(copy(A))
 
 struct CholeskyRFP{T<:BlasFloat} <: Factorization{T}
     data::Vector{T}
@@ -139,6 +144,6 @@ Base.copy(F::CholeskyRFP{T}) where T = CholeskyRFP{T}(copy(F.data), F.transr, F.
 \(A::CholeskyRFP, B::StridedVecOrMat) = LAPACK2.pftrs!(A.transr, A.uplo, A.data, copy(B))
 \(A::HermitianRFP, B::StridedVecOrMat) = cholfact(A)\B
 
-inv!(A::CholeskyRFP) = HermitianRFP(LAPACK2.pftri!(A.transr, A.uplo, A.data), A.transr, A.uplo)
-Base.LinAlg.inv(A::CholeskyRFP)  = inv!(copy(A))
-Base.LinAlg.inv(A::HermitianRFP) = inv!(cholfact(A))
+Base.LinAlg.inv!(A::CholeskyRFP) = HermitianRFP(LAPACK2.pftri!(A.transr, A.uplo, A.data), A.transr, A.uplo)
+Base.LinAlg.inv(A::CholeskyRFP)  = Base.LinAlg.inv!(copy(A))
+Base.LinAlg.inv(A::HermitianRFP) = Base.LinAlg.inv!(cholfact(A))

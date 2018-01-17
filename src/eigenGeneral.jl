@@ -76,8 +76,8 @@ module EigenGeneral
         iend = n
         HH = H.data
         τ = Rotation(Givens{T}[])
-        @inbounds begin
-        while true
+
+        @inbounds while true
             # Determine if the matrix splits. Find lowest positioned subdiagonal "zero"
             for istart = iend - 1:-1:1
                 # debug && @printf("istart: %6d, iend %6d\n", istart, iend)
@@ -120,8 +120,8 @@ module EigenGeneral
                     debug && @printf("Single shift! subdiagonal is: %10.3e\n", HH[iend, iend - 1])
 
                     # Calculate the Wilkinson shift
-                    λ1 = 0.5*(t + sqrt(t*t - 4d))
-                    λ2 = 0.5*(t - sqrt(t*t - 4d))
+                    λ1 = (t + sqrt(t*t - 4d))/2
+                    λ2 = (t - sqrt(t*t - 4d))/2
                     σ = abs(Hmm - λ1) < abs(Hmm - λ2) ? λ1 : λ2
 
                     # Run a bulge chase
@@ -135,10 +135,10 @@ module EigenGeneral
             end
             if iend <= 2 break end
         end
-        end
+
         return Schur{T,typeof(HH)}(HH, τ)
     end
-    schurfact!(A::StridedMatrix; tol = eps(), debug = false) = schurfact!(hessfact!(A), tol = tol, debug = debug)
+    schurfact!(A::StridedMatrix; tol = eps(float(real(eltype(A)))), debug = false) = schurfact!(hessfact!(A), tol = tol, debug = debug)
 
     function singleShiftQR!(HH::StridedMatrix, τ::Rotation, shift::Number, istart::Integer, iend::Integer)
         m = size(HH, 1)
