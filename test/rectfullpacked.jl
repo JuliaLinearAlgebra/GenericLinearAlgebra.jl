@@ -60,12 +60,14 @@ import LinearAlgebra: Ac_mul_A_RFP, TriangularRFP
                                                                            n in (6, 7),
                                                                         uplo in (:L, :U)
 
-        A     = triu(rand(elty, n, n))
-        A_RFP = TriangularRFP(A)
+        A     = lufact(rand(elty, n, n))[:U]
+        A     = uplo == :U ? A : A'
+        A_RFP = TriangularRFP(A, uplo)
         o     = ones(elty, n)
 
         @test_broken A ≈ A_RFP
         @test        A ≈ full(A_RFP)
+        @test      A\o ≈ A_RFP\o
         @test   inv(A) ≈ full(inv(A_RFP))
     end
 end

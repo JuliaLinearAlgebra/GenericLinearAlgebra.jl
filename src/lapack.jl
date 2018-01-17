@@ -2,7 +2,7 @@ module LAPACK2
 
     using Base.LinAlg: BlasInt, chkstride1, LAPACKException
     using Base.LinAlg.BLAS: @blasfunc
-    using Base.LinAlg.LAPACK: chkdiag, chkuplo
+    using Base.LinAlg.LAPACK: chkdiag, chkside, chkuplo
 
     # LAPACK wrappers
     import Base.BLAS.@blasfunc
@@ -604,12 +604,19 @@ for (f, elty) in ((:dtfsm_, :Float64),
                    (:ctfsm_, :Complex64))
 
     @eval begin
-        function pftrs!(transr::Char, side::Char, uplo::Char, trans::Char, diag::Char, alpha::Real, A::StridedVector{$elty}, B::StridedMatrix{$elty})
+        function tfsm!(transr::Char,
+                       side::Char,
+                       uplo::Char,
+                       trans::Char,
+                       diag::Char,
+                       alpha::$elty,
+                       A::StridedVector{$elty},
+                       B::StridedVecOrMat{$elty})
             chkuplo(uplo)
             chkside(side)
             chkdiag(diag)
             chkstride1(B)
-            m, n = size(B)
+            m, n = size(B, 1), size(B, 2)
             if round(Int, div(sqrt(8length(A)), 2)) != m
                 throw(DimensionMismatch("First dimension of B must equal $(round(Int, div(sqrt(8length(A)), 2))), got $m"))
             end
@@ -623,7 +630,7 @@ for (f, elty) in ((:dtfsm_, :Float64),
                 &diag, &m, &n, &alpha,
                 A, B, &ldb)
 
-            B
+            return B
         end
     end
 end
