@@ -155,7 +155,7 @@ module EigenSelfAdjoint
         return c, s
     end
 
-    function eigvalsPWK!{T<:Real}(S::SymTridiagonal{T}, tol = eps(T), debug::Bool=false)
+    function eigvalsPWK!(S::SymTridiagonal{T}, tol = eps(T), debug::Bool=false) where {T<:Real}
         d = S.dv
         e = S.ev
         n = length(d)
@@ -203,10 +203,10 @@ module EigenSelfAdjoint
         sort!(d)
     end
 
-    function eigQL!{T<:Real}(S::SymTridiagonal{T},
-                             vectors::Matrix = zeros(T, 0, size(S, 1)),
-                             tol = eps(T),
-                             debug::Bool=false)
+    function eigQL!(S::SymTridiagonal{T},
+                    vectors::Matrix = zeros(T, 0, size(S, 1)),
+                    tol = eps(T),
+                    debug::Bool=false) where {T<:Real}
         d = S.dv
         e = S.ev
         n = length(d)
@@ -256,10 +256,10 @@ module EigenSelfAdjoint
         return d[p], vectors[:,p]
     end
 
-    function eigQR!{T<:Real}(S::SymTridiagonal{T},
-                             vectors::Matrix = zeros(T, 0, size(S, 1)),
-                             tol = eps(T),
-                             debug::Bool=false)
+    function eigQR!(S::SymTridiagonal{T},
+                    vectors::Matrix = zeros(T, 0, size(S, 1)),
+                    tol = eps(T),
+                    debug::Bool=false) where {T<:Real}
         d = S.dv
         e = S.ev
         n = length(d)
@@ -400,7 +400,7 @@ module EigenSelfAdjoint
         S
     end
 
-    function zeroshiftQR!{T}(A::Bidiagonal{T})
+    function zeroshiftQR!(A::Bidiagonal{T}) where {T}
         d = A.dv
         e = A.ev
         n = length(d)
@@ -421,12 +421,12 @@ module EigenSelfAdjoint
     end
 
     symtri!(A::Hermitian)             = A.uplo == 'L' ? symtriLower!(A.data) : symtriUpper!(A.data)
-    symtri!{T<:Real}(A::Symmetric{T}) = A.uplo == 'L' ? symtriLower!(A.data) : symtriUpper!(A.data)
+    symtri!(A::Symmetric{T}) where {T<:Real} = A.uplo == 'L' ? symtriLower!(A.data) : symtriUpper!(A.data)
 
     # Assume that lower triangle stores the relevant part
-    function symtriLower!{T}(AS::StridedMatrix{T},
-                             τ = zeros(T, size(AS, 1) - 1),
-                             u = Vector{T}(size(AS, 1)))
+    function symtriLower!(AS::StridedMatrix{T},
+                          τ = zeros(T, size(AS, 1) - 1),
+                          u = Vector{T}(size(AS, 1))) where {T}
         n = size(AS, 1)
 
         @inbounds for k = 1:(n - 2 + !(T<:Real))
@@ -478,9 +478,9 @@ module EigenSelfAdjoint
     end
 
     # Assume that upper triangle stores the relevant part
-    function symtriUpper!{T}(AS::StridedMatrix{T},
-                             τ = zeros(T, size(AS, 1) - 1),
-                             u = Vector{T}(size(AS, 1)))
+    function symtriUpper!(AS::StridedMatrix{T},
+                          τ = zeros(T, size(AS, 1) - 1),
+                          u = Vector{T}(size(AS, 1))) where {T}
         n = LinearAlgebra.checksquare(AS)
 
         @inbounds for k = 1:(n - 2 + !(T<:Real))
