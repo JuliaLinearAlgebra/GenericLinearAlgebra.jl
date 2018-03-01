@@ -126,8 +126,8 @@ function Base.full(A::TriangularRFP)
     end
 end
 
-Base.LinAlg.inv!(A::TriangularRFP) = TriangularRFP(LAPACK2.tftri!(A.transr, A.uplo, 'N', A.data), A.transr, A.uplo)
-Base.LinAlg.inv(A::TriangularRFP)  = Base.LinAlg.inv!(copy(A))
+LinearAlgebra.inv!(A::TriangularRFP) = TriangularRFP(LAPACK2.tftri!(A.transr, A.uplo, 'N', A.data), A.transr, A.uplo)
+LinearAlgebra.inv(A::TriangularRFP)  = LinearAlgebra.inv!(copy(A))
 
 A_ldiv_B!(A::TriangularRFP{T}, B::StridedVecOrMat{T}) where T =
     LAPACK2.tfsm!(A.transr, 'L', A.uplo, 'N', 'N', one(T), A.data, B)
@@ -139,9 +139,9 @@ struct CholeskyRFP{T<:BlasFloat} <: Factorization{T}
     uplo::Char
 end
 
-Base.LinAlg.cholfact!{T<:BlasFloat}(A::HermitianRFP{T}) = CholeskyRFP(LAPACK2.pftrf!(A.transr, A.uplo, copy(A.data)), A.transr, A.uplo)
-Base.LinAlg.cholfact{T<:BlasFloat}(A::HermitianRFP{T}) = cholfact!(copy(A))
-Base.LinAlg.factorize(A::HermitianRFP) = cholfact(A)
+LinearAlgebra.cholfact!{T<:BlasFloat}(A::HermitianRFP{T}) = CholeskyRFP(LAPACK2.pftrf!(A.transr, A.uplo, copy(A.data)), A.transr, A.uplo)
+LinearAlgebra.cholfact{T<:BlasFloat}(A::HermitianRFP{T}) = cholfact!(copy(A))
+LinearAlgebra.factorize(A::HermitianRFP) = cholfact(A)
 
 Base.copy(F::CholeskyRFP{T}) where T = CholeskyRFP{T}(copy(F.data), F.transr, F.uplo)
 
@@ -149,6 +149,6 @@ Base.copy(F::CholeskyRFP{T}) where T = CholeskyRFP{T}(copy(F.data), F.transr, F.
 (\)(A::CholeskyRFP, B::StridedVecOrMat) = LAPACK2.pftrs!(A.transr, A.uplo, A.data, copy(B))
 (\)(A::HermitianRFP, B::StridedVecOrMat) = cholfact(A)\B
 
-Base.LinAlg.inv!(A::CholeskyRFP) = HermitianRFP(LAPACK2.pftri!(A.transr, A.uplo, A.data), A.transr, A.uplo)
-Base.LinAlg.inv(A::CholeskyRFP)  = Base.LinAlg.inv!(copy(A))
-Base.LinAlg.inv(A::HermitianRFP) = Base.LinAlg.inv!(cholfact(A))
+LinearAlgebra.inv!(A::CholeskyRFP) = HermitianRFP(LAPACK2.pftri!(A.transr, A.uplo, A.data), A.transr, A.uplo)
+LinearAlgebra.inv(A::CholeskyRFP)  = LinearAlgebra.inv!(copy(A))
+LinearAlgebra.inv(A::HermitianRFP) = LinearAlgebra.inv!(cholfact(A))
