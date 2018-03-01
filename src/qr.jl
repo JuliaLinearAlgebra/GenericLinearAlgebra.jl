@@ -5,6 +5,7 @@ module QRModule
 
     import Base: getindex, size
     import LinearAlgebra: reflectorApply!
+    import LinearAlgebra
 
     struct QR2{T,S<:AbstractMatrix{T},V<:AbstractVector{T}} <: Factorization{T}
         factors::S
@@ -69,7 +70,7 @@ module QRModule
                 Tmat[i,j] = τ[i]*(F[j,i] + dot(view(F, j + 1:m, i), view(F, j + 1:m, j)))
             end
         end
-        LinAlg.inv!(LinAlg.UnitUpperTriangular(Tmat))
+        LinearAlgebra.inv!(LinearAlgebra.UnitUpperTriangular(Tmat))
         for j = 1:min(m,n)
             Tmat[j,j] = τ[j]
             for i = 1:j - 1
