@@ -1,8 +1,9 @@
 # Rectangular Full Packed Matrices
 
 import Base: \
-import Base.LinAlg: BlasFloat
-import ..LinearAlgebra.LAPACK2: trttf!
+import LinearAlgebra: BlasFloat
+import LinearAlgebra
+import ..GenericLinearAlgebra.LAPACK2: trttf!
 
 struct HermitianRFP{T<:BlasFloat} <: AbstractMatrix{T}
     data::Vector{T}
