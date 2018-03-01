@@ -1,9 +1,10 @@
 module SVDModule
 
 import LinearAlgebra: A_mul_B!, A_mul_Bc!
+import LinearAlgebra
 
-A_mul_B!(G::LinAlg.Givens, ::Void) = nothing
-A_mul_Bc!(::Void, G::LinAlg.Givens) = nothing
+A_mul_B!(G::LinearAlgebra.Givens, ::Void) = nothing
+A_mul_Bc!(::Void, G::LinearAlgebra.Givens) = nothing
 
 function svdvals2x2(d1, d2, e)
     d1sq = d1*d1
@@ -77,7 +78,7 @@ function svdDemmelKahan!{T<:Real}(B::Bidiagonal{T}, n1, n2, U = nothing, Vt = no
         e = B.ev
 
         oldcs = one(T)
-        G     = LinAlg.Givens(1, 2, one(T), zero(T))
+        G     = LinearAlgebra.Givens(1, 2, one(T), zero(T))
         Gold  = G
 
         for i = n1:n2 - 1
@@ -223,15 +224,15 @@ function bidiagonalize!(A::AbstractMatrix)
         # tall case: lower bidiagonal
         for i = 1:min(m, n)
             x = view(A, i:m, i)
-            τi = LinAlg.reflector!(x)
+            τi = LinearAlgebra.reflector!(x)
             push!(τl, τi)
-            LinAlg.reflectorApply!(x, τi, view(A, i:m, i + 1:n))
+            LinearAlgebra.reflectorApply!(x, τi, view(A, i:m, i + 1:n))
             if i < n
                 x = view(A, i, i + 1:n)
                 conj!(x)
-                τi = LinAlg.reflector!(x)
+                τi = LinearAlgebra.reflector!(x)
                 push!(τr, τi)
-                LinAlg.reflectorApply!(view(A, i + 1:m, i + 1:n), x, τi)
+                LinearAlgebra.reflectorApply!(view(A, i + 1:m, i + 1:n), x, τi)
             end
         end
         return Bidiagonal(real(diag(A)), real(diag(A, 1)), true), A, τl, τr
@@ -239,14 +240,14 @@ function bidiagonalize!(A::AbstractMatrix)
         # wide case: upper bidiagonal
         for i = 1:min(m, n)
             x = view(A, i, i:n)
-            τi = LinAlg.reflector!(x)
+            τi = LinearAlgebra.reflector!(x)
             push!(τr, τi)
-            LinAlg.reflectorApply!(view(A, i + 1:m, i:n), x, τi)
+            LinearAlgebra.reflectorApply!(view(A, i + 1:m, i:n), x, τi)
             if i < m
                 x = view(A, i + 1:m, i)
-                τi = LinAlg.reflector!(x)
+                τi = LinearAlgebra.reflector!(x)
                 push!(τl, τi)
-                LinAlg.reflectorApply!(x, τi, view(A, i + 1:m, i + 1:n))
+                LinearAlgebra.reflectorApply!(x, τi, view(A, i + 1:m, i + 1:n))
             end
         end
         return Bidiagonal(real(diag(A)), real(diag(A, -1)), false), A, τl, τr
