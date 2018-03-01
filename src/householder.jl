@@ -1,11 +1,12 @@
 module HouseholderModule
 
     using ..JuliaBLAS: rankUpdate!
-    using Base.LinAlg: BlasReal, axpy!
+    using LinearAlgebra: BlasReal, axpy!
 
     import Base: *
-    import Base: Ac_mul_B, convert, size
-    import Base.LinAlg: A_mul_B!, Ac_mul_B!
+    import Base: convert, size
+    import LinearAlgebra: Ac_mul_B, A_mul_B!, Ac_mul_B!
+    import LinearAlgebra
 
     immutable Householder{T,S<:StridedVector}
         v::S
@@ -65,7 +66,7 @@ module HouseholderModule
         A
     end
 
-    function A_mul_B!{T}(H::HouseholderBlock{T}, A::StridedMatrix{T}, M::StridedMatrix{T})
+    function A_mul_B!(H::HouseholderBlock{T}, A::StridedMatrix{T}, M::StridedMatrix{T}) where {T}
         V = H.V
         mA, nA = size(A)
         nH = size(V, 1)
@@ -73,7 +74,7 @@ module HouseholderModule
         nH == mA || throw(DimensionMismatch(""))
 
         # Reflector block is split into a UnitLowerTriangular top part and rectangular lower part
-        V1 = LinAlg.UnitLowerTriangular(view(V, 1:blocksize, 1:blocksize))
+        V1 = LinearAlgebra.UnitLowerTriangular(view(V, 1:blocksize, 1:blocksize))
         V2 = view(V, blocksize+1:mA, 1:blocksize)
 
         # Split A to match the split in the reflector block
@@ -99,10 +100,10 @@ module HouseholderModule
 
         return A
     end
-    (*){T}(H::HouseholderBlock{T}, A::StridedMatrix{T}) =
+    (*)(H::HouseholderBlock{T}, A::StridedMatrix{T}) where {T} =
         A_mul_B!(H, copy(A), similar(A, (min(size(H.V)...), size(A, 2))))
 
-    function Ac_mul_B!{T}(H::HouseholderBlock{T}, A::StridedMatrix{T}, M::StridedMatrix)
+    function Ac_mul_B!(H::HouseholderBlock{T}, A::StridedMatrix{T}, M::StridedMatrix) where {T}
         V = H.V
         mA, nA = size(A)
         nH = size(V, 1)
@@ -110,7 +111,7 @@ module HouseholderModule
         nH == mA || throw(DimensionMismatch(""))
 
         # Reflector block is split into a UnitLowerTriangular top part and rectangular lower part
-        V1 = LinAlg.UnitLowerTriangular(view(V, 1:blocksize, 1:blocksize))
+        V1 = LinearAlgebra.UnitLowerTriangular(view(V, 1:blocksize, 1:blocksize))
         V2 = view(V, blocksize+1:mA, 1:blocksize)
 
         # Split A to match the split in the reflector block
@@ -136,9 +137,9 @@ module HouseholderModule
 
         return A
     end
-    Ac_mul_B{T}(H::HouseholderBlock{T}, A::StridedMatrix{T}) =
+    Ac_mul_B(H::HouseholderBlock{T}, A::StridedMatrix{T}) where {T} =
         Ac_mul_B!(H, copy(A), similar(A, (min(size(H.V)...), size(A, 2))))
 
-    convert{T}(::Type{Matrix}, H::Householder{T}) = A_mul_B!(H, eye(T, size(H, 1)))
-    convert{T}(::Type{Matrix{T}}, H::Householder{T}) = A_mul_B!(H, eye(T, size(H, 1)))
+    convert(::Type{Matrix}, H::Householder{T}) where {T} = A_mul_B!(H, eye(T, size(H, 1)))
+    convert(::Type{Matrix{T}}, H::Householder{T}) where {T} = A_mul_B!(H, eye(T, size(H, 1)))
 end

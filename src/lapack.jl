@@ -1,8 +1,10 @@
 module LAPACK2
 
-    using Base.LinAlg: BlasInt, chkstride1, LAPACKException
-    using Base.LinAlg.BLAS: @blasfunc
-    using Base.LinAlg.LAPACK: chkdiag, chkside, chkuplo
+    using LinearAlgebra: BlasInt, chkstride1, LAPACKException
+    using LinearAlgebra.BLAS: @blasfunc
+    using LinearAlgebra.LAPACK: chkdiag, chkside, chkuplo
+    import LinearAlgebra
+    using LinearAlgebra
 
     # LAPACK wrappers
     import Base.BLAS.@blasfunc
@@ -231,7 +233,7 @@ module LAPACK2
         #      .. Array Arguments ..
         #      DOUBLE PRECISION   H( LDH, * ), WI( * ), WR( * ), Z( LDZ, * )
 
-        n   = LinAlg.checksquare(H)
+        n   = LinearAlgebra.checksquare(H)
         ldh = stride(H, 2)
         ldz = stride(Z, 2)
 
@@ -303,7 +305,7 @@ module LAPACK2
 
         @eval begin
             function syevd!(jobz::Char, uplo::Char, A::StridedMatrix{$elty})
-                n      = LinAlg.checksquare(A)
+                n      = LinearAlgebra.checksquare(A)
                 lda    = stride(A, 2)
                 w      = Vector{$elty}(n)
                 work   = Vector{$elty}(1)
@@ -321,7 +323,7 @@ module LAPACK2
                         iwork, &liwork, info)
 
                     if info[1] != 0
-                        return LinAlg.LAPACKException(info[1])
+                        return LinearAlgebra.LAPACKException(info[1])
                     end
                     if i == 1
                         lwork  = BlasInt(work[1])
@@ -339,7 +341,7 @@ module LAPACK2
 
         @eval begin
             function heevd!(jobz::Char, uplo::Char, A::StridedMatrix{$elty})
-                n      = LinAlg.checksquare(A)
+                n      = LinearAlgebra.checksquare(A)
                 lda    = stride(A, 2)
                 w      = Vector{$relty}(n)
                 work   = Vector{$elty}(1)
@@ -361,7 +363,7 @@ module LAPACK2
                         info)
 
                     if info[1] != 0
-                        return LinAlg.LAPACKException(info[1])
+                        return LinearAlgebra.LAPACKException(info[1])
                     end
 
                     if i == 1
@@ -386,8 +388,8 @@ for (f, elty) in ((:dtgevc_, :Float64),
     @eval begin
         function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty}, VL::StridedMatrix{$elty}, VR::StridedMatrix{$elty}, work::Vector{$elty})
 
-            n = LinAlg.checksquare(S)
-            if LinAlg.checksquare(P) != n
+            n = LinearAlgebra.checksquare(S)
+            if LinearAlgebra.checksquare(P) != n
                 throw(DimensionMismatch("the two matrices must have same size"))
             end
 
@@ -453,7 +455,7 @@ for (f, elty) in ((:dtgevc_, :Float64),
 
         function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty}, VL::StridedMatrix{$elty}, VR::StridedMatrix{$elty})
 
-            n = LinAlg.checksquare(S)
+            n = LinearAlgebra.checksquare(S)
             work = Vector{$elty}(6n)
 
             return tgevc!(side, howmny, select, S, P, VL, VR, work)
@@ -461,7 +463,7 @@ for (f, elty) in ((:dtgevc_, :Float64),
 
         function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty})
             # No checks here as they are done in method above
-            n = LinAlg.checksquare(S)
+            n = LinearAlgebra.checksquare(S)
             if side == 'L'
                 VR = Matrix{$elty}(n, 0)
                 if howmny == 'A' || howmny == 'B'

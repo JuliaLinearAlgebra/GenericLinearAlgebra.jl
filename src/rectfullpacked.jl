@@ -1,8 +1,9 @@
 # Rectangular Full Packed Matrices
 
 import Base: \
-import Base.LinAlg: BlasFloat
-import ..LinearAlgebra.LAPACK2: trttf!
+import LinearAlgebra: BlasFloat
+import LinearAlgebra
+import ..GenericLinearAlgebra.LAPACK2: trttf!
 
 struct HermitianRFP{T<:BlasFloat} <: AbstractMatrix{T}
     data::Vector{T}
@@ -69,7 +70,7 @@ function Base.getindex(A::HermitianRFP, i::Integer, j::Integer)
     end
 end
 
-function Ac_mul_A_RFP{T<:BlasFloat}(A::Matrix{T}, uplo = :U)
+function Ac_mul_A_RFP(A::Matrix{T}, uplo = :U) where {T<:BlasFloat}
     n = size(A, 2)
     if uplo == :U
         C = LAPACK2.sfrk!('N', 'U', T <: Complex ? 'C' : 'T', 1.0, A, 0.0, Vector{T}(n*(n + 1) >> 1))
@@ -125,8 +126,8 @@ function Base.full(A::TriangularRFP)
     end
 end
 
-Base.LinAlg.inv!(A::TriangularRFP) = TriangularRFP(LAPACK2.tftri!(A.transr, A.uplo, 'N', A.data), A.transr, A.uplo)
-Base.LinAlg.inv(A::TriangularRFP)  = Base.LinAlg.inv!(copy(A))
+LinearAlgebra.inv!(A::TriangularRFP) = TriangularRFP(LAPACK2.tftri!(A.transr, A.uplo, 'N', A.data), A.transr, A.uplo)
+LinearAlgebra.inv(A::TriangularRFP)  = LinearAlgebra.inv!(copy(A))
 
 A_ldiv_B!(A::TriangularRFP{T}, B::StridedVecOrMat{T}) where T =
     LAPACK2.tfsm!(A.transr, 'L', A.uplo, 'N', 'N', one(T), A.data, B)
@@ -138,9 +139,9 @@ struct CholeskyRFP{T<:BlasFloat} <: Factorization{T}
     uplo::Char
 end
 
-Base.LinAlg.cholfact!{T<:BlasFloat}(A::HermitianRFP{T}) = CholeskyRFP(LAPACK2.pftrf!(A.transr, A.uplo, copy(A.data)), A.transr, A.uplo)
-Base.LinAlg.cholfact{T<:BlasFloat}(A::HermitianRFP{T}) = cholfact!(copy(A))
-Base.LinAlg.factorize(A::HermitianRFP) = cholfact(A)
+LinearAlgebra.cholfact!(A::HermitianRFP{T}) where {T<:BlasFloat} = CholeskyRFP(LAPACK2.pftrf!(A.transr, A.uplo, copy(A.data)), A.transr, A.uplo)
+LinearAlgebra.cholfact(A::HermitianRFP{T}) where {T<:BlasFloat} = cholfact!(copy(A))
+LinearAlgebra.factorize(A::HermitianRFP) = cholfact(A)
 
 Base.copy(F::CholeskyRFP{T}) where T = CholeskyRFP{T}(copy(F.data), F.transr, F.uplo)
 
@@ -148,6 +149,6 @@ Base.copy(F::CholeskyRFP{T}) where T = CholeskyRFP{T}(copy(F.data), F.transr, F.
 (\)(A::CholeskyRFP, B::StridedVecOrMat) = LAPACK2.pftrs!(A.transr, A.uplo, A.data, copy(B))
 (\)(A::HermitianRFP, B::StridedVecOrMat) = cholfact(A)\B
 
-Base.LinAlg.inv!(A::CholeskyRFP) = HermitianRFP(LAPACK2.pftri!(A.transr, A.uplo, A.data), A.transr, A.uplo)
-Base.LinAlg.inv(A::CholeskyRFP)  = Base.LinAlg.inv!(copy(A))
-Base.LinAlg.inv(A::HermitianRFP) = Base.LinAlg.inv!(cholfact(A))
+LinearAlgebra.inv!(A::CholeskyRFP) = HermitianRFP(LAPACK2.pftri!(A.transr, A.uplo, A.data), A.transr, A.uplo)
+LinearAlgebra.inv(A::CholeskyRFP)  = LinearAlgebra.inv!(copy(A))
+LinearAlgebra.inv(A::HermitianRFP) = LinearAlgebra.inv!(cholfact(A))

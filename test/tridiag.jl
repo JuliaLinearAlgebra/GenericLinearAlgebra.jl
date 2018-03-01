@@ -1,4 +1,4 @@
-using LinearAlgebra
+using GenericLinearAlgebra
 
 @testset "Test sign of eigenvalues" begin
     n = 20

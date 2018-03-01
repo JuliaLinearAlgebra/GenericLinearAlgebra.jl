@@ -1,6 +1,6 @@
 using Base.Test
-import LinearAlgebra
-import LinearAlgebra: Ac_mul_A_RFP, TriangularRFP
+import GenericLinearAlgebra
+import GenericLinearAlgebra: Ac_mul_A_RFP, TriangularRFP
 
 @testset "Rectuangular Full Pack Format" begin
 

@@ -3,10 +3,11 @@
 module EigenGeneral
 
     using ..HouseholderModule: Householder
-    using Base.LinAlg: Givens, Rotation
+    using LinearAlgebra: Givens, Rotation
 
-    import Base: A_mul_B!, A_mul_Bc!, Ac_mul_B, A_mul_Bc, A_ldiv_B!, ctranspose, full, getindex, size
-    import Base.LinAlg: QRPackedQ
+    import Base: ctranspose, full, getindex, size
+    import LinearAlgebra: A_mul_B!, A_mul_Bc!, Ac_mul_B, A_mul_Bc, A_ldiv_B!
+    import LinearAlgebra: QRPackedQ
 
     # Auxiliary
     function adiagmax(A::StridedMatrix)
@@ -24,9 +25,9 @@ module EigenGeneral
         data::S
     end
 
-    copy{T,S}(H::HessenbergMatrix{T,S}) = HessenbergMatrix{T,S}(copy(H.data))
+    copy(H::HessenbergMatrix{T,S}) where {T,S} = HessenbergMatrix{T,S}(copy(H.data))
 
-    getindex{T,S}(H::HessenbergMatrix{T,S}, i::Integer, j::Integer) = i > j + 1 ? zero(T) : H.data[i,j]
+    getindex(H::HessenbergMatrix{T,S}, i::Integer, j::Integer) where {T,S} = i > j + 1 ? zero(T) : H.data[i,j]
 
     size(H::HessenbergMatrix) = size(H.data)
     size(H::HessenbergMatrix, i::Integer) = size(H.data, i)
@@ -48,12 +49,12 @@ module EigenGeneral
         τ::Vector{U}
     end
 
-    function hessfact!{T}(A::StridedMatrix{T})
-        n = LinAlg.checksquare(A)
+    function hessfact!(A::StridedMatrix{T}) where {T}
+        n = LinearAlgebra.checksquare(A)
         τ = Vector{Householder{T}}(n - 1)
         for i = 1:n - 1
             xi = view(A, i + 1:n, i)
-            t  = LinAlg.reflector!(xi)
+            t  = LinearAlgebra.reflector!(xi)
             H  = Householder{T,typeof(xi)}(view(xi, 2:n - i), t)
             τ[i] = H
             Ac_mul_B!(H, view(A, i + 1:n, i + 1:n))
@@ -70,7 +71,7 @@ module EigenGeneral
         R::Rotation
     end
 
-    function schurfact!{T<:Real}(H::HessenbergFactorization{T}; tol = eps(T), debug = false)
+    function schurfact!(H::HessenbergFactorization{T}; tol = eps(T), debug = false) where {T<:Real}
         n = size(H, 1)
         istart = 1
         iend = n
@@ -213,7 +214,7 @@ module EigenGeneral
     eigvals!(H::HessenbergMatrix; tol = eps(one(A[1])), debug = false) = eigvals!(schurfact!(H, tol = tol, debug = debug))
     eigvals!(H::HessenbergFactorization; tol = eps(one(A[1])), debug = false) = eigvals!(schurfact!(H, tol = tol, debug = debug))
 
-    function eigvals!{T}(S::Schur{T}; tol = eps(T))
+    function eigvals!(S::Schur{T}; tol = eps(T)) where {T}
         HH = S.data
         n = size(HH, 1)
         vals = Vector{Complex{T}}(n)

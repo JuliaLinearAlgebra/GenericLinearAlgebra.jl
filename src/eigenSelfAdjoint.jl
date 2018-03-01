@@ -1,6 +1,7 @@
 module EigenSelfAdjoint
 
-    using Base.LinAlg: givensAlgorithm
+    import LinearAlgebra
+    using LinearAlgebra: givensAlgorithm
 
     immutable SymmetricTridiagonalFactorization{T} <: Factorization{T}
         uplo::Char
@@ -30,7 +31,7 @@ module EigenSelfAdjoint
         end
     end
 
-    function Base.LinAlg.A_mul_B!(Q::EigenQ, B::StridedVecOrMat)
+    function LinearAlgebra.A_mul_B!(Q::EigenQ, B::StridedVecOrMat)
         m, n = size(B)
         if size(Q, 1) != m
             throw(DimensionMismatch(""))
@@ -71,7 +72,7 @@ module EigenSelfAdjoint
         return B
     end
 
-    function Base.LinAlg.A_mul_B!(A::StridedMatrix, Q::EigenQ)
+    function LinearAlgebra.A_mul_B!(A::StridedMatrix, Q::EigenQ)
         m, n = size(A)
         if size(Q, 1) != n
             throw(DimensionMismatch(""))
@@ -112,7 +113,7 @@ module EigenSelfAdjoint
         return A
     end
 
-    Base.LinAlg.full(Q::EigenQ) = A_mul_B!(Q, eye(eltype(Q), size(Q, 1), size(Q, 1)))
+    LinearAlgebra.full(Q::EigenQ) = A_mul_B!(Q, eye(eltype(Q), size(Q, 1), size(Q, 1)))
 
     function _updateVectors!(c, s, j, vectors)
         @inbounds for i = 1:size(vectors, 1)
@@ -154,7 +155,7 @@ module EigenSelfAdjoint
         return c, s
     end
 
-    function eigvalsPWK!{T<:Real}(S::SymTridiagonal{T}, tol = eps(T), debug::Bool=false)
+    function eigvalsPWK!(S::SymTridiagonal{T}, tol = eps(T), debug::Bool=false) where {T<:Real}
         d = S.dv
         e = S.ev
         n = length(d)
@@ -202,10 +203,10 @@ module EigenSelfAdjoint
         sort!(d)
     end
 
-    function eigQL!{T<:Real}(S::SymTridiagonal{T},
-                             vectors::Matrix = zeros(T, 0, size(S, 1)),
-                             tol = eps(T),
-                             debug::Bool=false)
+    function eigQL!(S::SymTridiagonal{T},
+                    vectors::Matrix = zeros(T, 0, size(S, 1)),
+                    tol = eps(T),
+                    debug::Bool=false) where {T<:Real}
         d = S.dv
         e = S.ev
         n = length(d)
@@ -255,10 +256,10 @@ module EigenSelfAdjoint
         return d[p], vectors[:,p]
     end
 
-    function eigQR!{T<:Real}(S::SymTridiagonal{T},
-                             vectors::Matrix = zeros(T, 0, size(S, 1)),
-                             tol = eps(T),
-                             debug::Bool=false)
+    function eigQR!(S::SymTridiagonal{T},
+                    vectors::Matrix = zeros(T, 0, size(S, 1)),
+                    tol = eps(T),
+                    debug::Bool=false) where {T<:Real}
         d = S.dv
         e = S.ev
         n = length(d)
@@ -399,7 +400,7 @@ module EigenSelfAdjoint
         S
     end
 
-    function zeroshiftQR!{T}(A::Bidiagonal{T})
+    function zeroshiftQR!(A::Bidiagonal{T}) where {T}
         d = A.dv
         e = A.ev
         n = length(d)
@@ -420,16 +421,16 @@ module EigenSelfAdjoint
     end
 
     symtri!(A::Hermitian)             = A.uplo == 'L' ? symtriLower!(A.data) : symtriUpper!(A.data)
-    symtri!{T<:Real}(A::Symmetric{T}) = A.uplo == 'L' ? symtriLower!(A.data) : symtriUpper!(A.data)
+    symtri!(A::Symmetric{T}) where {T<:Real} = A.uplo == 'L' ? symtriLower!(A.data) : symtriUpper!(A.data)
 
     # Assume that lower triangle stores the relevant part
-    function symtriLower!{T}(AS::StridedMatrix{T},
-                             τ = zeros(T, size(AS, 1) - 1),
-                             u = Vector{T}(size(AS, 1)))
+    function symtriLower!(AS::StridedMatrix{T},
+                          τ = zeros(T, size(AS, 1) - 1),
+                          u = Vector{T}(size(AS, 1))) where {T}
         n = size(AS, 1)
 
         @inbounds for k = 1:(n - 2 + !(T<:Real))
-            τk = LinAlg.reflector!(view(AS, (k + 1):n, k))
+            τk = LinearAlgebra.reflector!(view(AS, (k + 1):n, k))
             τ[k] = τk
 
             for i in (k + 1):n
@@ -477,13 +478,13 @@ module EigenSelfAdjoint
     end
 
     # Assume that upper triangle stores the relevant part
-    function symtriUpper!{T}(AS::StridedMatrix{T},
-                             τ = zeros(T, size(AS, 1) - 1),
-                             u = Vector{T}(size(AS, 1)))
-        n = LinAlg.checksquare(AS)
+    function symtriUpper!(AS::StridedMatrix{T},
+                          τ = zeros(T, size(AS, 1) - 1),
+                          u = Vector{T}(size(AS, 1))) where {T}
+        n = LinearAlgebra.checksquare(AS)
 
         @inbounds for k = 1:(n - 2 + !(T<:Real))
-            τk = LinAlg.reflector!(LinAlg._conj(view(AS, k, (k + 1):n)))
+            τk = LinearAlgebra.reflector!(LinearAlgebra._conj(view(AS, k, (k + 1):n)))
             τ[k] = τk'
 
             for j in (k + 1):n
@@ -517,9 +518,9 @@ module EigenSelfAdjoint
         SymmetricTridiagonalFactorization('U', AS, τ, SymTridiagonal(real(diag(AS)), real(diag(AS, 1))))
     end
 
-    Base.LinAlg.eigvals!(A::SymmetricTridiagonalFactorization) = eigvalsPWK!(A.diagonals, eps(eltype(A.diagonals)), false)
-    Base.LinAlg.eigvals!(A::SymTridiagonal                   ) = eigvalsPWK!(A,           eps(eltype(A))          , false)
-    Base.LinAlg.eigvals!(A::Hermitian                        ) = eigvals!(symtri!(A))
+    LinearAlgebra.eigvals!(A::SymmetricTridiagonalFactorization) = eigvalsPWK!(A.diagonals, eps(eltype(A.diagonals)), false)
+    LinearAlgebra.eigvals!(A::SymTridiagonal                   ) = eigvalsPWK!(A,           eps(eltype(A))          , false)
+    LinearAlgebra.eigvals!(A::Hermitian                        ) = eigvals!(symtri!(A))
 
     eig!(A::SymmetricTridiagonalFactorization) = eigQL!(A.diagonals, full(getq(A)),    eps(eltype(A.diagonals)), false)
     eig!(A::SymTridiagonal                   ) = eigQL!(A, eye(eltype(A), size(A, 1)), eps(eltype(A))          , false)
@@ -539,24 +540,24 @@ module EigenSelfAdjoint
     end
     eig2!(A::Hermitian, tol = eps(float(real(one(eltype(A))))), debug = false) = eig2!(symtri!(A), tol, debug)
 
-    Base.LinAlg.eigfact!(A::SymTridiagonal)   = LinAlg.Eigen(eig!(A)...)
-    Base.LinAlg.eigfact!(A::LinAlg.Hermitian) = LinAlg.Eigen(eig!(A)...)
+    LinearAlgebra.eigfact!(A::SymTridiagonal)   = LinearAlgebra.Eigen(eig!(A)...)
+    LinearAlgebra.eigfact!(A::LinearAlgebra.Hermitian) = LinearAlgebra.Eigen(eig!(A)...)
 
 
 
-    Base.LinAlg.eigvals(A::LinAlg.Hermitian) = eigvals!(copy(A))
+    LinearAlgebra.eigvals(A::LinearAlgebra.Hermitian) = eigvals!(copy(A))
 
-    Base.LinAlg.eig(    A::LinAlg.Hermitian) = eig!(copy(A))
+    LinearAlgebra.eig(    A::LinearAlgebra.Hermitian) = eig!(copy(A))
 
     eig2(A::SymTridiagonal, tol = eps(float(real(one(eltype(A))))), debug = false) = eig2!(copy(A), tol, debug)
     eig2(A::Hermitian     , tol = eps(float(real(one(eltype(A))))), debug = false) = eig2!(copy(A), tol, debug)
 
-    Base.LinAlg.eigfact(A::LinAlg.Hermitian) = eigfact!(copy(A))
+    LinearAlgebra.eigfact(A::LinearAlgebra.Hermitian) = eigfact!(copy(A))
 
     # Aux (should go somewhere else at some point)
-    function Base.LinAlg.givensAlgorithm(f::Real, g::Real)
+    function LinearAlgebra.givensAlgorithm(f::Real, g::Real)
         h = hypot(f, g)
         return f/h, g/h, h
     end
-
+    
 end

@@ -1,10 +1,11 @@
 module QRModule
 
     using ..HouseholderModule: Householder, HouseholderBlock
-    using Base.LinAlg: QR, axpy!, reflector!
+    using LinearAlgebra: QR, axpy!, reflector!
 
     import Base: getindex, size
-    import Base.LinAlg: reflectorApply!
+    import LinearAlgebra: reflectorApply!
+    import LinearAlgebra
 
     struct QR2{T,S<:AbstractMatrix{T},V<:AbstractVector{T}} <: Factorization{T}
         factors::S
@@ -49,7 +50,7 @@ module QRModule
 
     # getindex{T}(A::QR2{T}, ::Type{Tuple{:Q}}) = Q{T,typeof(A)}(A)
 
-    function getindex{T}(A::QR2{T}, ::Type{Tuple{:R}})
+    function getindex(A::QR2{T}, ::Type{Tuple{:R}}) where {T}
         m, n = size(A)
         if m >= n
             UpperTriangular(view(A.factors, 1:n, 1:n))
@@ -58,7 +59,7 @@ module QRModule
         end
     end
 
-    function getindex{T}(A::QR2{T}, ::Type{Tuple{:QBlocked}})
+    function getindex(A::QR2{T}, ::Type{Tuple{:QBlocked}}) where {T}
         m, n = size(A)
         mmn = min(m,n)
         F = A.factors
@@ -69,7 +70,7 @@ module QRModule
                 Tmat[i,j] = τ[i]*(F[j,i] + dot(view(F, j + 1:m, i), view(F, j + 1:m, j)))
             end
         end
-        LinAlg.inv!(LinAlg.UnitUpperTriangular(Tmat))
+        LinearAlgebra.inv!(LinearAlgebra.UnitUpperTriangular(Tmat))
         for j = 1:min(m,n)
             Tmat[j,j] = τ[j]
             for i = 1:j - 1
@@ -79,7 +80,7 @@ module QRModule
         HouseholderBlock{T,typeof(F),Matrix{T}}(F, UpperTriangular(Tmat))
     end
 
-    # qrUnblocked!(A::StridedMatrix) = LinAlg.qrfactUnblocked!(A)
+    # qrUnblocked!(A::StridedMatrix) = LinearAlgebra.qrfactUnblocked!(A)
     function qrUnblocked!(A::StridedMatrix{T},
                           τ::StridedVector{T} = fill(zero(T), min(size(A)...))) where {T}
 

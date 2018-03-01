@@ -1,6 +1,6 @@
 using Base.Test
-using LinearAlgebra
-using LinearAlgebra.QRModule.qrBlocked!
+using GenericLinearAlgebra
+using GenericLinearAlgebra.QRModule.qrBlocked!
 
 @testset "The QR decomposition" begin
     @testset "Problem dimension ($m,$n) with block size $bz" for (m, n) in (( 10,  5), ( 10,  10), ( 5,  10),

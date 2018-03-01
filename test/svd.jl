@@ -1,4 +1,4 @@
-using LinearAlgebra
+using GenericLinearAlgebra
 using Quaternions
 
 @testset "Singular value decomposition" begin
