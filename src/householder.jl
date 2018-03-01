@@ -6,6 +6,7 @@ module HouseholderModule
     import Base: *
     import Base: convert, size
     import LinearAlgebra: Ac_mul_B, A_mul_B!, Ac_mul_B!
+    import LinearAlgebra
 
     immutable Householder{T,S<:StridedVector}
         v::S
@@ -73,7 +74,7 @@ module HouseholderModule
         nH == mA || throw(DimensionMismatch(""))
 
         # Reflector block is split into a UnitLowerTriangular top part and rectangular lower part
-        V1 = LinAlg.UnitLowerTriangular(view(V, 1:blocksize, 1:blocksize))
+        V1 = LinearAlgebra.UnitLowerTriangular(view(V, 1:blocksize, 1:blocksize))
         V2 = view(V, blocksize+1:mA, 1:blocksize)
 
         # Split A to match the split in the reflector block
@@ -110,7 +111,7 @@ module HouseholderModule
         nH == mA || throw(DimensionMismatch(""))
 
         # Reflector block is split into a UnitLowerTriangular top part and rectangular lower part
-        V1 = LinAlg.UnitLowerTriangular(view(V, 1:blocksize, 1:blocksize))
+        V1 = LinearAlgebra.UnitLowerTriangular(view(V, 1:blocksize, 1:blocksize))
         V2 = view(V, blocksize+1:mA, 1:blocksize)
 
         # Split A to match the split in the reflector block
