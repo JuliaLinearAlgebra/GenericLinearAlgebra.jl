@@ -1,10 +1,11 @@
 module CholeskyModule
 
     using ..JuliaBLAS
-    using Base.LinAlg: A_rdiv_Bc!
+    import LinearAlgebra: A_rdiv_Bc!
+    import LinearAlgebra
 
     function cholUnblocked!{T<:Number}(A::AbstractMatrix{T}, ::Type{Val{:L}})
-        n = LinAlg.checksquare(A)
+        n = LinearAlgebra.checksquare(A)
         A[1,1] = sqrt(A[1,1])
         if n > 1
             a21 = view(A, 2:n, 1)
@@ -18,7 +19,7 @@ module CholeskyModule
     end
 
     function cholBlocked!{T<:Number}(A::AbstractMatrix{T}, ::Type{Val{:L}}, blocksize::Integer)
-        n = LinAlg.checksquare(A)
+        n = LinearAlgebra.checksquare(A)
         mnb = min(n, blocksize)
         A11 = view(A, 1:mnb, 1:mnb)
         cholUnblocked!(A11, Val{:L})
@@ -34,7 +35,7 @@ module CholeskyModule
     end
 
     function cholRecursive!{T}(A::StridedMatrix{T}, ::Type{Val{:L}}, cutoff = 1)
-        n = LinAlg.checksquare(A)
+        n = LinearAlgebra.checksquare(A)
         if n == 1
             A[1,1] = sqrt(A[1,1])
         elseif n < cutoff
