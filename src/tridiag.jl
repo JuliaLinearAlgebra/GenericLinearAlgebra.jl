@@ -17,7 +17,7 @@ Outputs:
 Reference:
     B. N. Parlett, "The symmetric eigenvalue problem", Section 3.3.1, p. 52.
 """
-function numnegevals{S}(T::SymTridiagonal{S}, σ::S = zero(S))
+function numnegevals(T::SymTridiagonal{S}, σ::S = zero(S)) where {S}
     α = T.dv
     β = T.ev
     n = length(α)
