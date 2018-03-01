@@ -1,6 +1,7 @@
 module EigenSelfAdjoint
 
-    using Base.LinAlg: givensAlgorithm
+    import LinearAlgebra
+    using LinearAlgebra: givensAlgorithm
 
     immutable SymmetricTridiagonalFactorization{T} <: Factorization{T}
         uplo::Char
@@ -539,22 +540,22 @@ module EigenSelfAdjoint
     end
     eig2!(A::Hermitian, tol = eps(float(real(one(eltype(A))))), debug = false) = eig2!(symtri!(A), tol, debug)
 
-    Base.LinAlg.eigfact!(A::SymTridiagonal)   = LinAlg.Eigen(eig!(A)...)
-    Base.LinAlg.eigfact!(A::LinAlg.Hermitian) = LinAlg.Eigen(eig!(A)...)
+    LinearAlgebra.eigfact!(A::SymTridiagonal)   = LinearAlgebra.Eigen(eig!(A)...)
+    LinearAlgebra.eigfact!(A::LinearAlgebra.Hermitian) = LinearAlgebra.Eigen(eig!(A)...)
 
 
 
-    Base.LinAlg.eigvals(A::LinAlg.Hermitian) = eigvals!(copy(A))
+    LinearAlgebra.eigvals(A::LinAlg.Hermitian) = eigvals!(copy(A))
 
-    Base.LinAlg.eig(    A::LinAlg.Hermitian) = eig!(copy(A))
+    LinearAlgebra.eig(    A::LinAlg.Hermitian) = eig!(copy(A))
 
     eig2(A::SymTridiagonal, tol = eps(float(real(one(eltype(A))))), debug = false) = eig2!(copy(A), tol, debug)
     eig2(A::Hermitian     , tol = eps(float(real(one(eltype(A))))), debug = false) = eig2!(copy(A), tol, debug)
 
-    Base.LinAlg.eigfact(A::LinAlg.Hermitian) = eigfact!(copy(A))
+    LinearAlgebra.eigfact(A::LinAlg.Hermitian) = eigfact!(copy(A))
 
     # Aux (should go somewhere else at some point)
-    function Base.LinAlg.givensAlgorithm(f::Real, g::Real)
+    function LinearAlgebra.givensAlgorithm(f::Real, g::Real)
         h = hypot(f, g)
         return f/h, g/h, h
     end
