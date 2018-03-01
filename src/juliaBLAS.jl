@@ -1,6 +1,6 @@
 module JuliaBLAS
 
-using Base.BLAS
+using LinearAlgebra: BLAS
 using LinearAlgebra: BlasComplex, BlasFloat, BlasReal, HermOrSym, UnitLowerTriangular, UnitUpperTriangular
 
 import LinearAlgebra: A_mul_B!, Ac_mul_B!
