@@ -4,6 +4,7 @@ using LinearAlgebra: BLAS
 using LinearAlgebra: BlasComplex, BlasFloat, BlasReal, HermOrSym, UnitLowerTriangular, UnitUpperTriangular
 
 import LinearAlgebra: A_mul_B!, Ac_mul_B!
+using LinearAlgebra
 
 export rankUpdate!
 
@@ -11,7 +12,7 @@ export rankUpdate!
 
 ## General
 ### BLAS
-rankUpdate!{T<:BlasReal}(α::T, x::StridedVector{T}, y::StridedVector{T}, A::StridedMatrix{T}) = ger!(α, x, y, A)
+rankUpdate!(α::T, x::StridedVector{T}, y::StridedVector{T}, A::StridedMatrix{T}) where {T<:BlasReal} = ger!(α, x, y, A)
 
 ### Generic
 function rankUpdate!(α::Number, x::StridedVector, y::StridedVector, A::StridedMatrix)
