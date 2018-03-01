@@ -1,6 +1,6 @@
 module SVDModule
 
-import Base: A_mul_B!, A_mul_Bc!
+import LinearAlgebra: A_mul_B!, A_mul_Bc!
 
 A_mul_B!(G::LinAlg.Givens, ::Void) = nothing
 A_mul_Bc!(::Void, G::LinAlg.Givens) = nothing
@@ -102,7 +102,7 @@ function svdDemmelKahan!{T<:Real}(B::Bidiagonal{T}, n1, n2, U = nothing, Vt = no
     return B
 end
 
-function Base.svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false)
+function LinearAlgebra.svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false)
 
     n = size(B, 1)
     n1 = 1
@@ -253,6 +253,6 @@ function bidiagonalize!(A::AbstractMatrix)
     end
 end
 
-Base.svdvals!(A::StridedMatrix) = svdvals!(bidiagonalize!(A)[1])
+LinearAlgebra.svdvals!(A::StridedMatrix) = svdvals!(bidiagonalize!(A)[1])
 
 end #module
