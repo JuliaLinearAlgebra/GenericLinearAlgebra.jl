@@ -430,7 +430,7 @@ module EigenSelfAdjoint
         n = size(AS, 1)
 
         @inbounds for k = 1:(n - 2 + !(T<:Real))
-            τk = LinAlg.reflector!(view(AS, (k + 1):n, k))
+            τk = LinearAlgebra.reflector!(view(AS, (k + 1):n, k))
             τ[k] = τk
 
             for i in (k + 1):n
@@ -481,10 +481,10 @@ module EigenSelfAdjoint
     function symtriUpper!{T}(AS::StridedMatrix{T},
                              τ = zeros(T, size(AS, 1) - 1),
                              u = Vector{T}(size(AS, 1)))
-        n = LinAlg.checksquare(AS)
+        n = LinearAlgebra.checksquare(AS)
 
         @inbounds for k = 1:(n - 2 + !(T<:Real))
-            τk = LinAlg.reflector!(LinAlg._conj(view(AS, k, (k + 1):n)))
+            τk = LinearAlgebra.reflector!(LinearAlgebra._conj(view(AS, k, (k + 1):n)))
             τ[k] = τk'
 
             for j in (k + 1):n
@@ -545,19 +545,19 @@ module EigenSelfAdjoint
 
 
 
-    LinearAlgebra.eigvals(A::LinAlg.Hermitian) = eigvals!(copy(A))
+    LinearAlgebra.eigvals(A::LinearAlgebra.Hermitian) = eigvals!(copy(A))
 
-    LinearAlgebra.eig(    A::LinAlg.Hermitian) = eig!(copy(A))
+    LinearAlgebra.eig(    A::LinearAlgebra.Hermitian) = eig!(copy(A))
 
     eig2(A::SymTridiagonal, tol = eps(float(real(one(eltype(A))))), debug = false) = eig2!(copy(A), tol, debug)
     eig2(A::Hermitian     , tol = eps(float(real(one(eltype(A))))), debug = false) = eig2!(copy(A), tol, debug)
 
-    LinearAlgebra.eigfact(A::LinAlg.Hermitian) = eigfact!(copy(A))
+    LinearAlgebra.eigfact(A::LinearAlgebra.Hermitian) = eigfact!(copy(A))
 
     # Aux (should go somewhere else at some point)
     function LinearAlgebra.givensAlgorithm(f::Real, g::Real)
         h = hypot(f, g)
         return f/h, g/h, h
     end
-
+    
 end
