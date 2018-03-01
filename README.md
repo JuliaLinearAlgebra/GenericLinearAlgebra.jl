@@ -1,7 +1,7 @@
-# LinearAlgebra.jl
+# GenericLinearAlgebra.jl
 <!-- [![StatsBase](http://pkg.julialang.org/badges/StatsBase_0.4.svg)](http://pkg.julialang.org/?pkg=StatsBase&ver=0.4) -->
-[![Build Status](https://travis-ci.org/andreasnoack/LinearAlgebra.jl.svg?branch=master)](https://travis-ci.org/andreasnoack/LinearAlgebra.jl)
-[![Coverage Status](https://coveralls.io/repos/github/andreasnoack/LinearAlgebra.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/andreasnoack/LinearAlgebra.jl?branch=master)
+[![Build Status](https://travis-ci.org/andreasnoack/GenericLinearAlgebra.jl.svg?branch=master)](https://travis-ci.org/andreasnoack/GenericLinearAlgebra.jl)
+[![Coverage Status](https://coveralls.io/repos/github/andreasnoack/GenericLinearAlgebra.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/andreasnoack/GenericLinearAlgebra.jl?branch=master)
 
 ### A fresh approach to numerical linear algebra in Julia
 
@@ -10,7 +10,7 @@ The purpose of this package is partly to extend linear algebra functionality in 
 So far, this has mainly been my playground but you might find some of the functionality here useful. The package has a generic implementation of a singular value solver (vectors not handled yet) which will make it possible to compute `norm` and `cond` of matrices of `BigFloat`. The package extends the necessary method (`svdvals!`) in base. Hence
 
 ```jl
-julia> using LinearAlgebra
+julia> using GenericLinearAlgebra
 
 julia> A = big(randn(10,10));
 
@@ -24,7 +24,7 @@ julia> norm(A)
 The package also includes functions for the blocked Cholesky and QR factorization, the self-adjoint (symmetric) and the general eigenvalue problem. These routines can be accessed by fully qualifying the names
 
 ```jl
-julia> using LinearAlgebra
+julia> using GenericLinearAlgebra
 
 julia> A = randn(1000,1000); A = A'A;
 
@@ -33,8 +33,8 @@ julia> cholfact(A);
 julia> @time cholfact(A);
   0.013036 seconds (16 allocations: 7.630 MB)
 
-julia> LinearAlgebra.CholeskyModule.cholRecursive!(copy(A), Val{:L});
+julia> GenericLinearAlgebra.CholeskyModule.cholRecursive!(copy(A), Val{:L});
 
-julia> @time LinearAlgebra.CholeskyModule.cholRecursive!(copy(A), Val{:L});
+julia> @time GenericLinearAlgebra.CholeskyModule.cholRecursive!(copy(A), Val{:L});
   0.012098 seconds (7.00 k allocations: 7.934 MB)
 ```
