@@ -1,4 +1,4 @@
-using Base.Test, LinearAlgebra
+using Base.Test, GenericLinearAlgebra
 using LinearAlgebra.CholeskyModule: cholUnblocked!, cholBlocked!, cholRecursive!
 
 n = 50
