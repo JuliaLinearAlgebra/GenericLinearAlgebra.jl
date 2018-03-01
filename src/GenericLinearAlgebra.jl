@@ -1,6 +1,6 @@
 __precompile__()
 
-module LinearAlgebra
+module GenericLinearAlgebra
 
 include("juliaBLAS.jl")
 include("lapack.jl")
