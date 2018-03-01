@@ -1,8 +1,8 @@
 module LAPACK2
 
-    using Base.LinAlg: BlasInt, chkstride1, LAPACKException
-    using Base.LinAlg.BLAS: @blasfunc
-    using Base.LinAlg.LAPACK: chkdiag, chkside, chkuplo
+    using LinearAlgebra: BlasInt, chkstride1, LAPACKException
+    using LinearAlgebra.BLAS: @blasfunc
+    using LinearAlgebra.LAPACK: chkdiag, chkside, chkuplo
 
     # LAPACK wrappers
     import Base.BLAS.@blasfunc
