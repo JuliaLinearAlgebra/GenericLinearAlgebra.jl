@@ -1,10 +1,10 @@
 module QRModule
 
     using ..HouseholderModule: Householder, HouseholderBlock
-    using Base.LinAlg: QR, axpy!, reflector!
+    using LinearAlgebra: QR, axpy!, reflector!
 
     import Base: getindex, size
-    import Base.LinAlg: reflectorApply!
+    import LinearAlgebra: reflectorApply!
 
     struct QR2{T,S<:AbstractMatrix{T},V<:AbstractVector{T}} <: Factorization{T}
         factors::S
