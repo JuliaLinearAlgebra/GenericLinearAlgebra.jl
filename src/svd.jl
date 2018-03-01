@@ -18,7 +18,7 @@ function svdvals2x2(d1, d2, e)
     return minmax(sqrt(λ1), sqrt(λ2))
 end
 
-function svdIter!{T<:Real}(B::Bidiagonal{T}, n1, n2, shift, U = nothing, Vt = nothing)
+function svdIter!(B::Bidiagonal{T}, n1, n2, shift, U = nothing, Vt = nothing) where {T<:Real}
 
     if istriu(B)
 
@@ -70,7 +70,7 @@ function svdIter!{T<:Real}(B::Bidiagonal{T}, n1, n2, shift, U = nothing, Vt = no
 end
 
 # See LAWN 3
-function svdDemmelKahan!{T<:Real}(B::Bidiagonal{T}, n1, n2, U = nothing, Vt = nothing)
+function svdDemmelKahan!(B::Bidiagonal{T}, n1, n2, U = nothing, Vt = nothing) where {T<:Real}
 
     if istriu(B)
 
@@ -103,7 +103,7 @@ function svdDemmelKahan!{T<:Real}(B::Bidiagonal{T}, n1, n2, U = nothing, Vt = no
     return B
 end
 
-function LinearAlgebra.svdvals!{T<:Real}(B::Bidiagonal{T}, tol = eps(T); debug = false)
+function LinearAlgebra.svdvals!(B::Bidiagonal{T}, tol = eps(T); debug = false) where {T<:Real}
 
     n = size(B, 1)
     n1 = 1
