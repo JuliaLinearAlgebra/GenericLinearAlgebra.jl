@@ -1,9 +1,9 @@
 module JuliaBLAS
 
 using Base.BLAS
-using Base.LinAlg: BlasComplex, BlasFloat, BlasReal, HermOrSym, UnitLowerTriangular, UnitUpperTriangular
+using LinearAlgebra: BlasComplex, BlasFloat, BlasReal, HermOrSym, UnitLowerTriangular, UnitUpperTriangular
 
-import Base.LinAlg: A_mul_B!, Ac_mul_B!
+import LinearAlgebra: A_mul_B!, Ac_mul_B!
 
 export rankUpdate!
 
