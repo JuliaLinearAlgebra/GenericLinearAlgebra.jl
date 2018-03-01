@@ -5,7 +5,8 @@ module EigenGeneral
     using ..HouseholderModule: Householder
     using LinearAlgebra: Givens, Rotation
 
-    import Base: A_mul_B!, A_mul_Bc!, Ac_mul_B, A_mul_Bc, A_ldiv_B!, ctranspose, full, getindex, size
+    import Base: ctranspose, full, getindex, size
+    import LinearAlgebra: A_mul_B!, A_mul_Bc!, Ac_mul_B, A_mul_Bc, A_ldiv_B!
     import LinearAlgebra: QRPackedQ
 
     # Auxiliary
