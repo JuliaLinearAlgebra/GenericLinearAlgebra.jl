@@ -4,6 +4,7 @@ module LAPACK2
     using LinearAlgebra.BLAS: @blasfunc
     using LinearAlgebra.LAPACK: chkdiag, chkside, chkuplo
     import LinearAlgebra
+    using LinearAlgebra
 
     # LAPACK wrappers
     import Base.BLAS.@blasfunc
