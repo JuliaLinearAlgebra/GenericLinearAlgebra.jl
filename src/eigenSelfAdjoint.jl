@@ -31,7 +31,7 @@ module EigenSelfAdjoint
         end
     end
 
-    function Base.LinAlg.A_mul_B!(Q::EigenQ, B::StridedVecOrMat)
+    function LinearAlgebra.A_mul_B!(Q::EigenQ, B::StridedVecOrMat)
         m, n = size(B)
         if size(Q, 1) != m
             throw(DimensionMismatch(""))
@@ -72,7 +72,7 @@ module EigenSelfAdjoint
         return B
     end
 
-    function Base.LinAlg.A_mul_B!(A::StridedMatrix, Q::EigenQ)
+    function LinearAlgebra.A_mul_B!(A::StridedMatrix, Q::EigenQ)
         m, n = size(A)
         if size(Q, 1) != n
             throw(DimensionMismatch(""))
@@ -113,7 +113,7 @@ module EigenSelfAdjoint
         return A
     end
 
-    Base.LinAlg.full(Q::EigenQ) = A_mul_B!(Q, eye(eltype(Q), size(Q, 1), size(Q, 1)))
+    LinearAlgebra.full(Q::EigenQ) = A_mul_B!(Q, eye(eltype(Q), size(Q, 1), size(Q, 1)))
 
     function _updateVectors!(c, s, j, vectors)
         @inbounds for i = 1:size(vectors, 1)
@@ -518,9 +518,9 @@ module EigenSelfAdjoint
         SymmetricTridiagonalFactorization('U', AS, τ, SymTridiagonal(real(diag(AS)), real(diag(AS, 1))))
     end
 
-    Base.LinAlg.eigvals!(A::SymmetricTridiagonalFactorization) = eigvalsPWK!(A.diagonals, eps(eltype(A.diagonals)), false)
-    Base.LinAlg.eigvals!(A::SymTridiagonal                   ) = eigvalsPWK!(A,           eps(eltype(A))          , false)
-    Base.LinAlg.eigvals!(A::Hermitian                        ) = eigvals!(symtri!(A))
+    LinearAlgebra.eigvals!(A::SymmetricTridiagonalFactorization) = eigvalsPWK!(A.diagonals, eps(eltype(A.diagonals)), false)
+    LinearAlgebra.eigvals!(A::SymTridiagonal                   ) = eigvalsPWK!(A,           eps(eltype(A))          , false)
+    LinearAlgebra.eigvals!(A::Hermitian                        ) = eigvals!(symtri!(A))
 
     eig!(A::SymmetricTridiagonalFactorization) = eigQL!(A.diagonals, full(getq(A)),    eps(eltype(A.diagonals)), false)
     eig!(A::SymTridiagonal                   ) = eigQL!(A, eye(eltype(A), size(A, 1)), eps(eltype(A))          , false)
