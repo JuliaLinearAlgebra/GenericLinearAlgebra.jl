@@ -3,10 +3,10 @@
 module EigenGeneral
 
     using ..HouseholderModule: Householder
-    using Base.LinAlg: Givens, Rotation
+    using LinearAlgebra: Givens, Rotation
 
     import Base: A_mul_B!, A_mul_Bc!, Ac_mul_B, A_mul_Bc, A_ldiv_B!, ctranspose, full, getindex, size
-    import Base.LinAlg: QRPackedQ
+    import LinearAlgebra: QRPackedQ
 
     # Auxiliary
     function adiagmax(A::StridedMatrix)
@@ -49,11 +49,11 @@ module EigenGeneral
     end
 
     function hessfact!{T}(A::StridedMatrix{T})
-        n = LinAlg.checksquare(A)
+        n = LinearAlgebra.checksquare(A)
         τ = Vector{Householder{T}}(n - 1)
         for i = 1:n - 1
             xi = view(A, i + 1:n, i)
-            t  = LinAlg.reflector!(xi)
+            t  = LinearAlgebra.reflector!(xi)
             H  = Householder{T,typeof(xi)}(view(xi, 2:n - i), t)
             τ[i] = H
             Ac_mul_B!(H, view(A, i + 1:n, i + 1:n))
