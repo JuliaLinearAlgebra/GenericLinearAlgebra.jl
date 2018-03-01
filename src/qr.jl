@@ -80,7 +80,7 @@ module QRModule
         HouseholderBlock{T,typeof(F),Matrix{T}}(F, UpperTriangular(Tmat))
     end
 
-    # qrUnblocked!(A::StridedMatrix) = LinAlg.qrfactUnblocked!(A)
+    # qrUnblocked!(A::StridedMatrix) = LinearAlgebra.qrfactUnblocked!(A)
     function qrUnblocked!(A::StridedMatrix{T},
                           τ::StridedVector{T} = fill(zero(T), min(size(A)...))) where {T}
 
