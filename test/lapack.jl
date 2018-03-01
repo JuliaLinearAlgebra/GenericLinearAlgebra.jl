@@ -1,6 +1,6 @@
 using Base.Test
-using LinearAlgebra
-using LinearAlgebra.LAPACK2
+using GenericLinearAlgebra
+using Generic.LinearAlgebra.LAPACK2
 
 @testset "LAPACK wrappers" begin
 
