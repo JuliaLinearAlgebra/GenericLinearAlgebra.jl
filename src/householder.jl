@@ -5,7 +5,7 @@ module HouseholderModule
 
     import Base: *
     import Base: Ac_mul_B, convert, size
-    import Base.LinAlg: A_mul_B!, Ac_mul_B!
+    import LinearAlgebra: A_mul_B!, Ac_mul_B!
 
     immutable Householder{T,S<:StridedVector}
         v::S
