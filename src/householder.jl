@@ -1,11 +1,11 @@
 module HouseholderModule
 
     using ..JuliaBLAS: rankUpdate!
-    using Base.LinAlg: BlasReal, axpy!
+    using LinearAlgebra: BlasReal, axpy!
 
     import Base: *
-    import Base: Ac_mul_B, convert, size
-    import LinearAlgebra: A_mul_B!, Ac_mul_B!
+    import Base: convert, size
+    import LinearAlgebra: Ac_mul_B, A_mul_B!, Ac_mul_B!
 
     immutable Householder{T,S<:StridedVector}
         v::S
