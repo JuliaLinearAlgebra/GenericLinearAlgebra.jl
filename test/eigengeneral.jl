@@ -11,3 +11,10 @@ using LinearAlgebra
     @test sort(real(v1)) ≈ sort(real(map(Complex{Float64}, vBig)))
     @test sort(imag(v1)) ≈ sort(imag(map(Complex{Float64}, vBig)))
 end
+
+@testset "make sure that solver doesn't hang" begin
+    for i in 1:1000
+        A = randn(8, 8)
+        sort(abs.(LinearAlgebra.EigenGeneral.eigvals!(copy(A)))) ≈ sort(abs.(eigvals(A)))
+    end
+end
