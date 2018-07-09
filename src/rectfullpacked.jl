@@ -69,7 +69,7 @@ function Base.getindex(A::HermitianRFP, i::Integer, j::Integer)
     end
 end
 
-function Ac_mul_A_RFP{T<:BlasFloat}(A::Matrix{T}, uplo = :U)
+function Ac_mul_A_RFP(A::Matrix{T}, uplo = :U) where T<:BlasFloat
     n = size(A, 2)
     if uplo == :U
         C = LAPACK2.sfrk!('N', 'U', T <: Complex ? 'C' : 'T', 1.0, A, 0.0, Vector{T}(n*(n + 1) >> 1))
@@ -138,8 +138,8 @@ struct CholeskyRFP{T<:BlasFloat} <: Factorization{T}
     uplo::Char
 end
 
-Base.LinAlg.cholfact!{T<:BlasFloat}(A::HermitianRFP{T}) = CholeskyRFP(LAPACK2.pftrf!(A.transr, A.uplo, copy(A.data)), A.transr, A.uplo)
-Base.LinAlg.cholfact{T<:BlasFloat}(A::HermitianRFP{T}) = cholfact!(copy(A))
+Base.LinAlg.cholfact!(A::HermitianRFP{T}) where {T<:BlasFloat} = CholeskyRFP(LAPACK2.pftrf!(A.transr, A.uplo, copy(A.data)), A.transr, A.uplo)
+Base.LinAlg.cholfact(A::HermitianRFP{T}) where {T<:BlasFloat} = cholfact!(copy(A))
 Base.LinAlg.factorize(A::HermitianRFP) = cholfact(A)
 
 Base.copy(F::CholeskyRFP{T}) where T = CholeskyRFP{T}(copy(F.data), F.transr, F.uplo)

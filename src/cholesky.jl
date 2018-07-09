@@ -3,7 +3,7 @@ module CholeskyModule
     using ..JuliaBLAS
     using Base.LinAlg: A_rdiv_Bc!
 
-    function cholUnblocked!{T<:Number}(A::AbstractMatrix{T}, ::Type{Val{:L}})
+    function cholUnblocked!(A::AbstractMatrix{T}, ::Type{Val{:L}}) where T<:Number
         n = LinAlg.checksquare(A)
         A[1,1] = sqrt(A[1,1])
         if n > 1
@@ -17,7 +17,7 @@ module CholeskyModule
         A
     end
 
-    function cholBlocked!{T<:Number}(A::AbstractMatrix{T}, ::Type{Val{:L}}, blocksize::Integer)
+    function cholBlocked!(A::AbstractMatrix{T}, ::Type{Val{:L}}, blocksize::Integer) where T<:Number
         n = LinAlg.checksquare(A)
         mnb = min(n, blocksize)
         A11 = view(A, 1:mnb, 1:mnb)
@@ -33,7 +33,7 @@ module CholeskyModule
         A
     end
 
-    function cholRecursive!{T}(A::StridedMatrix{T}, ::Type{Val{:L}}, cutoff = 1)
+    function cholRecursive!(A::StridedMatrix{T}, ::Type{Val{:L}}, cutoff = 1) where T
         n = LinAlg.checksquare(A)
         if n == 1
             A[1,1] = sqrt(A[1,1])
