@@ -7,11 +7,11 @@ module HouseholderModule
     import Base: Ac_mul_B, convert, size
     import Base.LinAlg: A_mul_B!, Ac_mul_B!
 
-    immutable Householder{T,S<:StridedVector}
+    struct Householder{T,S<:StridedVector}
         v::S
         τ::T
     end
-    immutable HouseholderBlock{T,S<:StridedMatrix,U<:StridedMatrix}
+    struct HouseholderBlock{T,S<:StridedMatrix,U<:StridedMatrix}
         V::S
         T::UpperTriangular{T,U}
     end
@@ -65,7 +65,7 @@ module HouseholderModule
         A
     end
 
-    function A_mul_B!{T}(H::HouseholderBlock{T}, A::StridedMatrix{T}, M::StridedMatrix{T})
+    function A_mul_B!(H::HouseholderBlock{T}, A::StridedMatrix{T}, M::StridedMatrix{T}) where T
         V = H.V
         mA, nA = size(A)
         nH = size(V, 1)
@@ -99,10 +99,10 @@ module HouseholderModule
 
         return A
     end
-    (*){T}(H::HouseholderBlock{T}, A::StridedMatrix{T}) =
+    (*)(H::HouseholderBlock{T}, A::StridedMatrix{T}) where {T} =
         A_mul_B!(H, copy(A), similar(A, (min(size(H.V)...), size(A, 2))))
 
-    function Ac_mul_B!{T}(H::HouseholderBlock{T}, A::StridedMatrix{T}, M::StridedMatrix)
+    function Ac_mul_B!(H::HouseholderBlock{T}, A::StridedMatrix{T}, M::StridedMatrix) where T
         V = H.V
         mA, nA = size(A)
         nH = size(V, 1)
@@ -136,9 +136,9 @@ module HouseholderModule
 
         return A
     end
-    Ac_mul_B{T}(H::HouseholderBlock{T}, A::StridedMatrix{T}) =
+    Ac_mul_B(H::HouseholderBlock{T}, A::StridedMatrix{T}) where {T} =
         Ac_mul_B!(H, copy(A), similar(A, (min(size(H.V)...), size(A, 2))))
 
-    convert{T}(::Type{Matrix}, H::Householder{T}) = A_mul_B!(H, eye(T, size(H, 1)))
-    convert{T}(::Type{Matrix{T}}, H::Householder{T}) = A_mul_B!(H, eye(T, size(H, 1)))
+    convert(::Type{Matrix}, H::Householder{T}) where {T} = A_mul_B!(H, eye(T, size(H, 1)))
+    convert(::Type{Matrix{T}}, H::Householder{T}) where {T} = A_mul_B!(H, eye(T, size(H, 1)))
 end

@@ -12,7 +12,7 @@ module LAPACK2
                     d::StridedVector{Float64},
                     e::StridedVector{Float64},
                     Z::StridedMatrix{Float64}    = compz == 'N' ? Matrix{Float64}(0,0) : Matrix{Float64}(length(d), length(d)),
-                    work::StridedVector{Float64} = compz == 'N' ? Vector{Float64}(0)   : Vector{Float64}(max(1, 2*length(d) - 2)))
+                    work::StridedVector{Float64} = compz == 'N' ? Vector{Float64}()   : Vector{Float64}(max(1, 2*length(d) - 2)))
 
         # Extract sizes
         n = length(d)
@@ -30,13 +30,13 @@ module LAPACK2
         end
 
         # Allocations
-        info = Vector{BlasInt}(1)
+        info = Vector{BlasInt}(undef, 1)
 
-        ccall((@blasfunc("dsteqr_"), Base.liblapack_name),Void,
-            (Ptr{UInt8}, Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64},
-             Ptr{Float64}, Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt}),
-             &compz, &n, d, e,
-             Z, &max(1, ldz), work, info)
+        ccall((@blasfunc("dsteqr_"), Base.liblapack_name),Cvoid,
+            (Ref{UInt8}, Ref{BlasInt}, Ptr{Float64}, Ptr{Float64},
+             Ptr{Float64}, Ref{BlasInt}, Ptr{Float64}, Ptr{BlasInt}),
+             compz, n, d, e,
+             Z, max(1, ldz), work, info)
         info[1] == 0 || throw(LAPACKException(info[1]))
 
         return d, Z
@@ -54,9 +54,9 @@ module LAPACK2
         # Allocations
         info = BlasInt[0]
 
-        ccall((@blasfunc("dsterf_"), Base.liblapack_name), Void,
-            (Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64}, Ptr{BlasInt}),
-            &n, d, e, info)
+        ccall((@blasfunc("dsterf_"), Base.liblapack_name), Cvoid,
+            (Ref{BlasInt}, Ptr{Float64}, Ptr{Float64}, Ptr{BlasInt}),
+            n, d, e, info)
 
         info[1] == 0 || throw(LAPACKException(info[1]))
 
@@ -85,13 +85,13 @@ module LAPACK2
         # Allocations
         info = BlasInt[0]
 
-        ccall((@blasfunc("dstedc_"), Base.liblapack_name), Void,
-                (Ptr{UInt8}, Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64},
-                 Ptr{Float64}, Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt},
-                 Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt}),
-                &compz, &n, d, e,
-                Z, &max(1, ldz), work, &lwork,
-                iwork, &liwork, info)
+        ccall((@blasfunc("dstedc_"), Base.liblapack_name), Cvoid,
+                (Ref{UInt8}, Ref{BlasInt}, Ptr{Float64}, Ptr{Float64},
+                 Ptr{Float64}, Ref{BlasInt}, Ptr{Float64}, Ref{BlasInt},
+                 Ptr{BlasInt}, Ref{BlasInt}, Ptr{BlasInt}),
+                compz, n, d, e,
+                Z, max(1, ldz), work, lwork,
+                iwork, liwork, info)
 
         info[1] == 0 || throw(LAPACKException(info[1]))
 
@@ -144,22 +144,22 @@ module LAPACK2
 
                 # Allocations
                 eev::Vector{$elty} = length(ev) == n - 1 ? [ev; zero($elty)] : copy(ev)
-                abstol = Vector{$elty}(1)
-                m      = Vector{BlasInt}(1)
+                abstol = Vector{$elty}(undef, 1)
+                m      = Vector{BlasInt}(undef, 1)
                 tryrac = BlasInt[1]
-                info   = Vector{BlasInt}(1)
-                ccall((@blasfunc($lsymb), Base.liblapack_name), Void,
-                    (Ptr{Char}, Ptr{Char}, Ptr{BlasInt}, Ptr{$elty},
-                    Ptr{$elty}, Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt},
-                    Ptr{BlasInt}, Ptr{BlasInt}, Ptr{$elty}, Ptr{$elty},
-                    Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt},
-                    Ptr{$elty}, Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt},
+                info   = Vector{BlasInt}(undef, 1)
+                ccall((@blasfunc($lsymb), Base.liblapack_name), Cvoid,
+                    (Ref{Char}, Ref{Char}, Ref{BlasInt}, Ptr{$elty},
+                    Ptr{$elty}, Ref{$elty}, Ref{$elty}, Ref{BlasInt},
+                    Ref{BlasInt}, Ptr{BlasInt}, Ptr{$elty}, Ptr{$elty},
+                    Ref{BlasInt}, Ref{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt},
+                    Ptr{$elty}, Ref{BlasInt}, Ptr{BlasInt}, Ref{BlasInt},
                     Ptr{BlasInt}),
-                    &jobz, &range, &n, dv,
-                    eev, &vl, &vu, &il,
-                    &iu, m, w, Z,
-                    &max(1, ldz), &nzc, isuppz, tryrac,
-                    work, &lwork, iwork, &liwork,
+                    jobz, range, n, dv,
+                    eev, vl, vu, il,
+                    iu, m, w, Z,
+                    max(1, ldz), nzc, isuppz, tryrac,
+                    work, lwork, iwork, liwork,
                     info)
 
                 info[1] == 0 || throw(LAPACKException(info[1]))
@@ -181,7 +181,7 @@ module LAPACK2
                 if jobz == 'N'
                     # Z = Matrix{$elty}(0, 0)
                     nzc::BlasInt = 0
-                    isuppz = Vector{BlasInt}(0)
+                    isuppz = Vector{BlasInt}()
                 elseif jobz == 'V'
                     nzc = -1
                     isuppz = similar(dv, BlasInt, 2n)
@@ -189,7 +189,7 @@ module LAPACK2
                     throw(ArgumentError("jobz must be either 'N' or 'V'"))
                 end
 
-                work = Vector{$elty}(1)
+                work = Vector{$elty}(undef, 1)
                 lwork::BlasInt = -1
                 iwork = BlasInt[0]
                 liwork::BlasInt = -1
@@ -237,15 +237,15 @@ module LAPACK2
 
         info = Ref{BlasInt}(0)
 
-        ccall((@blasfunc("dlahqr_"), Base.liblapack_name), Void,
-            (Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt},
-             Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt}, Ptr{Float64},
-             Ptr{Float64}, Ptr{BlasInt}, Ptr{BlasInt}, Ptr{Float64},
-             Ptr{BlasInt}, Ptr{BlasInt}),
-            &wantt, &wantz, &n, &ilo,
-            &ihi, H, &max(1, ldh), wr,
-            wi, &iloz, &ihiz, Z,
-            &max(1, ldz), info)
+        ccall((@blasfunc("dlahqr_"), Base.liblapack_name), Cvoid,
+            (Ref{BlasInt}, Ref{BlasInt}, Ref{BlasInt}, Ref{BlasInt},
+             Ref{BlasInt}, Ptr{Float64}, Ref{BlasInt}, Ptr{Float64},
+             Ptr{Float64}, Ref{BlasInt}, Ref{BlasInt}, Ptr{Float64},
+             Ref{BlasInt}, Ptr{BlasInt}),
+            wantt, wantz, n, ilo,
+            ihi, H, max(1, ldh), wr,
+            wi, iloz, ihiz, Z,
+            max(1, ldz), info)
 
         if info[] != 0
             throw(LAPACKException(info[]))
@@ -284,13 +284,13 @@ module LAPACK2
             throw(ArgumentError("compz must be either 'N', 'V', or 'I'"))
         end
 
-        info = Vector{BlasInt}(1)
+        info = Vector{BlasInt}(undef, 1)
 
-        ccall((@blasfunc(:dpteqr_), Base.liblapack_name), Void,
-            (Ptr{Char}, Ptr{BlasInt}, Ptr{Float64}, Ptr{Float64},
-             Ptr{Float64}, Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt}),
-            &compz, &n, d, e,
-            Z, &max(1, ldz), work, info)
+        ccall((@blasfunc(:dpteqr_), Base.liblapack_name), Cvoid,
+            (Ref{Char}, Ref{BlasInt}, Ptr{Float64}, Ptr{Float64},
+             Ptr{Float64}, Ref{BlasInt}, Ptr{Float64}, Ptr{BlasInt}),
+            compz, n, d, e,
+            Z, max(1, ldz), work, info)
 
         info[1] == 0 || throw(LAPACKException(info[1]))
 
@@ -306,19 +306,19 @@ module LAPACK2
                 n      = LinAlg.checksquare(A)
                 lda    = stride(A, 2)
                 w      = Vector{$elty}(n)
-                work   = Vector{$elty}(1)
+                work   = Vector{$elty}(undef, 1)
                 lwork  = BlasInt(-1)
-                iwork  = Vector{BlasInt}(1)
+                iwork  = Vector{BlasInt}(undef, 1)
                 liwork = BlasInt(-1)
                 info = BlasInt[0]
                 for i = 1:2
-                    ccall((@blasfunc($f), Base.liblapack_name), Void,
-                        (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
-                         Ptr{BlasInt}, Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt},
-                         Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt}),
-                        &jobz, &uplo, &n, A,
-                        &lda, w, work, &lwork,
-                        iwork, &liwork, info)
+                    ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+                        (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ptr{$elty},
+                         Ref{BlasInt}, Ptr{$elty}, Ptr{$elty}, Ref{BlasInt},
+                         Ptr{BlasInt}, Ref{BlasInt}, Ptr{BlasInt}),
+                        jobz, uplo, n, A,
+                        lda, w, work, lwork,
+                        iwork, liwork, info)
 
                     if info[1] != 0
                         return LinAlg.LAPACKException(info[1])
@@ -342,22 +342,22 @@ module LAPACK2
                 n      = LinAlg.checksquare(A)
                 lda    = stride(A, 2)
                 w      = Vector{$relty}(n)
-                work   = Vector{$elty}(1)
+                work   = Vector{$elty}(undef, 1)
                 lwork  = BlasInt(-1)
-                rwork  = Vector{$relty}(1)
+                rwork  = Vector{$relty}(undef, 1)
                 lrwork = BlasInt(-1)
-                iwork  = Vector{BlasInt}(1)
+                iwork  = Vector{BlasInt}(undef, 1)
                 liwork = BlasInt(-1)
                 info = BlasInt[0]
                 for i = 1:2
-                    ccall((@blasfunc($f), Base.liblapack_name), Void,
-                        (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
-                         Ptr{BlasInt}, Ptr{$relty}, Ptr{$elty}, Ptr{BlasInt},
-                         Ptr{$relty}, Ptr{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt},
+                    ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+                        (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ptr{$elty},
+                         Ref{BlasInt}, Ptr{$relty}, Ptr{$elty}, Ref{BlasInt},
+                         Ptr{$relty}, Ref{BlasInt}, Ptr{BlasInt}, Ref{BlasInt},
                          Ptr{BlasInt}),
-                        &jobz, &uplo, &n, A,
-                        &lda, w, work, &lwork,
-                        rwork, &lrwork, iwork, &liwork,
+                        jobz, uplo, n, A,
+                        lda, w, work, lwork,
+                        rwork, lrwork, iwork, liwork,
                         info)
 
                     if info[1] != 0
@@ -434,15 +434,15 @@ for (f, elty) in ((:dtgevc_, :Float64),
             m = BlasInt[0]
             info = BlasInt[0]
 
-            ccall((@blasfunc($f), Base.liblapack_name), Void,
-                (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{BlasInt},
-                 Ptr{$elty}, Ptr{BlasInt}, Ptr{$elty}, Ptr{BlasInt},
-                 Ptr{$elty}, Ptr{BlasInt}, Ptr{$elty}, Ptr{BlasInt},
-                 Ptr{BlasInt}, Ptr{BlasInt}, Ptr{$elty}, Ptr{BlasInt}),
-                &side, &howmny, select, &n,
-                S, &lds, P, &ldp,
-                VL, &ldvl, VR, &ldvr,
-                &mm, m, work, info)
+            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+                (Ref{UInt8}, Ref{UInt8}, Ptr{BlasInt}, Ref{BlasInt},
+                 Ptr{$elty}, Ref{BlasInt}, Ptr{$elty}, Ref{BlasInt},
+                 Ptr{$elty}, Ref{BlasInt}, Ptr{$elty}, Ref{BlasInt},
+                 Ref{BlasInt}, Ptr{BlasInt}, Ptr{$elty}, Ptr{BlasInt}),
+                side, howmny, select, n,
+                S, lds, P, ldp,
+                VL, ldvl, VR, ldvr,
+                mm, m, work, info)
 
             if info[1] != 0
                 throw(LAPACKException(info[1]))
@@ -511,13 +511,13 @@ for (f, elty, relty) in ((:dsfrk_, :Float64, :Float64),
             end
             lda = max(1, stride(A, 2))
 
-            ccall((@blasfunc($f), Base.liblapack_name), Void,
-                (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt},
-                 Ptr{BlasInt}, Ptr{$relty}, Ptr{$elty}, Ptr{BlasInt},
-                 Ptr{$relty}, Ptr{$elty}),
-                &transr, &uplo, &trans, &n,
-                &k, &alpha, A, &lda,
-                &beta, C)
+            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+                (Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{BlasInt},
+                 Ref{BlasInt}, Ref{$relty}, Ptr{$elty}, Ref{BlasInt},
+                 Ref{$relty}, Ptr{$elty}),
+                transr, uplo, trans, n,
+                k, alpha, A, lda,
+                beta, C)
             C
         end
     end
@@ -533,12 +533,12 @@ for (f, elty) in ((:dpftrf_, :Float64),
         function pftrf!(transr::Char, uplo::Char, A::StridedVector{$elty})
             chkuplo(uplo)
             n = round(Int,div(sqrt(8length(A)), 2))
-            info = Vector{BlasInt}(1)
+            info = Vector{BlasInt}(undef, 1)
 
-            ccall((@blasfunc($f), Base.liblapack_name), Void,
-                (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
+            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+                (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ptr{$elty},
                  Ptr{BlasInt}),
-                &transr, &uplo, &n, A,
+                transr, uplo, n, A,
                 info)
             A
         end
@@ -555,12 +555,12 @@ for (f, elty) in ((:dpftri_, :Float64),
         function pftri!(transr::Char, uplo::Char, A::StridedVector{$elty})
             chkuplo(uplo)
             n = round(Int,div(sqrt(8length(A)), 2))
-            info = Vector{BlasInt}(1)
+            info = Vector{BlasInt}(undef, 1)
 
-            ccall((@blasfunc($f), Base.liblapack_name), Void,
-                (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
+            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+                (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ptr{$elty},
                  Ptr{BlasInt}),
-                &transr, &uplo, &n, A,
+                transr, uplo, n, A,
                 info)
 
             A
@@ -584,13 +584,13 @@ for (f, elty) in ((:dpftrs_, :Float64),
             end
             nhrs = size(B, 2)
             ldb = max(1, stride(B, 2))
-            info = Vector{BlasInt}(1)
+            info = Vector{BlasInt}(undef, 1)
 
-            ccall((@blasfunc($f), Base.liblapack_name), Void,
-                (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{BlasInt},
-                 Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt}, Ptr{BlasInt}),
-                 &transr, &uplo, &n, &nhrs,
-                 A, B, &ldb, info)
+            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+                (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt},
+                 Ptr{$elty}, Ptr{$elty}, Ref{BlasInt}, Ptr{BlasInt}),
+                 transr, uplo, n, nhrs,
+                 A, B, ldb, info)
 
             B
         end
@@ -622,13 +622,13 @@ for (f, elty) in ((:dtfsm_, :Float64),
             end
             ldb = max(1, stride(B, 2))
 
-            ccall((@blasfunc($f), Base.liblapack_name), Void,
-                (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8},
-                 Ptr{UInt8}, Ptr{BlasInt}, Ptr{BlasInt}, Ptr{$elty},
-                 Ptr{$elty}, Ptr{$elty}, Ptr{BlasInt}),
-                &transr, &side, &uplo, &trans,
-                &diag, &m, &n, &alpha,
-                A, B, &ldb)
+            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+                (Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{UInt8},
+                 Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt}, Ref{$elty},
+                 Ptr{$elty}, Ptr{$elty}, Ref{BlasInt}),
+                transr, side, uplo, trans,
+                diag, m, n, alpha,
+                A, B, ldb)
 
             return B
         end
@@ -646,12 +646,12 @@ for (f, elty) in ((:dtftri_, :Float64),
             chkuplo(uplo)
             chkdiag(diag)
             n = round(Int,div(sqrt(8length(A)), 2))
-            info = Vector{BlasInt}(1)
+            info = Vector{BlasInt}(undef, 1)
 
-            ccall((@blasfunc($f), Base.liblapack_name), Void,
-                (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt},
+            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+                (Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{BlasInt},
                  Ptr{$elty}, Ptr{BlasInt}),
-                &transr, &uplo, &diag, &n,
+                transr, uplo, diag, n,
                 A, info)
 
             A
@@ -669,14 +669,14 @@ for (f, elty) in ((:dtfttr_, :Float64),
         function tfttr!(transr::Char, uplo::Char, Arf::StridedVector{$elty})
             chkuplo(uplo)
             n = round(Int,div(sqrt(8length(Arf)), 2))
-            info = Vector{BlasInt}(1)
+            info = Vector{BlasInt}(undef, 1)
             A = similar(Arf, $elty, n, n)
 
-            ccall((@blasfunc($f), Base.liblapack_name), Void,
-                (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
-                Ptr{$elty}, Ptr{BlasInt}, Ptr{BlasInt}),
-                &transr, &uplo, &n, Arf,
-                A, &n, info)
+            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+                (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ptr{$elty},
+                Ptr{$elty}, Ref{BlasInt}, Ptr{BlasInt}),
+                transr, uplo, n, Arf,
+                A, n, info)
 
             A
         end
@@ -695,14 +695,14 @@ for (f, elty) in ((:dtrttf_, :Float64),
             chkstride1(A)
             n = size(A, 1)
             lda = max(1, stride(A, 2))
-            info = Vector{BlasInt}(1)
+            info = Vector{BlasInt}(undef, 1)
             Arf = similar(A, $elty, div(n*(n+1), 2))
 
-            ccall((@blasfunc($f), Base.liblapack_name), Void,
-                (Ptr{UInt8}, Ptr{UInt8}, Ptr{BlasInt}, Ptr{$elty},
-                 Ptr{BlasInt}, Ptr{$elty}, Ptr{BlasInt}),
-                &transr, &uplo, &n, A,
-                &lda, Arf, info)
+            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+                (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ptr{$elty},
+                 Ref{BlasInt}, Ptr{$elty}, Ptr{BlasInt}),
+                transr, uplo, n, A,
+                lda, Arf, info)
 
             Arf
         end

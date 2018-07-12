@@ -49,7 +49,7 @@ module QRModule
 
     # getindex{T}(A::QR2{T}, ::Type{Tuple{:Q}}) = Q{T,typeof(A)}(A)
 
-    function getindex{T}(A::QR2{T}, ::Type{Tuple{:R}})
+    function getindex(A::QR2{T}, ::Type{Tuple{:R}}) where T
         m, n = size(A)
         if m >= n
             UpperTriangular(view(A.factors, 1:n, 1:n))
@@ -58,7 +58,7 @@ module QRModule
         end
     end
 
-    function getindex{T}(A::QR2{T}, ::Type{Tuple{:QBlocked}})
+    function getindex(A::QR2{T}, ::Type{Tuple{:QBlocked}}) where T
         m, n = size(A)
         mmn = min(m,n)
         F = A.factors
