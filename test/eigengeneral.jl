@@ -1,4 +1,4 @@
-using LinearAlgebra
+using GenericLinearAlgebra
 
 @testset "General eigen problems" begin
     n = 10

@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 
 # @testset "The LinearAlgebra Test Suite" begin
     include("cholesky.jl")

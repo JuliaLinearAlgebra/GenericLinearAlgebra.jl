@@ -1,4 +1,4 @@
-using Base.Test, LinearAlgebra, Quaternions
+using Test, GenericLinearAlgebra, Quaternions
 Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
 
 @testset "The selfadjoint eigen problem" begin
