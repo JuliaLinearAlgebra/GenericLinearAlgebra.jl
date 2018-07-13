@@ -28,13 +28,13 @@ julia> using GenericLinearAlgebra
 
 julia> A = randn(1000,1000); A = A'A;
 
-julia> cholfact(A);
+julia> cholesky(A);
 
-julia> @time cholfact(A);
+julia> @time cholesky(A);
   0.013036 seconds (16 allocations: 7.630 MB)
 
-julia> GenericLinearAlgebra.CholeskyModule.cholRecursive!(copy(A), Val{:L});
+julia> GenericLinearAlgebra.cholRecursive!(copy(A), Val{:L});
 
-julia> @time GenericLinearAlgebra.CholeskyModule.cholRecursive!(copy(A), Val{:L});
+julia> @time GenericLinearAlgebra.cholRecursive!(copy(A), Val{:L});
   0.012098 seconds (7.00 k allocations: 7.934 MB)
 ```

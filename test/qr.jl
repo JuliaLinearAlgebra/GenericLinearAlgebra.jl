@@ -1,11 +1,13 @@
 using Test
+using LinearAlgebra
 using GenericLinearAlgebra
-using GenericLinearAlgebra.QRModule.qrBlocked!
+using GenericLinearAlgebra: qrBlocked!
 
 @testset "The QR decomposition" begin
-    @testset "Problem dimension ($m,$n) with block size $bz" for (m, n) in (( 10,  5), ( 10,  10), ( 5,  10),
-                                                                            (100, 50), (100, 100), (50, 100)),
-                                                                     bz in (1, 2, 3, 4, 7, 8, 9, 15, 16, 17, 31, 32, 33)
+    @testset "Problem dimension ($m,$n) with block size $bz" for
+        (m, n) in (( 10,  5), ( 10,  10), ( 5,  10),
+                   (100, 50), (100, 100), (50, 100)),
+            bz in (1, 2, 3, 4, 7, 8, 9, 15, 16, 17, 31, 32, 33)
 
         A = randn(m, n)
         Aqr = qrBlocked!(copy(A), bz)
@@ -19,7 +21,7 @@ using GenericLinearAlgebra.QRModule.qrBlocked!
     end
 
     @testset "Error paths" begin
-        @test_throws DimensionMismatch LinearAlgebra.QRModule.reflectorApply!(zeros(5, 5), zeros(4), 1.0)
+        @test_throws DimensionMismatch LinearAlgebra.reflectorApply!(zeros(5, 5), zeros(4), 1.0)
         @test_throws ArgumentError     qrBlocked!(randn(5, 10))[Tuple{:R}]
     end
 end

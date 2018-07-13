@@ -2,6 +2,8 @@ __precompile__()
 
 module GenericLinearAlgebra
 
+import LinearAlgebra: mul!, ldiv!
+
 include("juliaBLAS.jl")
 include("lapack.jl")
 include("cholesky.jl")

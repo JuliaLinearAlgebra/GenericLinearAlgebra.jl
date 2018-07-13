@@ -1,8 +1,10 @@
 # Rectangular Full Packed Matrices
 
+using LinearAlgebra: BlasFloat
+
+import ..LAPACK2: trttf!
 import Base: \
-import Base.LinAlg: BlasFloat
-import ..GenericLinearAlgebra.LAPACK2: trttf!
+import LinearAlgebra: ldiv!
 
 struct HermitianRFP{T<:BlasFloat} <: AbstractMatrix{T}
     data::Vector{T}
@@ -72,10 +74,10 @@ end
 function Ac_mul_A_RFP(A::Matrix{T}, uplo = :U) where T<:BlasFloat
     n = size(A, 2)
     if uplo == :U
-        C = LAPACK2.sfrk!('N', 'U', T <: Complex ? 'C' : 'T', 1.0, A, 0.0, Vector{T}(n*(n + 1) >> 1))
+        C = LAPACK2.sfrk!('N', 'U', T <: Complex ? 'C' : 'T', 1.0, A, 0.0, Vector{T}(undef, (n*(n + 1)) >> 1))
         return HermitianRFP(C, 'N', 'U')
     elseif uplo == :L
-        C = LAPACK2.sfrk!('N', 'L', T <: Complex ? 'C' : 'T', 1.0, A, 0.0, Vector{T}(n*(n + 1) >> 1))
+        C = LAPACK2.sfrk!('N', 'L', T <: Complex ? 'C' : 'T', 1.0, A, 0.0, Vector{T}(undef, (n*(n + 1)) >> 1))
        return  HermitianRFP(C, 'N', 'L')
    else
         throw(ArgumentError("uplo must be either :L or :U"))
@@ -116,7 +118,7 @@ end
 
 Base.copy(A::TriangularRFP) = TriangularRFP(copy(A.data), A.transr, A.uplo)
 
-function Base.full(A::TriangularRFP)
+function Base.Array(A::TriangularRFP)
     C = LAPACK2.tfttr!(A.transr, A.uplo, A.data)
     if A.uplo == 'U'
         return triu!(C)
@@ -125,12 +127,12 @@ function Base.full(A::TriangularRFP)
     end
 end
 
-Base.LinAlg.inv!(A::TriangularRFP) = TriangularRFP(LAPACK2.tftri!(A.transr, A.uplo, 'N', A.data), A.transr, A.uplo)
-Base.LinAlg.inv(A::TriangularRFP)  = Base.LinAlg.inv!(copy(A))
+LinearAlgebra.inv!(A::TriangularRFP) = TriangularRFP(LAPACK2.tftri!(A.transr, A.uplo, 'N', A.data), A.transr, A.uplo)
+LinearAlgebra.inv(A::TriangularRFP)  = LinearAlgebra.inv!(copy(A))
 
-A_ldiv_B!(A::TriangularRFP{T}, B::StridedVecOrMat{T}) where T =
+ldiv!(A::TriangularRFP{T}, B::StridedVecOrMat{T}) where T =
     LAPACK2.tfsm!(A.transr, 'L', A.uplo, 'N', 'N', one(T), A.data, B)
-(\)(A::TriangularRFP, B::StridedVecOrMat) = A_ldiv_B!(A, copy(B))
+(\)(A::TriangularRFP, B::StridedVecOrMat) = ldiv!(A, copy(B))
 
 struct CholeskyRFP{T<:BlasFloat} <: Factorization{T}
     data::Vector{T}
@@ -138,16 +140,16 @@ struct CholeskyRFP{T<:BlasFloat} <: Factorization{T}
     uplo::Char
 end
 
-Base.LinAlg.cholfact!(A::HermitianRFP{T}) where {T<:BlasFloat} = CholeskyRFP(LAPACK2.pftrf!(A.transr, A.uplo, copy(A.data)), A.transr, A.uplo)
-Base.LinAlg.cholfact(A::HermitianRFP{T}) where {T<:BlasFloat} = cholfact!(copy(A))
-Base.LinAlg.factorize(A::HermitianRFP) = cholfact(A)
+LinearAlgebra.cholesky!(A::HermitianRFP{T}) where {T<:BlasFloat} = CholeskyRFP(LAPACK2.pftrf!(A.transr, A.uplo, copy(A.data)), A.transr, A.uplo)
+LinearAlgebra.cholesky(A::HermitianRFP{T}) where {T<:BlasFloat} = cholesky!(copy(A))
+LinearAlgebra.factorize(A::HermitianRFP) = cholesky(A)
 
 Base.copy(F::CholeskyRFP{T}) where T = CholeskyRFP{T}(copy(F.data), F.transr, F.uplo)
 
 # Solve
 (\)(A::CholeskyRFP, B::StridedVecOrMat) = LAPACK2.pftrs!(A.transr, A.uplo, A.data, copy(B))
-(\)(A::HermitianRFP, B::StridedVecOrMat) = cholfact(A)\B
+(\)(A::HermitianRFP, B::StridedVecOrMat) = cholesky(A)\B
 
-Base.LinAlg.inv!(A::CholeskyRFP) = HermitianRFP(LAPACK2.pftri!(A.transr, A.uplo, A.data), A.transr, A.uplo)
-Base.LinAlg.inv(A::CholeskyRFP)  = Base.LinAlg.inv!(copy(A))
-Base.LinAlg.inv(A::HermitianRFP) = Base.LinAlg.inv!(cholfact(A))
+LinearAlgebra.inv!(A::CholeskyRFP) = HermitianRFP(LAPACK2.pftri!(A.transr, A.uplo, A.data), A.transr, A.uplo)
+LinearAlgebra.inv(A::CholeskyRFP)  = LinearAlgebra.inv!(copy(A))
+LinearAlgebra.inv(A::HermitianRFP) = LinearAlgebra.inv!(cholesky(A))

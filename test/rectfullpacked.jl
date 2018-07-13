@@ -41,9 +41,10 @@ import GenericLinearAlgebra: Ac_mul_A_RFP, TriangularRFP
         end
     end
 
-    @testset "Hermitian with element type: $elty. Problem size: $n" for elty in (Float32, Float64, Complex{Float32}, Complex{Float64}),
-                                                                           n in (6, 7),
-                                                                        uplo in (:L, :U)
+    @testset "Hermitian with element type: $elty. Problem size: $n" for
+        elty in (Float32, Float64, Complex{Float32}, Complex{Float64}),
+            n in (6, 7),
+                uplo in (:L, :U)
 
         A       = rand(elty, 10, n)
         AcA     = A'A
@@ -53,21 +54,22 @@ import GenericLinearAlgebra: Ac_mul_A_RFP, TriangularRFP
         @test AcA   ≈ A'A
         @test AcA\o ≈ AcA_RFP\o
         @test inv(AcA) ≈ inv(AcA_RFP)
-        @test inv(cholfact(AcA)) ≈ inv(factorize(AcA_RFP))
+        @test inv(cholesky(AcA)) ≈ inv(factorize(AcA_RFP))
     end
 
-    @testset "Hermitian with element type: $elty. Problem size: $n" for elty in (Float32, Float64, Complex{Float32}, Complex{Float64}),
-                                                                           n in (6, 7),
-                                                                        uplo in (:L, :U)
+    @testset "Hermitian with element type: $elty. Problem size: $n" for
+        elty in (Float32, Float64, Complex{Float32}, Complex{Float64}),
+            n in (6, 7),
+                uplo in (:L, :U)
 
-        A     = lufact(rand(elty, n, n))[:U]
-        A     = uplo == :U ? A : A'
+        A     = lu(rand(elty, n, n)).U
+        A     = uplo == :U ? A : copy(A')
         A_RFP = TriangularRFP(A, uplo)
         o     = ones(elty, n)
 
         @test_broken A ≈ A_RFP
-        @test        A ≈ full(A_RFP)
+        @test        A ≈ Array(A_RFP)
         @test      A\o ≈ A_RFP\o
-        @test   inv(A) ≈ full(inv(A_RFP))
+        @test   inv(A) ≈ Array(inv(A_RFP))
     end
 end

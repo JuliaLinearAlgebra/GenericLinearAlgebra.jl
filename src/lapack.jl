@@ -1,18 +1,20 @@
 module LAPACK2
 
-    using Base.LinAlg: BlasInt, chkstride1, LAPACKException
-    using Base.LinAlg.BLAS: @blasfunc
-    using Base.LinAlg.LAPACK: chkdiag, chkside, chkuplo
-
-    # LAPACK wrappers
-    import Base.BLAS.@blasfunc
+    using LinearAlgebra
+    using LinearAlgebra: BlasInt, chkstride1, LAPACKException
+    using LinearAlgebra.BLAS: @blasfunc
+    using LinearAlgebra.LAPACK: chkdiag, chkside, chkuplo
 
     ## Standard QR/QL
     function steqr!(compz::Char,
                     d::StridedVector{Float64},
                     e::StridedVector{Float64},
-                    Z::StridedMatrix{Float64}    = compz == 'N' ? Matrix{Float64}(0,0) : Matrix{Float64}(length(d), length(d)),
-                    work::StridedVector{Float64} = compz == 'N' ? Vector{Float64}()   : Vector{Float64}(max(1, 2*length(d) - 2)))
+                    Z::StridedMatrix{Float64} = compz == 'N' ?
+                        Matrix{Float64}(undef, 0, 0) :
+                        Matrix{Float64}(undef, length(d), length(d)),
+                    work::StridedVector{Float64} = compz == 'N' ?
+                        Vector{Float64}(undef, 0) :
+                        Vector{Float64}(undef, max(1, 2*length(d) - 2)))
 
         # Extract sizes
         n = length(d)
@@ -101,16 +103,18 @@ module LAPACK2
     function stedc!(compz::Char,
                     d::StridedVector{Float64},
                     e::StridedVector{Float64},
-                    Z::StridedMatrix{Float64} = compz == 'N' ? Matrix{Float64}(0,0) : Matrix{Float64}(length(d), length(d)))
+                    Z::StridedMatrix{Float64} = compz == 'N' ?
+                        Matrix{Float64}(undef, 0, 0) :
+                        Matrix{Float64}(undef, length(d), length(d)))
 
         work::Vector{Float64} = Float64[0]
         iwork::Vector{BlasInt} = BlasInt[0]
         stedc!(compz, d, e, Z, work, -1, iwork, -1)
 
         lwork::BlasInt = work[1]
-        work = Vector{Float64}(lwork)
+        work = Vector{Float64}(undef, lwork)
         liwork = iwork[1]
-        iwork = Vector{BlasInt}(liwork)
+        iwork = Vector{BlasInt}(undef, liwork)
 
         return stedc!(compz, d, e, Z, work, lwork, iwork, liwork)
     end
@@ -148,8 +152,9 @@ module LAPACK2
                 m      = Vector{BlasInt}(undef, 1)
                 tryrac = BlasInt[1]
                 info   = Vector{BlasInt}(undef, 1)
+
                 ccall((@blasfunc($lsymb), Base.liblapack_name), Cvoid,
-                    (Ref{Char}, Ref{Char}, Ref{BlasInt}, Ptr{$elty},
+                    (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ptr{$elty},
                     Ptr{$elty}, Ref{$elty}, Ref{$elty}, Ref{BlasInt},
                     Ref{BlasInt}, Ptr{BlasInt}, Ptr{$elty}, Ptr{$elty},
                     Ref{BlasInt}, Ref{BlasInt}, Ptr{BlasInt}, Ptr{BlasInt},
@@ -177,11 +182,11 @@ module LAPACK2
                             iu::BlasInt = length(dv))
 
                 n = length(dv)
-                w = Vector{$elty}(n)
+                w = Vector{$elty}(undef, n)
                 if jobz == 'N'
                     # Z = Matrix{$elty}(0, 0)
                     nzc::BlasInt = 0
-                    isuppz = Vector{BlasInt}()
+                    isuppz = Vector{BlasInt}(undef, 0)
                 elseif jobz == 'V'
                     nzc = -1
                     isuppz = similar(dv, BlasInt, 2n)
@@ -193,15 +198,15 @@ module LAPACK2
                 lwork::BlasInt = -1
                 iwork = BlasInt[0]
                 liwork::BlasInt = -1
-                Z = Matrix{$elty}(jobz == 'N' ? 1 : n, 1)
+                Z = Matrix{$elty}(undef, jobz == 'N' ? 1 : n, 1)
                 nzc = -1
 
                 stemr!(jobz, range, dv, ev, vl, vu, il, iu, w, Z, nzc, isuppz, work, lwork, iwork, liwork)
 
                 lwork = work[1]
-                work = Vector{$elty}(lwork)
+                work = Vector{$elty}(undef, lwork)
                 liwork = iwork[1]
-                iwork = Vector{BlasInt}(liwork)
+                iwork = Vector{BlasInt}(undef, liwork)
                 nzc = Z[1]
                 Z = similar(dv, $elty, n, nzc)
 
@@ -231,7 +236,7 @@ module LAPACK2
         #      .. Array Arguments ..
         #      DOUBLE PRECISION   H( LDH, * ), WI( * ), WR( * ), Z( LDZ, * )
 
-        n   = LinAlg.checksquare(H)
+        n   = LinearAlgebra.checksquare(H)
         ldh = stride(H, 2)
         ldz = stride(Z, 2)
 
@@ -260,16 +265,20 @@ module LAPACK2
                       H,
                       1,
                       n,
-                      Vector{Float64}(n),
-                      Vector{Float64}(n),
+                      Vector{Float64}(undef, n),
+                      Vector{Float64}(undef, n),
                       1,
                       1,
-                      Matrix{Float64}(0, 0))
+                      Matrix{Float64}(undef, 0, 0))
     end
 
     ## Cholesky + singular values
-    function spteqr!(compz::Char, d::StridedVector{Float64}, e::StridedVector{Float64}, Z::StridedMatrix{Float64},
-        work::StridedVector{Float64} = Vector{Float64}(4length(d)))
+    function spteqr!(
+        compz::Char,
+        d::StridedVector{Float64},
+        e::StridedVector{Float64},
+        Z::StridedMatrix{Float64},
+        work::StridedVector{Float64} = Vector{Float64}(undef, 4length(d)))
 
         n = length(d)
         ldz = stride(Z, 2)
@@ -287,7 +296,7 @@ module LAPACK2
         info = Vector{BlasInt}(undef, 1)
 
         ccall((@blasfunc(:dpteqr_), Base.liblapack_name), Cvoid,
-            (Ref{Char}, Ref{BlasInt}, Ptr{Float64}, Ptr{Float64},
+            (Ref{UInt8}, Ref{BlasInt}, Ptr{Float64}, Ptr{Float64},
              Ptr{Float64}, Ref{BlasInt}, Ptr{Float64}, Ptr{BlasInt}),
             compz, n, d, e,
             Z, max(1, ldz), work, info)
@@ -303,7 +312,7 @@ module LAPACK2
 
         @eval begin
             function syevd!(jobz::Char, uplo::Char, A::StridedMatrix{$elty})
-                n      = LinAlg.checksquare(A)
+                n      = LinearAlgebra.checksquare(A)
                 lda    = stride(A, 2)
                 w      = Vector{$elty}(n)
                 work   = Vector{$elty}(undef, 1)
@@ -321,7 +330,7 @@ module LAPACK2
                         iwork, liwork, info)
 
                     if info[1] != 0
-                        return LinAlg.LAPACKException(info[1])
+                        return LinearAlgebra.LAPACKException(info[1])
                     end
                     if i == 1
                         lwork  = BlasInt(work[1])
@@ -334,12 +343,12 @@ module LAPACK2
             end
         end
     end
-    for (f, elty, relty) in ((:zheevd_, :Complex128, :Float64),
-                             (:cheevd_, :Complex64, :Float32))
+    for (f, elty, relty) in ((:zheevd_, :ComplexF64, :Float64),
+                             (:cheevd_, :ComplexF32, :Float32))
 
         @eval begin
             function heevd!(jobz::Char, uplo::Char, A::StridedMatrix{$elty})
-                n      = LinAlg.checksquare(A)
+                n      = LinearAlgebra.checksquare(A)
                 lda    = stride(A, 2)
                 w      = Vector{$relty}(n)
                 work   = Vector{$elty}(undef, 1)
@@ -361,7 +370,7 @@ module LAPACK2
                         info)
 
                     if info[1] != 0
-                        return LinAlg.LAPACKException(info[1])
+                        return LinearAlgebra.LAPACKException(info[1])
                     end
 
                     if i == 1
@@ -386,8 +395,8 @@ for (f, elty) in ((:dtgevc_, :Float64),
     @eval begin
         function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty}, VL::StridedMatrix{$elty}, VR::StridedMatrix{$elty}, work::Vector{$elty})
 
-            n = LinAlg.checksquare(S)
-            if LinAlg.checksquare(P) != n
+            n = LinearAlgebra.checksquare(S)
+            if LinearAlgebra.checksquare(P) != n
                 throw(DimensionMismatch("the two matrices must have same size"))
             end
 
@@ -453,7 +462,7 @@ for (f, elty) in ((:dtgevc_, :Float64),
 
         function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty}, VL::StridedMatrix{$elty}, VR::StridedMatrix{$elty})
 
-            n = LinAlg.checksquare(S)
+            n = LinearAlgebra.checksquare(S)
             work = Vector{$elty}(6n)
 
             return tgevc!(side, howmny, select, S, P, VL, VR, work)
@@ -461,7 +470,7 @@ for (f, elty) in ((:dtgevc_, :Float64),
 
         function tgevc!(side::Char, howmny::Char, select::Vector{BlasInt}, S::StridedMatrix{$elty}, P::StridedMatrix{$elty})
             # No checks here as they are done in method above
-            n = LinAlg.checksquare(S)
+            n = LinearAlgebra.checksquare(S)
             if side == 'L'
                 VR = Matrix{$elty}(n, 0)
                 if howmny == 'A' || howmny == 'B'
@@ -497,8 +506,8 @@ end
 ## Symmetric rank-k operation for matrix in RFP format.
 for (f, elty, relty) in ((:dsfrk_, :Float64, :Float64),
                    (:ssfrk_, :Float32, :Float32),
-                   (:zhfrk_, :Complex128, :Float64),
-                   (:chfrk_, :Complex64, :Float32))
+                   (:zhfrk_, :ComplexF64, :Float64),
+                   (:chfrk_, :ComplexF32, :Float32))
 
     @eval begin
         function sfrk!(transr::Char, uplo::Char, trans::Char, alpha::Real, A::StridedMatrix{$elty}, beta::Real, C::StridedVector{$elty})
@@ -526,8 +535,8 @@ end
 # Cholesky factorization of a real symmetric positive definite matrix A
 for (f, elty) in ((:dpftrf_, :Float64),
                    (:spftrf_, :Float32),
-                   (:zpftrf_, :Complex128),
-                   (:cpftrf_, :Complex64))
+                   (:zpftrf_, :ComplexF64),
+                   (:cpftrf_, :ComplexF32))
 
     @eval begin
         function pftrf!(transr::Char, uplo::Char, A::StridedVector{$elty})
@@ -548,8 +557,8 @@ end
 # Computes the inverse of a (real) symmetric positive definite matrix A using the Cholesky factorization
 for (f, elty) in ((:dpftri_, :Float64),
                    (:spftri_, :Float32),
-                   (:zpftri_, :Complex128),
-                   (:cpftri_, :Complex64))
+                   (:zpftri_, :ComplexF64),
+                   (:cpftri_, :ComplexF32))
 
     @eval begin
         function pftri!(transr::Char, uplo::Char, A::StridedVector{$elty})
@@ -571,8 +580,8 @@ end
 # DPFTRS solves a system of linear equations A*X = B with a symmetric positive definite matrix A using the Cholesky factorization
 for (f, elty) in ((:dpftrs_, :Float64),
                    (:spftrs_, :Float32),
-                   (:zpftrs_, :Complex128),
-                   (:cpftrs_, :Complex64))
+                   (:zpftrs_, :ComplexF64),
+                   (:cpftrs_, :ComplexF32))
 
     @eval begin
         function pftrs!(transr::Char, uplo::Char, A::StridedVector{$elty}, B::StridedVecOrMat{$elty})
@@ -600,8 +609,8 @@ end
 # Solves a matrix equation (one operand is a triangular matrix in RFP format)
 for (f, elty) in ((:dtfsm_, :Float64),
                    (:stfsm_, :Float32),
-                   (:ztfsm_, :Complex128),
-                   (:ctfsm_, :Complex64))
+                   (:ztfsm_, :ComplexF64),
+                   (:ctfsm_, :ComplexF32))
 
     @eval begin
         function tfsm!(transr::Char,
@@ -638,8 +647,8 @@ end
 # Computes the inverse of a triangular matrix A stored in RFP format.
 for (f, elty) in ((:dtftri_, :Float64),
                    (:stftri_, :Float32),
-                   (:ztftri_, :Complex128),
-                   (:ctftri_, :Complex64))
+                   (:ztftri_, :ComplexF64),
+                   (:ctftri_, :ComplexF32))
 
     @eval begin
         function tftri!(transr::Char, uplo::Char, diag::Char, A::StridedVector{$elty})
@@ -662,8 +671,8 @@ end
 # Copies a triangular matrix from the rectangular full packed format (TF) to the standard full format (TR)
 for (f, elty) in ((:dtfttr_, :Float64),
                    (:stfttr_, :Float32),
-                   (:ztfttr_, :Complex128),
-                   (:ctfttr_, :Complex64))
+                   (:ztfttr_, :ComplexF64),
+                   (:ctfttr_, :ComplexF32))
 
     @eval begin
         function tfttr!(transr::Char, uplo::Char, Arf::StridedVector{$elty})
@@ -686,8 +695,8 @@ end
 # Copies a triangular matrix from the standard full format (TR) to the rectangular full packed format (TF).
 for (f, elty) in ((:dtrttf_, :Float64),
                    (:strttf_, :Float32),
-                   (:ztrttf_, :Complex128),
-                   (:ctrttf_, :Complex64))
+                   (:ztrttf_, :ComplexF64),
+                   (:ctrttf_, :ComplexF32))
 
     @eval begin
         function trttf!(transr::Char, uplo::Char, A::StridedMatrix{$elty})

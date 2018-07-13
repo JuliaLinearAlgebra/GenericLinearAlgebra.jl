@@ -1,9 +1,7 @@
-module JuliaBLAS
+using LinearAlgebra
+using LinearAlgebra: BlasComplex, BlasFloat, BlasReal, HermOrSym
 
-using Base.BLAS
-using Base.LinAlg: BlasComplex, BlasFloat, BlasReal, HermOrSym, UnitLowerTriangular, UnitUpperTriangular
-
-import Base.LinAlg: A_mul_B!, Ac_mul_B!
+import LinearAlgebra: lmul!, mul!
 
 export rankUpdate!
 
@@ -11,7 +9,7 @@ export rankUpdate!
 
 ## General
 ### BLAS
-rankUpdate!(α::T, x::StridedVector{T}, y::StridedVector{T}, A::StridedMatrix{T}) where {T<:BlasReal} = ger!(α, x, y, A)
+rankUpdate!(α::T, x::StridedVector{T}, y::StridedVector{T}, A::StridedMatrix{T}) where {T<:BlasReal} = BLAS.ger!(α, x, y, A)
 
 ### Generic
 function rankUpdate!(α::Number, x::StridedVector, y::StridedVector, A::StridedMatrix)
@@ -27,7 +25,7 @@ function rankUpdate!(α::Number, x::StridedVector, y::StridedVector, A::StridedM
 end
 
 ## Hermitian
-rankUpdate!(α::T, a::StridedVector{T}, A::HermOrSym{T,S}) where {T<:BlasReal,S<:StridedMatrix} = syr!(A.uplo, α, a, A.data)
+rankUpdate!(α::T, a::StridedVector{T}, A::HermOrSym{T,S}) where {T<:BlasReal,S<:StridedMatrix} = BLAS.syr!(A.uplo, α, a, A.data)
 rankUpdate!(a::StridedVector{T}, A::HermOrSym{T,S}) where {T<:BlasReal,S<:StridedMatrix} = rankUpdate!(one(T), a, A)
 
 ### Generic
@@ -76,16 +74,21 @@ function rankUpdate!(α::Real, A::StridedVecOrMat, C::Hermitian)
     return C
 end
 
-# BLAS style A_mul_B!
+# BLAS style mul!
 ## gemv
-A_mul_B!(α::T, A::StridedMatrix{T}, x::StridedVector{T}, β::T, y::StridedVector{T}) where {T<:BlasFloat} = gemv!('N', α, A, x, β, y)
-Ac_mul_B!(α::T, A::StridedMatrix{T}, x::StridedVector{T}, β::T, y::StridedVector{T}) where {T<:BlasFloat} = gemv!('C', α, A, x, β, y)
+mul!(y::StridedVector{T}, A::StridedMatrix{T}, x::StridedVector{T}, α::T, β::T) where {T<:BlasFloat} = gemv!('N', α, A, x, β, y)
+mul!(y::StridedVector{T}, A::Adjoint{T,<:StridedMatrix{T}}, x::StridedVector{T}, α::T, β::T) where {T<:BlasFloat} = gemv!('C', α, parent(adjA), x, β, y)
 
 ## gemm
-A_mul_B!(α::T, A::StridedMatrix{T}, B::StridedMatrix{T}, β::T, C::StridedMatrix{T}) where {T<:BlasFloat} = gemm!('N', 'N', α, A, B, β, C)
-Ac_mul_B!(α::T, A::StridedMatrix{T}, B::StridedMatrix{T}, β::T, C::StridedMatrix{T}) where {T<:BlasFloat} = gemm!('C', 'N', α, A, B, β, C)
+mul!(C::StridedMatrix{T}, A::StridedMatrix{T}, B::StridedMatrix{T}, α::T, β::T) where {T<:BlasFloat} = BLAS.gemm!('N', 'N', α, A, B, β, C)
+mul!(C::StridedMatrix{T}, adjA::Adjoint{T,<:StridedMatrix{T}}, B::StridedMatrix{T}, α::T, β::T) where {T<:BlasFloat} = BLAS.gemm!('C', 'N', α, parent(adjA), B, β, C)
 # Not optimized since it is a generic fallback. Can probably soon be removed when the signatures in base have been updated.
-function A_mul_B!(α::Number, A::StridedMatrix, B::StridedVecOrMat, β::Number, C::StridedVecOrMat)
+function mul!(C::StridedVecOrMat,
+              A::StridedMatrix,
+              B::StridedVecOrMat,
+              α::Number,
+              β::Number)
+
     m, n = size(C, 1), size(C, 2)
     k = size(A, 2)
 
@@ -93,7 +96,7 @@ function A_mul_B!(α::Number, A::StridedMatrix, B::StridedVecOrMat, β::Number, 
         if β == 0
             fill!(C, 0)
         else
-            scale!(C, β)
+            rmul!(C, β)
         end
     end
     for j = 1:n
@@ -105,7 +108,13 @@ function A_mul_B!(α::Number, A::StridedMatrix, B::StridedVecOrMat, β::Number, 
     end
     return C
 end
-function Ac_mul_B!(α::Number, A::StridedMatrix, B::StridedVecOrMat, β::Number, C::StridedVecOrMat)
+function mul!(C::StridedVecOrMat,
+              adjA::Adjoint{<:Number,<:StridedMatrix},
+              B::StridedVecOrMat,
+              α::Number,
+              β::Number)
+
+    A = parent(adjA)
     m, n = size(C, 1), size(C, 2)
     k = size(A, 1)
 
@@ -113,7 +122,7 @@ function Ac_mul_B!(α::Number, A::StridedMatrix, B::StridedVecOrMat, β::Number,
         if β == 0
             fill!(C, 0)
         else
-            scale!(C, β)
+            rmul!(C, β)
         end
     end
     for j = 1:n
@@ -126,19 +135,19 @@ function Ac_mul_B!(α::Number, A::StridedMatrix, B::StridedVecOrMat, β::Number,
     return C
 end
 
-## trmm
+## trmm like
 ### BLAS versions
-A_mul_B!(α::T, A::UpperTriangular{T,S}, B::StridedMatrix{T}) where {T<:BlasFloat,S} = trmm!('L', 'U', 'N', 'N', α, A.data, B)
-A_mul_B!(α::T, A::LowerTriangular{T,S}, B::StridedMatrix{T}) where {T<:BlasFloat,S} = trmm!('L', 'L', 'N', 'N', α, A.data, B)
-A_mul_B!(α::T, A::UnitUpperTriangular{T,S}, B::StridedMatrix{T}) where {T<:BlasFloat,S} = trmm!('L', 'U', 'N', 'U', α, A.data, B)
-A_mul_B!(α::T, A::UnitLowerTriangular{T,S}, B::StridedMatrix{T}) where {T<:BlasFloat,S} = trmm!('L', 'L', 'N', 'U', α, A.data, B)
-Ac_mul_B!(α::T, A::UpperTriangular{T,S}, B::StridedMatrix{T}) where {T<:BlasFloat,S} = trmm!('L', 'U', 'C', 'N', α, A.data, B)
-Ac_mul_B!(α::T, A::LowerTriangular{T,S}, B::StridedMatrix{T}) where {T<:BlasFloat,S} = trmm!('L', 'L', 'C', 'N', α, A.data, B)
-Ac_mul_B!(α::T, A::UnitUpperTriangular{T,S}, B::StridedMatrix{T}) where {T<:BlasFloat,S} = trmm!('L', 'U', 'C', 'U', α, A.data, B)
-Ac_mul_B!(α::T, A::UnitLowerTriangular{T,S}, B::StridedMatrix{T}) where {T<:BlasFloat,S} = trmm!('L', 'L', 'C', 'U', α, A.data, B)
+mul!(A::UpperTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:BlasFloat,S} = trmm!('L', 'U', 'N', 'N', α, A.data, B)
+mul!(A::LowerTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:BlasFloat,S} = trmm!('L', 'L', 'N', 'N', α, A.data, B)
+mul!(A::UnitUpperTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:BlasFloat,S} = trmm!('L', 'U', 'N', 'U', α, A.data, B)
+mul!(A::UnitLowerTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:BlasFloat,S} = trmm!('L', 'L', 'N', 'U', α, A.data, B)
+mul!(A::Adjoint{T,UpperTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:BlasFloat,S} = trmm!('L', 'U', 'C', 'N', α, parent(A).data, B)
+mul!(A::Adjoint{T,LowerTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:BlasFloat,S} = trmm!('L', 'L', 'C', 'N', α, parent(A).data, B)
+mul!(A::Adjoint{T,UnitUpperTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:BlasFloat,S} = trmm!('L', 'U', 'C', 'U', α, parent(A).data, B)
+mul!(A::Adjoint{T,UnitLowerTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:BlasFloat,S} = trmm!('L', 'L', 'C', 'U', α, parent(A).data, B)
 
 ### Generic fallbacks
-function A_mul_B!(α::T, A::UpperTriangular{T,S}, B::StridedMatrix{T}) where {T<:Number,S}
+function lmul!(A::UpperTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
     AA = A.data
     m, n = size(B)
     for i = 1:m
@@ -151,7 +160,7 @@ function A_mul_B!(α::T, A::UpperTriangular{T,S}, B::StridedMatrix{T}) where {T<
     end
     return B
 end
-function A_mul_B!(α::T, A::LowerTriangular{T,S}, B::StridedMatrix{T}) where {T<:Number,S}
+function lmul!(A::LowerTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
     AA = A.data
     m, n = size(B)
     for i = m:-1:1
@@ -164,7 +173,7 @@ function A_mul_B!(α::T, A::LowerTriangular{T,S}, B::StridedMatrix{T}) where {T<
     end
     return B
 end
-function A_mul_B!(α::T, A::UnitUpperTriangular{T,S}, B::StridedMatrix{T}) where {T<:Number,S}
+function lmul!(A::UnitUpperTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
     AA = A.data
     m, n = size(B)
     for i = 1:m
@@ -177,7 +186,7 @@ function A_mul_B!(α::T, A::UnitUpperTriangular{T,S}, B::StridedMatrix{T}) where
     end
     return B
 end
-function A_mul_B!(α::T, A::UnitLowerTriangular{T,S}, B::StridedMatrix{T}) where {T<:Number,S}
+function lmul!(A::UnitLowerTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
     AA = A.data
     m, n = size(B)
     for i = m:-1:1
@@ -190,8 +199,8 @@ function A_mul_B!(α::T, A::UnitLowerTriangular{T,S}, B::StridedMatrix{T}) where
     end
     return B
 end
-function Ac_mul_B!(α::T, A::UpperTriangular{T,S}, B::StridedMatrix{T}) where {T<:Number,S}
-    AA = A.data
+function lmul!(A::Adjoint{T,UpperTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
+    AA = parent(A).data
     m, n = size(B)
     for i = m:-1:1
         for j = 1:n
@@ -203,8 +212,8 @@ function Ac_mul_B!(α::T, A::UpperTriangular{T,S}, B::StridedMatrix{T}) where {T
     end
     return B
 end
-function Ac_mul_B!(α::T, A::LowerTriangular{T,S}, B::StridedMatrix{T}) where {T<:Number,S}
-    AA = A.data
+function lmul!(A::Adjoint{T,LowerTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
+    AA = parent(A).data
     m, n = size(B)
     for i = 1:m
         for j = 1:n
@@ -216,8 +225,8 @@ function Ac_mul_B!(α::T, A::LowerTriangular{T,S}, B::StridedMatrix{T}) where {T
     end
     return B
 end
-function Ac_mul_B!(α::T, A::UnitUpperTriangular{T,S}, B::StridedMatrix{T}) where {T<:Number,S}
-    AA = A.data
+function lmul!(A::Adjoint{T,UnitUpperTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
+    AA = parent(A).data
     m, n = size(B)
     for i = m:-1:1
         for j = 1:n
@@ -229,8 +238,8 @@ function Ac_mul_B!(α::T, A::UnitUpperTriangular{T,S}, B::StridedMatrix{T}) wher
     end
     return B
 end
-function Ac_mul_B!(α::T, A::UnitLowerTriangular{T,S}, B::StridedMatrix{T}) where {T<:Number,S}
-    AA = A.data
+function lmul!(A::Adjoint{T,UnitLowerTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
+    AA = parent(A).data
     m, n = size(B)
     for i = 1:m
         for j = 1:n
@@ -241,6 +250,4 @@ function Ac_mul_B!(α::T, A::UnitLowerTriangular{T,S}, B::StridedMatrix{T}) wher
         end
     end
     return B
-end
-
 end

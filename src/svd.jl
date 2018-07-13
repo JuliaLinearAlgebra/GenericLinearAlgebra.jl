@@ -1,9 +1,9 @@
-module SVDModule
+using LinearAlgebra
 
-import Base: A_mul_B!, A_mul_Bc!
+import LinearAlgebra: mul!
 
-A_mul_B!(G::LinAlg.Givens, ::Nothing) = nothing
-A_mul_Bc!(::Nothing, G::LinAlg.Givens) = nothing
+mul!(G::LinearAlgebra.Givens, ::Nothing) = nothing
+mul!(::Nothing, G::LinearAlgebra.Givens) = nothing
 
 function svdvals2x2(d1, d2, e)
     d1sq = d1*d1
@@ -25,7 +25,7 @@ function svdIter!(B::Bidiagonal{T}, n1, n2, shift, U = nothing, Vt = nothing) wh
         e = B.ev
 
         G, r = givens(d[n1] - abs2(shift)/d[n1], e[n1], 1, 2)
-        A_mul_B!(G, Vt)
+        mul!(G, Vt)
 
         ditmp       = d[n1]
         ei1         = e[n1]
@@ -37,7 +37,7 @@ function svdIter!(B::Bidiagonal{T}, n1, n2, shift, U = nothing, Vt = nothing) wh
 
         for i = n1:n2 - 2
             G, r      = givens(di, bulge, i, i + 1)
-            A_mul_Bc!(U, G)
+            mul!(U, G')
             d[i]      = G.c*di + G.s*bulge
             ei        = G.c*ei1 + G.s*di1
             di1       = -G.s*ei1 + G.c*di1
@@ -46,7 +46,7 @@ function svdIter!(B::Bidiagonal{T}, n1, n2, shift, U = nothing, Vt = nothing) wh
             ei1      *= G.c
 
             G, r      = givens(ei, bulge, i + 1, i + 2)
-            A_mul_B!(G, Vt)
+            mul!(G, Vt)
             e[i]      = ei*G.c + bulge*G.s
             di        = di1*G.c + ei1*G.s
             ei1       = -di1*G.s + ei1*G.c
@@ -56,7 +56,7 @@ function svdIter!(B::Bidiagonal{T}, n1, n2, shift, U = nothing, Vt = nothing) wh
         end
 
         G, r      = givens(di, bulge, n2 - 1, n2)
-        A_mul_Bc!(U, G)
+        mul!(U, G')
         d[n2 - 1] = G.c*di + G.s*bulge
         e[n2 - 1] = G.c*ei1 + G.s*di1
         d[n2]     = -G.s*ei1 + G.c*di1
@@ -77,18 +77,18 @@ function svdDemmelKahan!(B::Bidiagonal{T}, n1, n2, U = nothing, Vt = nothing) wh
         e = B.ev
 
         oldcs = one(T)
-        G     = LinAlg.Givens(1, 2, one(T), zero(T))
+        G     = LinearAlgebra.Givens(1, 2, one(T), zero(T))
         Gold  = G
 
         for i = n1:n2 - 1
             G, r  = givens(d[i] * G.c, e[i], i, i + 1)
-            A_mul_B!(G, Vt) # FixMe! Vt update might be wrong
+            mul!(G, Vt) # FixMe! Vt update might be wrong
             if i != n1
                 e[i - 1] = Gold.s * r
             end
 
             Gold, d[i] = givens(Gold.c * r, d[i + 1] * G.s, i + 1, i + 2)
-            A_mul_Bc!(U, G)  # FixMe! U update might be wrong
+            mul!(U, G')  # FixMe! U update might be wrong
         end
 
         h         = d[n2] * G.c
@@ -102,7 +102,7 @@ function svdDemmelKahan!(B::Bidiagonal{T}, n1, n2, U = nothing, Vt = nothing) wh
     return B
 end
 
-function Base.svdvals!(B::Bidiagonal{T}, tol = eps(T); debug = false) where T<:Real
+function LinearAlgebra.svdvals!(B::Bidiagonal{T}, tol = eps(T); debug = false) where T<:Real
 
     n = size(B, 1)
     n1 = 1
@@ -132,17 +132,19 @@ function Base.svdvals!(B::Bidiagonal{T}, tol = eps(T); debug = false) where T<:R
             end
 
             # Search for largest sub-bidiagonal matrix ending at n2
-            for n1 = n2 - 1:-1:1
+            for _n1 = (n2 - 1):-1:1
 
-                if n1 == 1
+                if _n1 == 1
+                    n1 = _n1
                     break
                 else
-                    tolcritBottom = tol * abs(d[n1 - 1] * d[n1])
+                    tolcritBottom = tol * abs(d[_n1 - 1] * d[_n1])
 
                     # debug && println("n1=", n1, ", d[n1]=", d[n1], ", d[n1-1]=", d[n1-1], ", e[n1-1]", e[n1-1],
                         # ", tolcritBottom=", tolcritBottom)
 
-                    if abs(e[n1 - 1]) < tolcritBottom
+                    if abs(e[_n1 - 1]) < tolcritBottom
+                        n1 = _n1
                         break
                     end
                 end
@@ -172,7 +174,7 @@ function Base.svdvals!(B::Bidiagonal{T}, tol = eps(T); debug = false) where T<:R
     else
         # Just transpose the matrix. Since we are only interested in the
         # values here it doesn't matter.
-        return svdvals!(Bidiagonal(d, e, true), tol; debug = debug)
+        return svdvals!(Bidiagonal(d, e, :U), tol; debug = debug)
     end
 end
 
@@ -183,8 +185,8 @@ end
 #     n2 = n
 #     d = B.dv
 #     e = B.ev
-#     U = eye(T, n)
-#     Vt = eye(T, n)
+#     U  = Matrix{T}(I, n, n)
+#     Vt = Matrix{T}(I, n, n)
 #     count = 0
 
 #     if istriu(B)
@@ -223,36 +225,34 @@ function bidiagonalize!(A::AbstractMatrix)
         # tall case: lower bidiagonal
         for i = 1:min(m, n)
             x = view(A, i:m, i)
-            τi = LinAlg.reflector!(x)
+            τi = LinearAlgebra.reflector!(x)
             push!(τl, τi)
-            LinAlg.reflectorApply!(x, τi, view(A, i:m, i + 1:n))
+            LinearAlgebra.reflectorApply!(x, τi, view(A, i:m, i + 1:n))
             if i < n
                 x = view(A, i, i + 1:n)
                 conj!(x)
-                τi = LinAlg.reflector!(x)
+                τi = LinearAlgebra.reflector!(x)
                 push!(τr, τi)
-                LinAlg.reflectorApply!(view(A, i + 1:m, i + 1:n), x, τi)
+                LinearAlgebra.reflectorApply!(view(A, i + 1:m, i + 1:n), x, τi)
             end
         end
-        return Bidiagonal(real(diag(A)), real(diag(A, 1)), true), A, τl, τr
+        return Bidiagonal(real(diag(A)), real(diag(A, 1)), :U), A, τl, τr
     else
         # wide case: upper bidiagonal
         for i = 1:min(m, n)
             x = view(A, i, i:n)
-            τi = LinAlg.reflector!(x)
+            τi = LinearAlgebra.reflector!(x)
             push!(τr, τi)
-            LinAlg.reflectorApply!(view(A, i + 1:m, i:n), x, τi)
+            LinearAlgebra.reflectorApply!(view(A, i + 1:m, i:n), x, τi)
             if i < m
                 x = view(A, i + 1:m, i)
-                τi = LinAlg.reflector!(x)
+                τi = LinearAlgebra.reflector!(x)
                 push!(τl, τi)
-                LinAlg.reflectorApply!(x, τi, view(A, i + 1:m, i + 1:n))
+                LinearAlgebra.reflectorApply!(x, τi, view(A, i + 1:m, i + 1:n))
             end
         end
-        return Bidiagonal(real(diag(A)), real(diag(A, -1)), false), A, τl, τr
+        return Bidiagonal(real(diag(A)), real(diag(A, -1)), :L), A, τl, τr
     end
 end
 
-Base.svdvals!(A::StridedMatrix) = svdvals!(bidiagonalize!(A)[1])
-
-end #module
+LinearAlgebra.svdvals!(A::StridedMatrix) = svdvals!(bidiagonalize!(A)[1])
