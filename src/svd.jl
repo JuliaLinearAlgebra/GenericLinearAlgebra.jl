@@ -102,7 +102,7 @@ function svdDemmelKahan!(B::Bidiagonal{T}, n1, n2, U = nothing, Vt = nothing) wh
     return B
 end
 
-function LinearAlgebra.svdvals!(B::Bidiagonal{T}, tol = eps(T); debug = false) where T<:Real
+function _svdvals!(B::Bidiagonal{T}; tol = eps(T), debug = false) where T<:Real
 
     n = size(B, 1)
     n1 = 1
@@ -174,7 +174,7 @@ function LinearAlgebra.svdvals!(B::Bidiagonal{T}, tol = eps(T); debug = false) w
     else
         # Just transpose the matrix. Since we are only interested in the
         # values here it doesn't matter.
-        return svdvals!(Bidiagonal(d, e, :U), tol; debug = debug)
+        return svdvals!(Bidiagonal(d, e, :U); tol = tol, debug = debug)
     end
 end
 
@@ -255,4 +255,7 @@ function bidiagonalize!(A::AbstractMatrix)
     end
 end
 
-LinearAlgebra.svdvals!(A::StridedMatrix) = svdvals!(bidiagonalize!(A)[1])
+_svdvals!(A::StridedMatrix; tol = eps(T), debug = false) = svdvals!(bidiagonalize!(A)[1], tol = tol, debug = debug)
+
+LinearAlgebra.svdvals!(B::Bidiagonal{T}; tol = eps(T), debug = false) where T<:Real = _svdvals!(B, tol = tol, debug = debug)
+LinearAlgebra.svdvals!(A::StridedMatrix; tol = eps(real(eltype(A))), debug = false) = _svdvals!(A, tol = tol, debug = debug)

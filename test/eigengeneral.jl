@@ -1,4 +1,4 @@
-using GenericLinearAlgebra
+using Test, GenericLinearAlgebra, LinearAlgebra
 
 @testset "The General eigenvalue problem" begin
 
