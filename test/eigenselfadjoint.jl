@@ -4,6 +4,9 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
 @testset "The selfadjoint eigen problem" begin
     n = 50
     @testset "SymTridiagonal" begin
+        # Should automatically dispatch to method defined in this
+        # package since a BigFloat methods isn't defined in
+        # LinearAlgebra
         T = SymTridiagonal(big.(randn(n)), big.(randn(n - 1)))
         vals, vecs  = eigen(T)
         @testset "default" begin
@@ -12,8 +15,8 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
             @test vecs'vecs ≈ Matrix(I, n, n)
         end
 
-        @testset "eig2" begin
-            vals2, vecs2 = GenericLinearAlgebra.eig2(T)
+        @testset "eigen2" begin
+            vals2, vecs2 = GenericLinearAlgebra.eigen2(T)
             @test vals ≈ vals2
             @test vecs[[1,n],:] == vecs2
             @test vecs2*vecs2' ≈ Matrix(I, 2, 2)
@@ -36,8 +39,8 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
             @test vecs'vecs ≈ Matrix(I, n, n)
         end
 
-        @testset "eig2" begin
-            vals2, vecs2 = GenericLinearAlgebra.eig2(A)
+        @testset "eigen2" begin
+            vals2, vecs2 = GenericLinearAlgebra.eigen2(A)
             @test vals ≈ vals2
             @test vecs[[1,n],:] ≈ vecs2
             @test vecs2*vecs2'  ≈ Matrix(I, 2, 2)
@@ -60,8 +63,8 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
             @test vecs'vecs    ≈ Matrix(I, n, n)
         end
 
-        @testset "eig2" begin
-            vals2, vecs2 = GenericLinearAlgebra.eig2(A)
+        @testset "eigen2" begin
+            vals2, vecs2 = GenericLinearAlgebra.eigen2(A)
             @test vals ≈ vals2
             @test vecs[[1,n],:] ≈ vecs2
             @test vecs2*vecs2'  ≈ Matrix(I, 2, 2)

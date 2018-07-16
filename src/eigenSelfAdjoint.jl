@@ -2,8 +2,6 @@ using Printf
 using LinearAlgebra
 using LinearAlgebra: givensAlgorithm
 
-import LinearAlgebra: eigen, eigen!, eigvals, eigvals!, mul!
-
 struct SymmetricTridiagonalFactorization{T} <: Factorization{T}
     uplo::Char
     factors::Matrix{T}
@@ -19,7 +17,7 @@ struct EigenQ{T} <: AbstractMatrix{T}
     τ::Vector{T}
 end
 
-getq(S::SymmetricTridiagonalFactorization) = EigenQ(S.uplo, S.factors, S.τ)
+LinearAlgebra.getq(S::SymmetricTridiagonalFactorization) = EigenQ(S.uplo, S.factors, S.τ)
 
 Base.size(Q::EigenQ) = (size(Q.factors, 1), size(Q.factors, 1))
 function Base.size(Q::EigenQ, i::Integer)
@@ -32,7 +30,7 @@ function Base.size(Q::EigenQ, i::Integer)
     end
 end
 
-function mul!(Q::EigenQ, B::StridedVecOrMat)
+function LinearAlgebra.lmul!(Q::EigenQ, B::StridedVecOrMat)
     m, n = size(B)
     if size(Q, 1) != m
         throw(DimensionMismatch(""))
@@ -73,7 +71,7 @@ function mul!(Q::EigenQ, B::StridedVecOrMat)
     return B
 end
 
-function mul!(A::StridedMatrix, Q::EigenQ)
+function LinearAlgebra.rmul!(A::StridedMatrix, Q::EigenQ)
     m, n = size(A)
     if size(Q, 1) != n
         throw(DimensionMismatch(""))
@@ -114,7 +112,7 @@ function mul!(A::StridedMatrix, Q::EigenQ)
     return A
 end
 
-Base.Array(Q::EigenQ) = mul!(Q, Matrix{eltype(Q)}(I, size(Q, 1), size(Q, 1)))
+Base.Array(Q::EigenQ) = lmul!(Q, Matrix{eltype(Q)}(I, size(Q, 1), size(Q, 1)))
 
 function _updateVectors!(c, s, j, vectors)
     @inbounds for i = 1:size(vectors, 1)
@@ -523,49 +521,56 @@ function symtriUpper!(AS::StridedMatrix{T},
     SymmetricTridiagonalFactorization('U', AS, τ, SymTridiagonal(real(diag(AS)), real(diag(AS, 1))))
 end
 
-eigvals!(A::SymmetricTridiagonalFactorization) = eigvalsPWK!(A.diagonals, eps(eltype(A.diagonals)), false)
-eigvals!(A::SymTridiagonal                   ) = eigvalsPWK!(A,           eps(eltype(A))          , false)
-eigvals!(A::Hermitian                        ) = eigvals!(symtri!(A))
+_eigvals!(A::SymmetricTridiagonalFactorization) = eigvalsPWK!(A.diagonals, eps(eltype(A.diagonals)), false)
+_eigvals!(A::SymTridiagonal                   ) = eigvalsPWK!(A,           eps(eltype(A))          , false)
+_eigvals!(A::Hermitian                        ) = eigvals!(symtri!(A))
 
-eig!(A::SymmetricTridiagonalFactorization) = eigQL!(A.diagonals, Array(getq(A)), eps(eltype(A.diagonals)), false)
-eig!(A::SymTridiagonal) = eigQL!(A, Matrix{eltype(A)}(I, size(A, 1), size(A, 1)), eps(eltype(A)), false)
-eig!(A::Hermitian) = eig!(symtri!(A))
+LinearAlgebra.eigvals!(A::SymmetricTridiagonalFactorization) = _eigvals!(A)
+LinearAlgebra.eigvals!(A::SymTridiagonal                   ) = _eigvals!(A)
+LinearAlgebra.eigvals!(A::Hermitian                        ) = _eigvals!(A)
 
-function eig2!(A::SymmetricTridiagonalFactorization, tol = eps(real(float(one(eltype(A))))), debug = false)
+_eigen!(A::SymmetricTridiagonalFactorization) =
+    LinearAlgebra.Eigen(eigQL!(A.diagonals, Array(getq(A)), eps(eltype(A.diagonals)), false)...)
+_eigen!(A::SymTridiagonal) =
+    LinearAlgebra.Eigen(eigQL!(A, Matrix{eltype(A)}(I, size(A, 1), size(A, 1)), eps(eltype(A)), false)...)
+_eigen!(A::Hermitian) = _eigen!(symtri!(A))
+
+LinearAlgebra.eigen!(A::SymmetricTridiagonalFactorization) = _eigen!(A)
+LinearAlgebra.eigen!(A::SymTridiagonal                   ) = _eigen!(A)
+LinearAlgebra.eigen!(A::Hermitian                        ) = _eigen!(A)
+
+function eigen2!(A::SymmetricTridiagonalFactorization, tol = eps(real(float(one(eltype(A))))), debug = false)
     V = zeros(eltype(A), 2, size(A, 1))
     V[1] = 1
     V[end] = 1
-    eigQL!(A.diagonals, mul!(V, getq(A)), tol, debug)
+    eigQL!(A.diagonals, rmul!(V, getq(A)), tol, debug)
 end
-function eig2!(A::SymTridiagonal, tol = eps(real(float(one(eltype(A))))), debug = false)
+function eigen2!(A::SymTridiagonal, tol = eps(real(float(one(eltype(A))))), debug = false)
     V = zeros(eltype(A), 2, size(A, 1))
     V[1] = 1
     V[end] = 1
     eigQL!(A, V, tol, debug)
 end
-eig2!(A::Hermitian, tol = eps(float(real(one(eltype(A))))), debug = false) = eig2!(symtri!(A), tol, debug)
+eigen2!(A::Hermitian, tol = eps(float(real(one(eltype(A))))), debug = false) = eigen2!(symtri!(A), tol, debug)
 
-eigen!(A::SymTridiagonal) = LinearAlgebra.Eigen(eig!(A)...)
-eigen!(A::LinearAlgebra.Hermitian) = LinearAlgebra.Eigen(eig!(A)...)
-
-eig2(A::SymTridiagonal, tol = eps(float(real(one(eltype(A))))), debug = false) = eig2!(copy(A), tol, debug)
-eig2(A::Hermitian     , tol = eps(float(real(one(eltype(A))))), debug = false) = eig2!(copy(A), tol, debug)
+eigen2(A::SymTridiagonal, tol = eps(float(real(one(eltype(A))))), debug = false) = eigen2!(copy(A), tol, debug)
+eigen2(A::Hermitian     , tol = eps(float(real(one(eltype(A))))), debug = false) = eigen2!(copy(A), tol, debug)
 
 # First method of each type here is identical to the method defined in
 # LinearAlgebra but is needed for disambiguation
-function eigvals(A::Hermitian{<:Real})
+function LinearAlgebra.eigvals(A::Hermitian{<:Real})
     T = typeof(sqrt(zero(eltype(A))))
     return eigvals!(LinearAlgebra.copy_oftype(A, T))
 end
-function eigvals(A::Hermitian)
+function LinearAlgebra.eigvals(A::Hermitian)
     T = typeof(sqrt(zero(eltype(A))))
     return eigvals!(LinearAlgebra.copy_oftype(A, T))
 end
-function eigen(A::Hermitian{<:Real})
+function LinearAlgebra.eigen(A::Hermitian{<:Real})
     T = typeof(sqrt(zero(eltype(A))))
     return eigen!(LinearAlgebra.copy_oftype(A, T))
 end
-function eigen(A::Hermitian)
+function LinearAlgebra.eigen(A::Hermitian)
     T = typeof(sqrt(zero(eltype(A))))
     return eigen!(LinearAlgebra.copy_oftype(A, T))
 end
