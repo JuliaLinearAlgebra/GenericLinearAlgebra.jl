@@ -2,9 +2,6 @@ using Printf
 using LinearAlgebra
 using LinearAlgebra: Givens, Rotation
 
-import Base: copy, getindex, size
-import LinearAlgebra: eigvals!, ldiv!
-
 # Auxiliary
 function adiagmax(A::StridedMatrix)
     adm = zero(typeof(real(A[1])))
@@ -21,14 +18,14 @@ struct HessenbergMatrix{T,S<:StridedMatrix} <: AbstractMatrix{T}
     data::S
 end
 
-copy(H::HessenbergMatrix{T,S}) where {T,S} = HessenbergMatrix{T,S}(copy(H.data))
+Base.copy(H::HessenbergMatrix{T,S}) where {T,S} = HessenbergMatrix{T,S}(copy(H.data))
 
-getindex(H::HessenbergMatrix{T,S}, i::Integer, j::Integer) where {T,S} = i > j + 1 ? zero(T) : H.data[i,j]
+Base.getindex(H::HessenbergMatrix{T,S}, i::Integer, j::Integer) where {T,S} = i > j + 1 ? zero(T) : H.data[i,j]
 
-size(H::HessenbergMatrix) = size(H.data)
-size(H::HessenbergMatrix, i::Integer) = size(H.data, i)
+Base.size(H::HessenbergMatrix) = size(H.data)
+Base.size(H::HessenbergMatrix, i::Integer) = size(H.data, i)
 
-function ldiv!(H::HessenbergMatrix, B::AbstractVecOrMat)
+function LinearAlgebra.ldiv!(H::HessenbergMatrix, B::AbstractVecOrMat)
     n = size(H, 1)
     Hd = H.data
     for i = 1:n-1
@@ -45,7 +42,7 @@ struct HessenbergFactorization{T, S<:StridedMatrix,U} <: Factorization{T}
     τ::Vector{U}
 end
 
-function hessfact!(A::StridedMatrix{T}) where T
+function _hessenberg!(A::StridedMatrix{T}) where T
     n = LinearAlgebra.checksquare(A)
     τ = Vector{Householder{T}}(undef, n - 1)
     for i = 1:n - 1
@@ -58,8 +55,9 @@ function hessfact!(A::StridedMatrix{T}) where T
     end
     return HessenbergFactorization{T, typeof(A), eltype(τ)}(A, τ)
 end
+LinearAlgebra.hessenberg!(A::StridedMatrix) = _hessenberg!(A)
 
-size(H::HessenbergFactorization, args...) = size(H.data, args...)
+Base.size(H::HessenbergFactorization, args...) = size(H.data, args...)
 
 # Schur
 struct Schur{T,S<:StridedMatrix} <: Factorization{T}
@@ -73,8 +71,8 @@ function wilkinson(Hmm, t, d)
     return ifelse(abs(Hmm - λ1) < abs(Hmm - λ2), λ1, λ2)
 end
 
-
-function schurfact!(H::HessenbergFactorization{T}; tol = eps(T), debug = false, shiftmethod = :Wilkinson, maxiter = 100*size(H, 1)) where T<:Real
+# We currently absorb extra unsupported keywords in kwargs. These could e.g. be scale and permute. Do we want to check that these are false?
+function _schur!(H::HessenbergFactorization{T}; tol = eps(T), debug = false, shiftmethod = :Wilkinson, maxiter = 100*size(H, 1), kwargs...) where T<:Real
     n = size(H, 1)
     istart = 1
     iend = n
@@ -143,7 +141,8 @@ function schurfact!(H::HessenbergFactorization{T}; tol = eps(T), debug = false, 
 
     return Schur{T,typeof(HH)}(HH, τ)
 end
-schurfact!(A::StridedMatrix; kwargs...) = schurfact!(hessfact!(A); kwargs...)
+_schur!(A::StridedMatrix; kwargs...) = _schur!(_hessenberg!(A); kwargs...)
+LinearAlgebra.schur!(A::StridedMatrix; kwargs...) = _schur!(A; kwargs...)
 
 function singleShiftQR!(HH::StridedMatrix, τ::Rotation, shift::Number, istart::Integer, iend::Integer)
     m = size(HH, 1)
@@ -219,11 +218,16 @@ function doubleShiftQR!(HH::StridedMatrix, τ::Rotation, shiftTrace::Number, shi
     return HH
 end
 
-eigvals!(A::StridedMatrix; kwargs...)           = eigvals!(schurfact!(A; kwargs...))
-eigvals!(H::HessenbergMatrix; kwargs...)        = eigvals!(schurfact!(H, kwargs...))
-eigvals!(H::HessenbergFactorization; kwargs...) = eigvals!(schurfact!(H, kwargs...))
+_eigvals!(A::StridedMatrix; kwargs...)           = _eigvals!(_schur!(A; kwargs...))
+_eigvals!(H::HessenbergMatrix; kwargs...)        = _eigvals!(_schur!(H, kwargs...))
+_eigvals!(H::HessenbergFactorization; kwargs...) = _eigvals!(_schur!(H, kwargs...))
 
-function eigvals!(S::Schur{T}; tol = eps(T)) where T
+# Overload methods from LinearAlgebra to make them work generically
+LinearAlgebra.eigvals!(A::StridedMatrix; kwargs...)           = _eigvals!(A; kwargs...)
+LinearAlgebra.eigvals!(H::HessenbergMatrix; kwargs...)        = _eigvals!(H, kwargs...)
+LinearAlgebra.eigvals!(H::HessenbergFactorization; kwargs...) = _eigvals!(H, kwargs...)
+
+function _eigvals!(S::Schur{T}; tol = eps(T)) where T
     HH = S.data
     n = size(HH, 1)
     vals = Vector{Complex{T}}(undef, n)
@@ -244,6 +248,8 @@ function eigvals!(S::Schur{T}; tol = eps(T)) where T
             i += 2
         end
     end
-    if i == n vals[i] = HH[n, n] end
+    if i == n
+        vals[i] = HH[n, n]
+    end
     return vals
 end
