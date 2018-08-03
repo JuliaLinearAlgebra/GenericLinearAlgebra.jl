@@ -72,7 +72,7 @@ function wilkinson(Hmm, t, d)
 end
 
 # We currently absorb extra unsupported keywords in kwargs. These could e.g. be scale and permute. Do we want to check that these are false?
-function _schur!(H::HessenbergFactorization{T}; tol = eps(T), debug = false, shiftmethod = :Wilkinson, maxiter = 100*size(H, 1), kwargs...) where T<:Real
+function _schur!(H::HessenbergFactorization{T}; tol = eps(T), debug = false, shiftmethod = :Francis, maxiter = 100*size(H, 1), kwargs...) where T<:Real
     n = size(H, 1)
     istart = 1
     iend = n
@@ -122,18 +122,38 @@ function _schur!(H::HessenbergFactorization{T}; tol = eps(T), debug = false, shi
             t = iszero(t) ? eps(one(t)) : t # introduce a small pertubation for zero shifts
             debug && @printf("block start is: %6d, block end is: %6d, d: %10.3e, t: %10.3e\n", istart, iend, d, t)
 
-            if shiftmethod == :Wilkinson
-                debug && @printf("Double shift with Wilkinson shift! Subdiagonal is: %10.3e, last subdiagonal is: %10.3e\n", HH[iend, iend - 1], HH[iend - 1, iend - 2])
-
+            if shiftmethod == :Francis
                 # Run a bulge chase
-                doubleShiftQR!(HH, τ, t, d, istart, iend)
+                if iszero(i % 10)
+                    # Vary the shift strategy to avoid dead locks
+                    # We use a Wilkinson-like shift as suggested in "Sandia technical report 96-0913J: How the QR algorithm fails to converge and how fix it".
+
+                    debug && @printf("Wilkinson-like shift! Subdiagonal is: %10.3e, last subdiagonal is: %10.3e\n", HH[iend, iend - 1], HH[iend - 1, iend - 2])
+                    _d = t*t - 4d
+
+                    if _d >= 0
+                        # real eigenvalues
+                        a = t/2
+                        b = sqrt(_d)/2
+                        s = a > Hmm ? a - b : a + b
+                    else
+                        # complex case
+                        s = t/2
+                    end
+                    singleShiftQR!(HH, τ, s, istart, iend)
+                else
+                    # most of the time use Francis double shifts
+
+                    debug && @printf("Francis double shift! Subdiagonal is: %10.3e, last subdiagonal is: %10.3e\n", HH[iend, iend - 1], HH[iend - 1, iend - 2])
+                    doubleShiftQR!(HH, τ, t, d, istart, iend)
+                end
             elseif shiftmethod == :Rayleigh
                 debug && @printf("Single shift with Rayleigh shift! Subdiagonal is: %10.3e\n", HH[iend, iend - 1])
 
                 # Run a bulge chase
                 singleShiftQR!(HH, τ, Hmm, istart, iend)
             else
-                throw(ArgumentError("only support supported shift methods are :Wilkinson (default) and :Rayleigh. You supplied $shiftmethod"))
+                throw(ArgumentError("only support supported shift methods are :Francis (default) and :Rayleigh. You supplied $shiftmethod"))
             end
         end
         if iend <= 2 break end
