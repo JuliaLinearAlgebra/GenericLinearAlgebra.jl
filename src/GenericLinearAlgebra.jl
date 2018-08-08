@@ -1,5 +1,3 @@
-__precompile__()
-
 module GenericLinearAlgebra
 
 import LinearAlgebra: mul!, ldiv!
