@@ -17,7 +17,13 @@ struct EigenQ{T} <: AbstractMatrix{T}
     τ::Vector{T}
 end
 
-LinearAlgebra.getq(S::SymmetricTridiagonalFactorization) = EigenQ(S.uplo, S.factors, S.τ)
+function Base.getproperty(S::SymmetricTridiagonalFactorization, s::Symbol)
+    if s == :Q
+        return EigenQ(S.uplo, S.factors, S.τ)
+    else
+        throw(ArgumentError("no property $s"))
+    end
+end
 
 Base.size(Q::EigenQ) = (size(Q.factors, 1), size(Q.factors, 1))
 function Base.size(Q::EigenQ, i::Integer)
@@ -543,7 +549,7 @@ function eigen2!(A::SymmetricTridiagonalFactorization, tol = eps(real(float(one(
     V = zeros(eltype(A), 2, size(A, 1))
     V[1] = 1
     V[end] = 1
-    eigQL!(A.diagonals, rmul!(V, getq(A)), tol, debug)
+    eigQL!(A.diagonals, rmul!(V, A.Q), tol, debug)
 end
 function eigen2!(A::SymTridiagonal, tol = eps(real(float(one(eltype(A))))), debug = false)
     V = zeros(eltype(A), 2, size(A, 1))

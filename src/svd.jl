@@ -255,7 +255,7 @@ function bidiagonalize!(A::AbstractMatrix)
     end
 end
 
-_svdvals!(A::StridedMatrix; tol = eps(T), debug = false) = svdvals!(bidiagonalize!(A)[1], tol = tol, debug = debug)
+_svdvals!(A::StridedMatrix; tol = eps(real(eltype(A))), debug = false) = svdvals!(bidiagonalize!(A)[1], tol = tol, debug = debug)
 
 LinearAlgebra.svdvals!(B::Bidiagonal{T}; tol = eps(T), debug = false) where T<:Real = _svdvals!(B, tol = tol, debug = debug)
 LinearAlgebra.svdvals!(A::StridedMatrix; tol = eps(real(eltype(A))), debug = false) = _svdvals!(A, tol = tol, debug = debug)
