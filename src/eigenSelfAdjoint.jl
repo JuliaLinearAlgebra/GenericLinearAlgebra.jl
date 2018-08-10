@@ -21,7 +21,7 @@ function Base.getproperty(S::SymmetricTridiagonalFactorization, s::Symbol)
     if s == :Q
         return EigenQ(S.uplo, S.factors, S.τ)
     else
-        throw(ArgumentError("no property $s"))
+        return getfield(S, s)
     end
 end
 
@@ -492,8 +492,8 @@ function symtriUpper!(AS::StridedMatrix{T},
     n = LinearAlgebra.checksquare(AS)
 
     @inbounds for k = 1:(n - 2 + !(T<:Real))
-        # FixMe! Avoid the deprecated ConjArray
-        τk = LinearAlgebra.reflector!(LinearAlgebra._conj(view(AS, k, (k + 1):n)))
+        # This is a bit convoluted method to get the conjugated vector but conjugation is required for correctness of arrays of quaternions. Eventually, it should be sufficient to write vec(x') but it currently (July 10, 2018) hits a bug in LinearAlgebra
+        τk = LinearAlgebra.reflector!(vec(transpose(view(AS, k, (k + 1):n)')))
         τ[k] = τk'
 
         for j in (k + 1):n
@@ -536,7 +536,7 @@ LinearAlgebra.eigvals!(A::SymTridiagonal                   ) = _eigvals!(A)
 LinearAlgebra.eigvals!(A::Hermitian                        ) = _eigvals!(A)
 
 _eigen!(A::SymmetricTridiagonalFactorization) =
-    LinearAlgebra.Eigen(eigQL!(A.diagonals, Array(getq(A)), eps(eltype(A.diagonals)), false)...)
+    LinearAlgebra.Eigen(eigQL!(A.diagonals, Array(A.Q), eps(eltype(A.diagonals)), false)...)
 _eigen!(A::SymTridiagonal) =
     LinearAlgebra.Eigen(eigQL!(A, Matrix{eltype(A)}(I, size(A, 1), size(A, 1)), eps(eltype(A)), false)...)
 _eigen!(A::Hermitian) = _eigen!(symtri!(A))
