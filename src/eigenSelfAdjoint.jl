@@ -160,7 +160,7 @@ function eigQL2x2!(d::StridedVector, e::StridedVector, j::Integer, vectors::Matr
     return c, s
 end
 
-function eigvalsPWK!(S::SymTridiagonal{T}, tol = eps(T), debug::Bool=false) where T<:Real
+function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T), debug::Bool=false) where T<:Real
     d = S.dv
     e = S.ev
     n = length(d)
@@ -180,6 +180,7 @@ function eigvalsPWK!(S::SymTridiagonal{T}, tol = eps(T), debug::Bool=false) wher
                 end
                 blockend = n
             end
+
             # Deflate?
             if blockstart == blockend
                 # Yes
@@ -201,7 +202,7 @@ function eigvalsPWK!(S::SymTridiagonal{T}, tol = eps(T), debug::Bool=false) wher
 
                 debug && @printf("QL, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, μ: %e, rotations: %d\n", blockstart, blockend, e[blockstart], e[blockend-1], μ, iter += blockend - blockstart)
             end
-            if blockstart == n
+            if blockstart >= n
                 break
             end
         end
@@ -209,7 +210,7 @@ function eigvalsPWK!(S::SymTridiagonal{T}, tol = eps(T), debug::Bool=false) wher
     sort!(d)
 end
 
-function eigQL!(S::SymTridiagonal{T},
+function eigQL!(S::SymTridiagonal{T};
                 vectors::Matrix = zeros(T, 0, size(S, 1)),
                 tol = eps(T),
                 debug::Bool=false) where T<:Real
@@ -254,7 +255,7 @@ function eigQL!(S::SymTridiagonal{T},
                 singleShiftQL!(S, μ, blockstart, blockend, vectors)
                 debug && @printf("QL, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, μ: %f\n", blockstart, blockend, e[blockstart], e[blockend-1], μ)
             end
-            if blockstart == n
+            if blockstart >= n
                 break
             end
         end
@@ -263,7 +264,7 @@ function eigQL!(S::SymTridiagonal{T},
     return d[p], vectors[:,p]
 end
 
-function eigQR!(S::SymTridiagonal{T},
+function eigQR!(S::SymTridiagonal{T};
                 vectors::Matrix = zeros(T, 0, size(S, 1)),
                 tol = eps(T),
                 debug::Bool=false) where T<:Real
@@ -301,7 +302,7 @@ function eigQR!(S::SymTridiagonal{T},
 
                 debug && @printf("QR, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, d[blockend]: %f, μ: %f\n", blockstart, blockend, e[blockstart], e[blockend-1], d[blockend], μ)
             end
-            if blockstart == n
+            if blockstart >= n
                 break
             end
         end
@@ -527,40 +528,89 @@ function symtriUpper!(AS::StridedMatrix{T},
     SymmetricTridiagonalFactorization('U', AS, τ, SymTridiagonal(real(diag(AS)), real(diag(AS, 1))))
 end
 
-_eigvals!(A::SymmetricTridiagonalFactorization) = eigvalsPWK!(A.diagonals, eps(eltype(A.diagonals)), false)
-_eigvals!(A::SymTridiagonal                   ) = eigvalsPWK!(A,           eps(eltype(A))          , false)
-_eigvals!(A::Hermitian                        ) = eigvals!(symtri!(A))
 
-LinearAlgebra.eigvals!(A::SymmetricTridiagonalFactorization) = _eigvals!(A)
-LinearAlgebra.eigvals!(A::SymTridiagonal                   ) = _eigvals!(A)
-LinearAlgebra.eigvals!(A::Hermitian                        ) = _eigvals!(A)
+_eigvals!(A::SymmetricTridiagonalFactorization;
+          tol = eps(real(eltype(A))),
+          debug = false) = eigvalsPWK!(A.diagonals, tol = tol, debug = debug)
 
-_eigen!(A::SymmetricTridiagonalFactorization) =
-    LinearAlgebra.Eigen(eigQL!(A.diagonals, Array(A.Q), eps(eltype(A.diagonals)), false)...)
-_eigen!(A::SymTridiagonal) =
-    LinearAlgebra.Eigen(eigQL!(A, Matrix{eltype(A)}(I, size(A, 1), size(A, 1)), eps(eltype(A)), false)...)
-_eigen!(A::Hermitian) = _eigen!(symtri!(A))
+_eigvals!(A::SymTridiagonal;
+          tol = eps(real(eltype(A))),
+          debug = false) = eigvalsPWK!(A, tol = tol, debug = debug)
 
-LinearAlgebra.eigen!(A::SymmetricTridiagonalFactorization) = _eigen!(A)
-LinearAlgebra.eigen!(A::SymTridiagonal                   ) = _eigen!(A)
-LinearAlgebra.eigen!(A::Hermitian                        ) = _eigen!(A)
+_eigvals!(A::Hermitian;
+          tol = eps(real(eltype(A))),
+          debug = false) = eigvals!(symtri!(A), tol = tol, debug = debug)
 
-function eigen2!(A::SymmetricTridiagonalFactorization, tol = eps(real(float(one(eltype(A))))), debug = false)
+
+LinearAlgebra.eigvals!(A::SymmetricTridiagonalFactorization;
+                       tol = eps(real(eltype(A))),
+                       debug = false) = _eigvals!(A, tol = tol, debug = debug)
+
+LinearAlgebra.eigvals!(A::SymTridiagonal;
+                       tol = eps(real(eltype(A))),
+                       debug = false) = _eigvals!(A, tol = tol, debug = debug)
+
+LinearAlgebra.eigvals!(A::Hermitian;
+                       tol = eps(real(eltype(A))),
+                       debug = false) = _eigvals!(A, tol = tol, debug = debug)
+
+
+_eigen!(A::SymmetricTridiagonalFactorization;
+        tol = eps(real(eltype(A))),
+        debug = false) =
+    LinearAlgebra.Eigen(eigQL!(A.diagonals, vectors = Array(A.Q), tol = tol, debug = debug)...)
+
+_eigen!(A::SymTridiagonal;
+        tol = eps(real(eltype(A))),
+        debug = false) =
+    LinearAlgebra.Eigen(eigQL!(A, vectors = Matrix{eltype(A)}(I, size(A, 1), size(A, 1)), tol = tol, debug = debug)...)
+
+_eigen!(A::Hermitian;
+        tol = eps(real(eltype(A))),
+        debug = false) = _eigen!(symtri!(A), tol = tol, debug = debug)
+
+
+LinearAlgebra.eigen!(A::SymmetricTridiagonalFactorization;
+                     tol = eps(real(eltype(A))),
+                     debug = false) = _eigen!(A, tol = tol, debug = debug)
+
+LinearAlgebra.eigen!(A::SymTridiagonal;
+                     tol = eps(real(eltype(A))),
+                     debug = false) = _eigen!(A, tol = tol, debug = debug)
+
+LinearAlgebra.eigen!(A::Hermitian;
+                     tol = eps(real(eltype(A))),
+                     debug = false) = _eigen!(A, tol = tol, debug = debug)
+
+
+function eigen2!(A::SymmetricTridiagonalFactorization;
+                 tol = eps(real(float(one(eltype(A))))),
+                 debug = false)
     V = zeros(eltype(A), 2, size(A, 1))
     V[1] = 1
     V[end] = 1
-    eigQL!(A.diagonals, rmul!(V, A.Q), tol, debug)
+    eigQL!(A.diagonals, vectors = rmul!(V, A.Q), tol = tol, debug = debug)
 end
-function eigen2!(A::SymTridiagonal, tol = eps(real(float(one(eltype(A))))), debug = false)
+
+function eigen2!(A::SymTridiagonal;
+                 tol = eps(real(float(one(eltype(A))))),
+                 debug = false)
     V = zeros(eltype(A), 2, size(A, 1))
     V[1] = 1
     V[end] = 1
-    eigQL!(A, V, tol, debug)
+    eigQL!(A, vectors = V, tol = tol, debug = debug)
 end
-eigen2!(A::Hermitian, tol = eps(float(real(one(eltype(A))))), debug = false) = eigen2!(symtri!(A), tol, debug)
 
-eigen2(A::SymTridiagonal, tol = eps(float(real(one(eltype(A))))), debug = false) = eigen2!(copy(A), tol, debug)
-eigen2(A::Hermitian     , tol = eps(float(real(one(eltype(A))))), debug = false) = eigen2!(copy(A), tol, debug)
+eigen2!(A::Hermitian;
+        tol = eps(float(real(one(eltype(A))))),
+        debug = false) = eigen2!(symtri!(A), tol = tol, debug = debug)
+
+
+eigen2(A::SymTridiagonal;
+       tol = eps(float(real(one(eltype(A))))),
+       debug = false) = eigen2!(copy(A), tol = tol, debug = debug)
+
+eigen2(A::Hermitian     , tol = eps(float(real(one(eltype(A))))), debug = false) = eigen2!(copy(A), tol = tol, debug = debug)
 
 # First method of each type here is identical to the method defined in
 # LinearAlgebra but is needed for disambiguation

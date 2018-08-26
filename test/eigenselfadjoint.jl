@@ -23,7 +23,7 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
         end
 
         @testset "QR version (QL is default)" begin
-            vals, vecs = GenericLinearAlgebra.eigQR!(copy(T), Matrix{eltype(T)}(I, n, n))
+            vals, vecs = GenericLinearAlgebra.eigQR!(copy(T), vectors = Matrix{eltype(T)}(I, n, n))
             @test (vecs'*T)*vecs ≈ Diagonal(vals)
             @test eigvals(T) ≈ vals
             @test vecs'vecs ≈ Matrix(I, n, n)
@@ -76,5 +76,11 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
         c, s, r = invoke(LinearAlgebra.givensAlgorithm, Tuple{Real,Real}, x, y)
         @test c*x + s*y ≈ r
         @test c*y ≈ s*x
+    end
+
+    @testset "out-of-bounds issue in 1x1 case" begin
+        @test GenericLinearAlgebra._eigvals!(SymTridiagonal([1.0], Float64[])) == [1.0]
+        @test GenericLinearAlgebra._eigen!(SymTridiagonal([1.0], Float64[])).values == [1.0]
+        @test GenericLinearAlgebra._eigen!(SymTridiagonal([1.0], Float64[])).vectors == fill(1.0, 1, 1)
     end
 end
