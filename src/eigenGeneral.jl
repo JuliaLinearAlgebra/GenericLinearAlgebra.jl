@@ -72,7 +72,7 @@ function wilkinson(Hmm, t, d)
 end
 
 # We currently absorb extra unsupported keywords in kwargs. These could e.g. be scale and permute. Do we want to check that these are false?
-function _schur!(H::HessenbergFactorization{T}; tol = eps(T), debug = false, shiftmethod = :Francis, maxiter = 100*size(H, 1), kwargs...) where T<:Real
+function _schur!(H::HessenbergFactorization{T}; tol = eps(real(T)), debug = false, shiftmethod = :Francis, maxiter = 100*size(H, 1), kwargs...) where T
     n = size(H, 1)
     istart = 1
     iend = n
@@ -119,7 +119,7 @@ function _schur!(H::HessenbergFactorization{T}; tol = eps(T), debug = false, shi
             Hm1m1 = HH[iend - 1, iend - 1]
             d = Hm1m1*Hmm - HH[iend, iend - 1]*HH[iend - 1, iend]
             t = Hm1m1 + Hmm
-            t = iszero(t) ? eps(one(t)) : t # introduce a small pertubation for zero shifts
+            t = iszero(t) ? eps(real(one(t))) : t # introduce a small pertubation for zero shifts
             debug && @printf("block start is: %6d, block end is: %6d, d: %10.3e, t: %10.3e\n", istart, iend, d, t)
 
             if shiftmethod == :Francis
@@ -131,7 +131,7 @@ function _schur!(H::HessenbergFactorization{T}; tol = eps(T), debug = false, shi
                     debug && @printf("Wilkinson-like shift! Subdiagonal is: %10.3e, last subdiagonal is: %10.3e\n", HH[iend, iend - 1], HH[iend - 1, iend - 2])
                     _d = t*t - 4d
 
-                    if _d >= 0
+                    if isreal(_d) && _d >= 0
                         # real eigenvalues
                         a = t/2
                         b = sqrt(_d)/2
@@ -247,10 +247,10 @@ LinearAlgebra.eigvals!(A::StridedMatrix; kwargs...)           = _eigvals!(A; kwa
 LinearAlgebra.eigvals!(H::HessenbergMatrix; kwargs...)        = _eigvals!(H, kwargs...)
 LinearAlgebra.eigvals!(H::HessenbergFactorization; kwargs...) = _eigvals!(H, kwargs...)
 
-function _eigvals!(S::Schur{T}; tol = eps(T)) where T
+function _eigvals!(S::Schur{T}; tol = eps(real(T))) where T
     HH = S.data
     n = size(HH, 1)
-    vals = Vector{Complex{T}}(undef, n)
+    vals = Vector{complex(T)}(undef, n)
     i = 1
     while i < n
         Hii = HH[i, i]

@@ -2,15 +2,18 @@ using Test, GenericLinearAlgebra, LinearAlgebra
 
 @testset "The General eigenvalue problem" begin
 
-@testset "General eigen problem with n=$n" for n in (10, 100, 200)
-    A = randn(n,n)
+cplxord = t -> (real(t), imag(t))
+
+@testset "General eigen problem with n=$n and element type=$T" for
+    n in (10, 23, 100),
+    T in (Float64, Complex{Float64})
+
+    A = randn(T, n, n)
     vGLA    = GenericLinearAlgebra._eigvals!(copy(A))
     vLAPACK = eigvals(A)
     vBig    = eigvals(big.(A)) # not defined in LinearAlgebra so will dispatch to the version in GenericLinearAlgebra
-    @test sort(real(vGLA)) ≈ sort(real(vLAPACK))
-    @test sort(imag(vGLA)) ≈ sort(imag(vLAPACK))
-    @test sort(real(vGLA)) ≈ sort(real(map(Complex{Float64}, vBig)))
-    @test sort(imag(vGLA)) ≈ sort(imag(map(Complex{Float64}, vBig)))
+    @test sort(vGLA, by = cplxord) ≈ sort(vLAPACK, by = cplxord)
+    @test sort(vGLA, by = cplxord) ≈ sort(complex(eltype(A)).(vBig), by = cplxord)
 end
 
 @testset "make sure that solver doesn't hang" begin
