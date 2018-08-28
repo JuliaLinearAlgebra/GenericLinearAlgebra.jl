@@ -131,7 +131,7 @@ function _schur!(H::HessenbergFactorization{T}; tol = eps(real(T)), debug = fals
                     debug && @printf("Wilkinson-like shift! Subdiagonal is: %10.3e, last subdiagonal is: %10.3e\n", HH[iend, iend - 1], HH[iend - 1, iend - 2])
                     _d = t*t - 4d
 
-                    if isreal(_d) && _d >= 0
+                    if _d isa Real && _d >= 0
                         # real eigenvalues
                         a = t/2
                         b = sqrt(_d)/2
