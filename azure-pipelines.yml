@@ -3,21 +3,24 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
-pool:
-  vmImage: 'Ubuntu 16.04'
+jobs:
+- job: Linux
+  
+  pool:
+    vmImage: 'Ubuntu 16.04'
 
-strategy:
-  matrix:
-    Julia 1.0:
-      JULIA_VERSION: '1.0.1'
+  strategy:
+    matrix:
+      Julia 1.0:
+        JULIA_VERSION: '1.0.1'
 
-steps:
-- script: |
-    wget -nv https://julialang-s3.julialang.org/bin/linux/x64/1.0/julia-$(JULIA_VERSION)-linux-x86_64.tar.gz
-    tar zxf julia-$(JULIA_VERSION)-linux-x86_64.tar.gz
-  displayName: 'Download and extract Julia 1.0'
+  steps:
+  - script: |
+      wget -nv https://julialang-s3.julialang.org/bin/linux/x64/1.0/julia-$(JULIA_VERSION)-linux-x86_64.tar.gz
+      tar zxf julia-$(JULIA_VERSION)-linux-x86_64.tar.gz
+    displayName: 'Download and extract Julia 1.0'
 
-- script: |
-    ./julia-$(JULIA_VERSION)/bin/julia -e 'using Pkg; Pkg.add(PackageSpec(url=pwd(), name="GenericLinearAlgebra"))'
-    ./julia-$(JULIA_VERSION)/bin/julia -e 'using Pkg; Pkg.test("GenericLinearAlgebra")'
-  displayName: 'Run the tests'
+  - script: |
+      ./julia-$(JULIA_VERSION)/bin/julia --project=@. -e 'using Pkg; Pkg.instantiate()'
+      ./julia-$(JULIA_VERSION)/bin/julia --project=@. -e 'using Pkg; Pkg.test("GenericLinearAlgebra")'
+    displayName: 'Run the tests'

@@ -1,6 +1,6 @@
 # GenericLinearAlgebra.jl
-<!-- [![StatsBase](http://pkg.julialang.org/badges/StatsBase_0.4.svg)](http://pkg.julialang.org/?pkg=StatsBase&ver=0.4) -->
 [![Build Status](https://travis-ci.org/andreasnoack/GenericLinearAlgebra.jl.svg?branch=master)](https://travis-ci.org/andreasnoack/GenericLinearAlgebra.jl)
+[![Build Status](https://dev.azure.com/andreasnoack/GenericLinearAlgebra/_apis/build/status/andreasnoack.GenericLinearAlgebra.jl?branchName=master)](https://dev.azure.com/andreasnoack/GenericLinearAlgebra/_build/latest?definitionId=2)
 [![Coverage Status](https://coveralls.io/repos/github/andreasnoack/GenericLinearAlgebra.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/andreasnoack/GenericLinearAlgebra.jl?branch=master)
 
 ### A fresh approach to numerical linear algebra in Julia
