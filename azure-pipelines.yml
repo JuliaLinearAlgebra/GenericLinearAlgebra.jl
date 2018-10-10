@@ -17,5 +17,7 @@ steps:
     tar zxf julia-$(JULIA_VERSION)-linux-x86_64.tar.gz
   displayName: 'Download and extract Julia 1.0'
 
-- script: ./julia-$(JULIA_VERSION)/bin/julia -e 'using Pkg; Pkg.resolve(); Pkg.test()'
+- script: |
+    ./julia-$(JULIA_VERSION)/bin/julia -e 'using Pkg; Pkg.add(PackageSpec(url=pwd(), name="GenericLinearAlgebra"))'
+    ./julia-$(JULIA_VERSION)/bin/julia -e 'using Pkg; Pkg.test("GenericLinearAlgebra")'
   displayName: 'Run the tests'
