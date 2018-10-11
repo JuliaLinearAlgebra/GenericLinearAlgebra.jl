@@ -71,6 +71,13 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
         end
     end
 
+    @testset "big Hermitian{<:Complex}" begin
+        # This one used to cause an ambiguity error. See #35
+        A = complex.(randn(4,4), randn(4,4))
+        @test Float64.(eigen(Hermitian(big.(A))).values) ≈ eigen(Hermitian(copy(A))).values
+        @test Float64.(eigvals(Hermitian(big.(A))))      ≈ eigvals(Hermitian(copy(A)))
+    end
+
     @testset "generic Givens" begin
         x, y = randn(2)
         c, s, r = invoke(LinearAlgebra.givensAlgorithm, Tuple{Real,Real}, x, y)
