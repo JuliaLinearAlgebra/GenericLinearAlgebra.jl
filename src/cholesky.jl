@@ -8,7 +8,7 @@ function cholUnblocked!(A::AbstractMatrix{T}, ::Type{Val{:L}}) where T<:Number
         rmul!(a21, inv(real(A[1,1])))
 
         A22 = view(A, 2:n, 2:n)
-        rankUpdate!(-one(real(T)), a21, Hermitian(A22, :L))
+        rankUpdate!(Hermitian(A22, :L), a21, -1)
         cholUnblocked!(A22, Val{:L})
     end
     A
@@ -24,7 +24,7 @@ function cholBlocked!(A::AbstractMatrix{T}, ::Type{Val{:L}}, blocksize::Integer)
         rdiv!(A21, LowerTriangular(A11)')
 
         A22 = view(A, (blocksize + 1):n, (blocksize + 1):n)
-        rankUpdate!(-one(real(T)), A21, Hermitian(A22, :L))
+        rankUpdate!(Hermitian(A22, :L), A21, -1)
         cholBlocked!(A22, Val{:L}, blocksize)
     end
     A
@@ -44,7 +44,7 @@ function cholRecursive!(A::StridedMatrix{T}, ::Type{Val{:L}}, cutoff = 1) where 
         rdiv!(A21, LowerTriangular(A11)')
 
         A22 = view(A, n2 + 1:n, n2 + 1:n)
-        rankUpdate!(-real(one(T)), A21, Hermitian(A22, :L))
+        rankUpdate!(Hermitian(A22, :L), A21, -1)
         cholRecursive!(A22, Val{:L}, cutoff)
     end
     return LowerTriangular(A)
