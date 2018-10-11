@@ -438,7 +438,13 @@ function symtriLower!(AS::StridedMatrix{T},
                       u = Vector{T}(undef, size(AS, 1))) where T
     n = size(AS, 1)
 
+    # We ignore any non-real components of the diagonal
+    @inbounds for i in 1:n
+        AS[i,i] = real(AS[i,i])
+    end
+
     @inbounds for k = 1:(n - 2 + !(T<:Real))
+
         τk = LinearAlgebra.reflector!(view(AS, (k + 1):n, k))
         τ[k] = τk
 
@@ -491,6 +497,11 @@ function symtriUpper!(AS::StridedMatrix{T},
                       τ = zeros(T, size(AS, 1) - 1),
                       u = Vector{T}(undef, size(AS, 1))) where T
     n = LinearAlgebra.checksquare(AS)
+
+    # We ignore any non-real components of the diagonal
+    @inbounds for i in 1:n
+        AS[i,i] = real(AS[i,i])
+    end
 
     @inbounds for k = 1:(n - 2 + !(T<:Real))
         # This is a bit convoluted method to get the conjugated vector but conjugation is required for correctness of arrays of quaternions. Eventually, it should be sufficient to write vec(x') but it currently (July 10, 2018) hits a bug in LinearAlgebra
@@ -618,11 +629,19 @@ function LinearAlgebra.eigvals(A::Hermitian{<:Real})
     T = typeof(sqrt(zero(eltype(A))))
     return eigvals!(LinearAlgebra.copy_oftype(A, T))
 end
+function LinearAlgebra.eigvals(A::Hermitian{<:Complex})
+    T = typeof(sqrt(zero(eltype(A))))
+    return eigvals!(LinearAlgebra.copy_oftype(A, T))
+end
 function LinearAlgebra.eigvals(A::Hermitian)
     T = typeof(sqrt(zero(eltype(A))))
     return eigvals!(LinearAlgebra.copy_oftype(A, T))
 end
 function LinearAlgebra.eigen(A::Hermitian{<:Real})
+    T = typeof(sqrt(zero(eltype(A))))
+    return eigen!(LinearAlgebra.copy_oftype(A, T))
+end
+function LinearAlgebra.eigen(A::Hermitian{<:Complex})
     T = typeof(sqrt(zero(eltype(A))))
     return eigen!(LinearAlgebra.copy_oftype(A, T))
 end
