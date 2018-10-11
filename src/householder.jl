@@ -45,7 +45,7 @@ function rmul!(A::StridedMatrix, H::Householder)
     x = A1*v
     axpy!(one(τ), a1, x)
     axpy!(-τ, x, a1)
-    rankUpdate!(-τ, x, v, A1)
+    rankUpdate!(A1, x, v, -τ)
     A
 end
 

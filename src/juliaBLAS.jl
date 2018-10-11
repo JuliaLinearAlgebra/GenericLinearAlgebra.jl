@@ -9,10 +9,10 @@ export rankUpdate!
 
 ## General
 ### BLAS
-rankUpdate!(α::T, x::StridedVector{T}, y::StridedVector{T}, A::StridedMatrix{T}) where {T<:BlasReal} = BLAS.ger!(α, x, y, A)
+rankUpdate!(A::StridedMatrix{T}, x::StridedVector{T}, y::StridedVector{T}, α::T) where {T<:BlasReal} = BLAS.ger!(α, x, y, A)
 
 ### Generic
-function rankUpdate!(α::Number, x::StridedVector, y::StridedVector, A::StridedMatrix)
+function rankUpdate!(A::StridedMatrix, x::StridedVector, y::StridedVector, α::Number)
     m, n = size(A, 1), size(A, 2)
     m == length(x) || throw(DimensionMismatch("x vector has wrong length"))
     n == length(y) || throw(DimensionMismatch("y vector has wrong length"))
@@ -24,12 +24,15 @@ function rankUpdate!(α::Number, x::StridedVector, y::StridedVector, A::StridedM
     end
 end
 
+# Deprecated 11 October 2018
+Base.@deprecate rankUpdate!(α::Number, x::StridedVector, y::StridedVector, A::StridedMatrix) rankUpdate!(A, x, y, α)
+
 ## Hermitian
-rankUpdate!(α::T, a::StridedVector{T}, A::HermOrSym{T,S}) where {T<:BlasReal,S<:StridedMatrix} = BLAS.syr!(A.uplo, α, a, A.data)
-rankUpdate!(a::StridedVector{T}, A::HermOrSym{T,S}) where {T<:BlasReal,S<:StridedMatrix} = rankUpdate!(one(T), a, A)
+rankUpdate!(A::HermOrSym{T,S}, a::StridedVector{T}, α::T) where {T<:BlasReal,S<:StridedMatrix} = BLAS.syr!(A.uplo, α, a, A.data)
+rankUpdate!(A::HermOrSym{T,S}, a::StridedVector{T}) where {T<:BlasReal,S<:StridedMatrix} = rankUpdate!(one(T), a, A)
 
 ### Generic
-function rankUpdate!(α::Real, a::StridedVector, A::Hermitian)
+function rankUpdate!(A::Hermitian, a::StridedVector, α::Real)
     n = size(A, 1)
     n == length(a) || throw(DimensionMismatch("a vector has wrong length"))
     @inbounds for j in 1:n
@@ -41,15 +44,18 @@ function rankUpdate!(α::Real, a::StridedVector, A::Hermitian)
     return A
 end
 
+# Deprecated 11 October 2018
+Base.@deprecate rankUpdate!(α::Real, a::StridedVector, A::Hermitian) rankUpdate!(A, a, α)
+
 # Rank k update
 ## Real
-rankUpdate!(α::T, A::StridedMatrix{T}, β::T, C::HermOrSym{T,S}) where {T<:BlasReal,S<:StridedMatrix} = syrk!(C.uplo, 'N', α, A, β, C.data)
+rankUpdate!(C::HermOrSym{T,S}, A::StridedMatrix{T}, α::T, β::T) where {T<:BlasReal,S<:StridedMatrix} = syrk!(C.uplo, 'N', α, A, β, C.data)
 
 ## Complex
-rankUpdate!(α::T, A::StridedMatrix{Complex{T}}, β::T, C::Hermitian{T,S}) where {T<:BlasReal,S<:StridedMatrix} = herk!(C.uplo, 'N', α, A, β, C.data)
+rankUpdate!(C::Hermitian{T,S}, A::StridedMatrix{Complex{T}}, α::T, β::T) where {T<:BlasReal,S<:StridedMatrix} = herk!(C.uplo, 'N', α, A, β, C.data)
 
 ### Generic
-function rankUpdate!(α::Real, A::StridedVecOrMat, C::Hermitian)
+function rankUpdate!(C::Hermitian, A::StridedVecOrMat, α::Real)
     n = size(C, 1)
     n == size(A, 1) || throw(DimensionMismatch("first dimension of A has wrong size"))
     @inbounds if C.uplo == 'L' # branch outside the loop to have larger loop to optimize
@@ -73,6 +79,10 @@ function rankUpdate!(α::Real, A::StridedVecOrMat, C::Hermitian)
     end
     return C
 end
+
+# Deprecated 11 October 2018
+Base.@deprecate rankUpdate!(α::Real, A::StridedVecOrMat, C::Hermitian) rankUpdate!(C, A, α)
+Base.@deprecate rankUpdate!(α::Real, A::StridedVecOrMat, β::Real, C::Hermitian) rankUpdate!(C, A, α, β)
 
 # BLAS style mul!
 ## gemv
