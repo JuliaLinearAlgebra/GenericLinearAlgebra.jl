@@ -12,7 +12,7 @@ So far, this has mainly been my playground but you might find some of the functi
 ```jl
 julia> using GenericLinearAlgebra
 
-julia> A = big(randn(10,10));
+julia> A = big.(randn(10,10));
 
 julia> cond(A)
 1.266829904721752610946505846921202851190952179974780602509001252204638657237828e+03
