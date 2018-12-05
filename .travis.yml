@@ -13,4 +13,4 @@ matrix:
   - julia: nightly
 
 after_success:
-  - julia -e 'cd(Pkg.dir("GenericLinearAlgebra")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
+  - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Coveralls.submit(process_folder()); Codecov.submit(process_folder())';
