@@ -6,7 +6,7 @@ import LinearAlgebra: reflectorApply!
 struct QR2{T,S<:AbstractMatrix{T},V<:AbstractVector{T}} <: Factorization{T}
     factors::S
     τ::V
-    QR2{T,S,V}(factors::AbstractMatrix{T}, τ::AbstractVector{T}) where {T,S<:AbstractMatrix,V<:AbstractVector} = 
+    QR2{T,S,V}(factors::AbstractMatrix{T}, τ::AbstractVector{T}) where {T,S<:AbstractMatrix,V<:AbstractVector} =
         new(factors, τ)
 end
 QR2(factors::AbstractMatrix{T}, τ::Vector{T}) where {T} = QR2{T,typeof(factors)}(factors, τ)
@@ -20,14 +20,14 @@ size(F::QR2, i::Integer...) = size(F.factors, i...)
         throw(DimensionMismatch("reflector must have same length as second dimension of matrix"))
     end
     @inbounds begin
-        for i = 1:m
+        for i in 1:m
             Aiv = A[i, 1]
-            for j = 2:n
+            for j in 2:n
                 Aiv += A[i, j]*x[j]
             end
             Aiv = Aiv*τ
             A[i, 1] -= Aiv
-            for j = 2:n
+            for j in 2:n
                 A[i, j] -= Aiv*x[j]'
             end
         end
