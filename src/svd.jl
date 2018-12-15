@@ -434,6 +434,12 @@ end
 
 # FixMe! The full keyword is redundant for Bidiagonal and should be removed from Base
 LinearAlgebra.svd!(B::Bidiagonal{T}; tol = eps(T), full = false, debug = false) where T<:Real = _svd!(B, tol = tol, debug = debug)
+
+"""
+    svd!
+
+A generic SVD implementation.
+"""
 function LinearAlgebra.svd!(A::StridedMatrix{T}; tol = eps(real(eltype(A))), full = false, debug = false) where T
 
     m, n = size(A)
