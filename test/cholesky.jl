@@ -1,7 +1,9 @@
-using Test, LinearAlgebra
+using Test, LinearAlgebra, Random
 using GenericLinearAlgebra: cholUnblocked!, cholBlocked!, cholRecursive!
 
 @testset "Cholesky" begin
+
+    Random.seed!(123)
 
     n = 50
 
