@@ -12,4 +12,5 @@ include("eigenGeneral.jl")
 include("tridiag.jl")
 include("svd.jl")
 include("rectfullpacked.jl")
+include("inv.jl")
 end

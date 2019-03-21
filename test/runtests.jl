@@ -9,4 +9,5 @@ using Test
     include("svd.jl")
     include("rectfullpacked.jl")
     include("lapack.jl")
+    include("inv.jl")
 # end
