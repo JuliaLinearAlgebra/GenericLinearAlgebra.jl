@@ -12,7 +12,7 @@ using GenericLinearAlgebra
 
         A = rand(m, m)
         A_inv = large_inv(A; max_block_size=bz)
-        @test A_inv*A - I ≈ zeros(m,m) atol=1e-5
+        @test A_inv*A - I ≈ zeros(m,m) atol=1e-4
     end
 
     @testset "Error paths" begin
