@@ -8,4 +8,5 @@ CurrentModule = GenericLinearAlgebra
 
 ```@docs
 svd!
+svdvals!
 ```
