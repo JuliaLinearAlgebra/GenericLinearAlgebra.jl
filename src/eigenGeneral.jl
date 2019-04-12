@@ -65,6 +65,14 @@ struct Schur{T,S<:StridedMatrix} <: Factorization{T}
     R::Rotation
 end
 
+function Base.getproperty(F::Schur, s::Symbol)
+    if s === :T || s === :Schur
+        return triu(F.data, -1)
+    else
+        return getfield(F, s)
+    end
+end
+
 function wilkinson(Hmm, t, d)
     λ1 = (t + sqrt(t*t - 4d))/2
     λ2 = (t - sqrt(t*t - 4d))/2

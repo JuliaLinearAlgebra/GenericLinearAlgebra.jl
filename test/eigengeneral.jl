@@ -48,4 +48,10 @@ end
     @test sort(GenericLinearAlgebra._eigvals!(GenericLinearAlgebra._schur!(copy(A))), by = t -> (real(t), imag(t))) ≈ sort(eigvals(A), by = t -> (real(t), imag(t)))
 end
 
+@testset "Extract Schur factor" begin
+    A = randn(5, 5)
+    @test sum(eigvals(schur(A).T))     ≈ sum(eigvals(Float64.(schur(big.(A)).T)))
+    @test sum(eigvals(schur(A).Schur)) ≈ sum(eigvals(Float64.(schur(big.(A)).Schur)))
+end
+
 end
