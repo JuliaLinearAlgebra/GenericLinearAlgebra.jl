@@ -174,7 +174,7 @@ function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T), debug::Bool=false) wher
         while true
             # Check for zero off diagonal elements
             for be in blockstart + 1:n
-                if abs(e[be - 1]) < tol*sqrt(abs(d[be - 1]))*sqrt(abs(d[be]))
+                if abs(e[be - 1]) <= tol*sqrt(abs(d[be - 1]))*sqrt(abs(d[be]))
                     blockend = be - 1
                     break
                 end
@@ -231,7 +231,7 @@ function eigQL!(S::SymTridiagonal{T};
         while true
             # Check for zero off diagonal elements
             for be = blockstart+1:n
-                if abs(e[be-1]) < tol*sqrt(abs(d[be-1]))*sqrt(abs(d[be]))
+                if abs(e[be-1]) <= tol*sqrt(abs(d[be-1]))*sqrt(abs(d[be]))
                     blockend = be - 1
                     break
                 end
