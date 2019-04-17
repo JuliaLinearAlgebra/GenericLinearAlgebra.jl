@@ -90,4 +90,16 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
         @test GenericLinearAlgebra._eigen!(SymTridiagonal([1.0], Float64[])).values == [1.0]
         @test GenericLinearAlgebra._eigen!(SymTridiagonal([1.0], Float64[])).vectors == fill(1.0, 1, 1)
     end
+
+    # Issue #52
+    @testset "convergence criterion when diagonal has zeros" begin
+        M1 = Hermitian(zeros(3, 3))
+        M1[1,1] = 0.01
+        M2 = Hermitian(zeros(3, 3))
+        M2[3, 3] = 0.01
+        @test eigvals(M1) == GenericLinearAlgebra._eigvals!(copy(M1))
+        @test eigvals(M2) == GenericLinearAlgebra._eigvals!(copy(M2))
+        @test eigen(M1).values == GenericLinearAlgebra._eigen!(copy(M1)).values
+        @test eigen(M2).values == GenericLinearAlgebra._eigen!(copy(M2)).values
+    end
 end
