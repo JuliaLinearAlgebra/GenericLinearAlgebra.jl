@@ -467,7 +467,13 @@ function LinearAlgebra.svdvals!(A::StridedMatrix; tol = eps(real(eltype(A))), de
 end
 
 # FixMe! The full keyword is redundant for Bidiagonal and should be removed from Base
-LinearAlgebra.svd!(B::Bidiagonal{T}; tol = eps(T), full = false, debug = false) where T<:Real = _svd!(B, tol = tol, debug = debug)
+LinearAlgebra.svd!(B::Bidiagonal{T};
+    tol = eps(T),
+    full = false,
+    # To avoid breaking on <Julia 1.3, the `alg` keyword doesn't do anything. Once we drop support for Julia 1.2
+    # and below, we can make the keyword argument work correctly
+    alg = nothing,
+    debug = false) where T<:Real = _svd!(B, tol = tol, debug = debug)
 
 """
     svd!(A[, tol, full, debug])::SVD
@@ -488,7 +494,13 @@ A generic singular value decomposition (SVD). The implementation only uses Julia
 ```jldoctest
 ```
 """
-function LinearAlgebra.svd!(A::StridedMatrix{T}; tol = eps(real(eltype(A))), full = false, debug = false) where T
+function LinearAlgebra.svd!(A::StridedMatrix{T};
+    tol = eps(real(eltype(A))),
+    full = false,
+    # To avoid breaking on <Julia 1.3, the `alg` keyword doesn't do anything. Once we drop support for Julia 1.2
+    # and below, we can make the keyword argument work correctly
+    alg = nothing,
+    debug = false) where T
 
     m, n = size(A)
 
