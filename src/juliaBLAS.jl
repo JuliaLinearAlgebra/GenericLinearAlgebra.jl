@@ -84,6 +84,7 @@ end
 Base.@deprecate rankUpdate!(α::Real, A::StridedVecOrMat, C::Hermitian) rankUpdate!(C, A, α)
 Base.@deprecate rankUpdate!(α::Real, A::StridedVecOrMat, β::Real, C::Hermitian) rankUpdate!(C, A, α, β)
 
+if VERSION < v"1.3.0-alpha.115"
 # BLAS style mul!
 ## gemv
 mul!(y::StridedVector{T}, A::StridedMatrix{T}, x::StridedVector{T}, α::T, β::T) where {T<:BlasFloat} = gemv!('N', α, A, x, β, y)
@@ -155,6 +156,8 @@ mul!(A::Adjoint{T,UpperTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:B
 mul!(A::Adjoint{T,LowerTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:BlasFloat,S} = trmm!('L', 'L', 'C', 'N', α, parent(A).data, B)
 mul!(A::Adjoint{T,UnitUpperTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:BlasFloat,S} = trmm!('L', 'U', 'C', 'U', α, parent(A).data, B)
 mul!(A::Adjoint{T,UnitLowerTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:BlasFloat,S} = trmm!('L', 'L', 'C', 'U', α, parent(A).data, B)
+
+end # VERSION
 
 ### Generic fallbacks
 function lmul!(A::UpperTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
