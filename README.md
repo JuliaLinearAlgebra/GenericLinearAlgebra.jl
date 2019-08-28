@@ -1,6 +1,5 @@
 # GenericLinearAlgebra.jl
 [![Build Status](https://travis-ci.org/JuliaLinearAlgebra/GenericLinearAlgebra.jl.svg?branch=master)](https://travis-ci.org/JuliaLinearAlgebra/GenericLinearAlgebra.jl)
-[![Build Status](https://dev.azure.com/andreasnoack/GenericLinearAlgebra/_apis/build/status/andreasnoack.GenericLinearAlgebra.jl?branchName=master)](https://dev.azure.com/andreasnoack/GenericLinearAlgebra/_build/latest?definitionId=2)
 [![Coverage Status](https://coveralls.io/repos/github/JuliaLinearAlgebra/GenericLinearAlgebra.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/JuliaLinearAlgebra/GenericLinearAlgebra.jl?branch=master)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaLinearAlgebra.github.io/GenericLinearAlgebra.jl/stable)
 
