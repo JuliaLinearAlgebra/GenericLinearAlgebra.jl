@@ -9,6 +9,7 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
         # LinearAlgebra
         T = SymTridiagonal(big.(randn(n)), big.(randn(n - 1)))
         vals, vecs  = eigen(T)
+        @test issorted(vals)
         @testset "default" begin
             @test (vecs'*T)*vecs ≈ Diagonal(vals)
             @test eigvals(T) ≈ vals
@@ -17,6 +18,7 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
 
         @testset "eigen2" begin
             vals2, vecs2 = GenericLinearAlgebra.eigen2(T)
+            @test issorted(vals2)
             @test vals ≈ vals2
             @test vecs[[1,n],:] == vecs2
             @test vecs2*vecs2' ≈ Matrix(I, 2, 2)
@@ -24,6 +26,7 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
 
         @testset "QR version (QL is default)" begin
             vals, vecs = GenericLinearAlgebra.eigQR!(copy(T), vectors = Matrix{eltype(T)}(I, n, n))
+            @test issorted(vals)
             @test (vecs'*T)*vecs ≈ Diagonal(vals)
             @test eigvals(T) ≈ vals
             @test vecs'vecs ≈ Matrix(I, n, n)
@@ -37,6 +40,7 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
             @test vecs'*A*vecs ≈ diagm(0 => vals)
             @test eigvals(A) ≈ vals
             @test vecs'vecs ≈ Matrix(I, n, n)
+            @test issorted(vals)
         end
 
         @testset "eigen2" begin
@@ -44,6 +48,7 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
             @test vals ≈ vals2
             @test vecs[[1,n],:] ≈ vecs2
             @test vecs2*vecs2'  ≈ Matrix(I, 2, 2)
+            @test issorted(vals2)
         end
     end
 
@@ -52,6 +57,8 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
         λ = 10 .^ range(-8, stop=0, length=n)
         A = Hermitian(V*Diagonal(λ)*V' |> t -> (t + t')/2, uplo)
         vals, vecs = eigen(A)
+        @test issorted(vals)
+
         @testset "default" begin
             if uplo == :L # FixMe! Probably an conjugation is off somewhere. Don't have time to check now.
                 @test_broken vecs'*A*vecs ≈ diagm(0=> vals)
@@ -65,6 +72,7 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
 
         @testset "eigen2" begin
             vals2, vecs2 = GenericLinearAlgebra.eigen2(A)
+            @test issorted(vals2)
             @test vals ≈ vals2
             @test vecs[[1,n],:] ≈ vecs2
             @test vecs2*vecs2'  ≈ Matrix(I, 2, 2)
@@ -101,5 +109,11 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
         @test eigvals(M2) == GenericLinearAlgebra._eigvals!(copy(M2))
         @test eigen(M1).values == GenericLinearAlgebra._eigen!(copy(M1)).values
         @test eigen(M2).values == GenericLinearAlgebra._eigen!(copy(M2)).values
+    end
+
+    @testset "Sorting of `ishermitian(T)==true` matrices on pre-1.2" begin
+        T = big.(randn(5, 5))
+        T = T + T'
+        @test issorted(eigvals(T))
     end
 end
