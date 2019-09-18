@@ -247,13 +247,41 @@ function doubleShiftQR!(HH::StridedMatrix, τ::Rotation, shiftTrace::Number, shi
 end
 
 _eigvals!(A::StridedMatrix; kwargs...)           = _eigvals!(_schur!(A; kwargs...))
-_eigvals!(H::HessenbergMatrix; kwargs...)        = _eigvals!(_schur!(H, kwargs...))
-_eigvals!(H::HessenbergFactorization; kwargs...) = _eigvals!(_schur!(H, kwargs...))
+_eigvals!(H::HessenbergMatrix; kwargs...)        = _eigvals!(_schur!(H; kwargs...))
+_eigvals!(H::HessenbergFactorization; kwargs...) = _eigvals!(_schur!(H; kwargs...))
 
 # Overload methods from LinearAlgebra to make them work generically
-LinearAlgebra.eigvals!(A::StridedMatrix; kwargs...)           = _eigvals!(A; kwargs...)
-LinearAlgebra.eigvals!(H::HessenbergMatrix; kwargs...)        = _eigvals!(H, kwargs...)
-LinearAlgebra.eigvals!(H::HessenbergFactorization; kwargs...) = _eigvals!(H, kwargs...)
+if VERSION > v"1.2.0-DEV.0"
+    function LinearAlgebra.eigvals!(A::StridedMatrix;
+                                    sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+                                    kwargs...)
+            if ishermitian(A)
+                return LinearAlgebra.sorteig!(eigvals!(Hermitian(A)), sortby)
+            end
+            LinearAlgebra.sorteig!(_eigvals!(A; kwargs...), sortby)
+    end
+
+    LinearAlgebra.eigvals!(H::HessenbergMatrix;
+                        sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+                        kwargs...) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
+
+    LinearAlgebra.eigvals!(H::HessenbergFactorization;
+                        sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+                        kwargs...) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
+else
+
+    function LinearAlgebra.eigvals!(A::StridedMatrix; kwargs...)
+        if ishermitian(A)
+            return eigvals!(Hermitian(A))
+        end
+        _eigvals!(A; kwargs...)
+    end
+
+    LinearAlgebra.eigvals!(H::HessenbergMatrix; kwargs...) = _eigvals!(H; kwargs...)
+
+    LinearAlgebra.eigvals!(H::HessenbergFactorization; kwargs...) = _eigvals!(H; kwargs...)
+end
+
 
 function _eigvals!(S::Schur{T}; tol = eps(real(T))) where T
     HH = S.data
