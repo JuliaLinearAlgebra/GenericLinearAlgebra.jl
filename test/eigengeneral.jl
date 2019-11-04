@@ -51,6 +51,13 @@ end
     @test sort(GenericLinearAlgebra._eigvals!(GenericLinearAlgebra._schur!(copy(A))), by = t -> (real(t), imag(t))) ≈ sort(eigvals(A), by = t -> (real(t), imag(t)))
 end
 
+@testset "Convergence in with 0s Issue 29." begin
+    A = [0.0 1.0 0.0; -1.0 0.0 0.0; 0.0 0.0 0.0]
+    @test sort(GenericLinearAlgebra._eigvals!(GenericLinearAlgebra._schur!(copy(A))), by = t -> (real(t), imag(t))) ≈ sort(eigvals(A), by = t -> (real(t), imag(t)))
+    B = [0.0 0.0 0.0; 0.0 0.0 1.0; 0.0 -1.0 0.0]
+    @test sort(GenericLinearAlgebra._eigvals!(GenericLinearAlgebra._schur!(copy(B))), by = t -> (real(t), imag(t))) ≈ sort(eigvals(B), by = t -> (real(t), imag(t)))
+end
+
 @testset "Extract Schur factor" begin
     A = randn(5, 5)
     @test sum(eigvals(schur(A).T))     ≈ sum(eigvals(Float64.(schur(big.(A)).T)))
