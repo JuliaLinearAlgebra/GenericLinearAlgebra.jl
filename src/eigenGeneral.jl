@@ -98,11 +98,11 @@ function _schur!(H::HessenbergFactorization{T}; tol = eps(real(T)), debug = fals
 
         # Determine if the matrix splits. Find lowest positioned subdiagonal "zero"
         for _istart in iend - 1:-1:1
-            if abs(HH[_istart + 1, _istart]) < tol*(abs(HH[_istart, _istart]) + abs(HH[_istart + 1, _istart + 1]))
+            if abs(HH[_istart + 1, _istart]) <= tol*(abs(HH[_istart, _istart]) + abs(HH[_istart + 1, _istart + 1]))
                     istart = _istart + 1
                 debug && @printf("Split! Subdiagonal element is: %10.3e and istart now %6d\n", HH[istart, istart - 1], istart)
                 break
-            elseif _istart > 1 && abs(HH[_istart, _istart - 1]) < tol*(abs(HH[_istart - 1, _istart - 1]) + abs(HH[_istart, _istart]))
+            elseif _istart > 1 && abs(HH[_istart, _istart - 1]) <= tol*(abs(HH[_istart - 1, _istart - 1]) + abs(HH[_istart, _istart]))
                     debug && @printf("Split! Next subdiagonal element is: %10.3e and istart now %6d\n", HH[_istart, _istart - 1], _istart)
                 istart = _istart
                 break
@@ -138,7 +138,6 @@ function _schur!(H::HessenbergFactorization{T}; tol = eps(real(T)), debug = fals
 
                     debug && @printf("Wilkinson-like shift! Subdiagonal is: %10.3e, last subdiagonal is: %10.3e\n", HH[iend, iend - 1], HH[iend - 1, iend - 2])
                     _d = t*t - 4d
-
                     if _d isa Real && _d >= 0
                         # real eigenvalues
                         a = t/2
@@ -291,7 +290,7 @@ function _eigvals!(S::Schur{T}; tol = eps(real(T))) where T
     while i < n
         Hii = HH[i, i]
         Hi1i1 = HH[i + 1, i + 1]
-        if abs(HH[i + 1, i]) < tol*(abs(Hi1i1) + abs(Hii))
+        if abs(HH[i + 1, i]) <= tol*(abs(Hi1i1) + abs(Hii))
             vals[i] = Hii
             i += 1
         else
