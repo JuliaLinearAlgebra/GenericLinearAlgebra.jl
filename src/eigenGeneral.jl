@@ -80,7 +80,14 @@ function wilkinson(Hmm, t, d)
 end
 
 # We currently absorb extra unsupported keywords in kwargs. These could e.g. be scale and permute. Do we want to check that these are false?
-function _schur!(H::HessenbergFactorization{T}; tol = eps(real(T)), debug = false, shiftmethod = :Francis, maxiter = 100*size(H, 1), kwargs...) where T
+function _schur!(
+    H::HessenbergFactorization{T};
+    tol = eps(real(T)),
+    debug = false,
+    shiftmethod = :Francis,
+    maxiter = 100*size(H, 1),
+    kwargs...) where T
+
     n = size(H, 1)
     istart = 1
     iend = n
@@ -99,14 +106,25 @@ function _schur!(H::HessenbergFactorization{T}; tol = eps(real(T)), debug = fals
         # Determine if the matrix splits. Find lowest positioned subdiagonal "zero"
         for _istart in iend - 1:-1:1
             if abs(HH[_istart + 1, _istart]) <= tol*(abs(HH[_istart, _istart]) + abs(HH[_istart + 1, _istart + 1]))
-                    istart = _istart + 1
+                # Check if subdiagonal element H[i+1,i] is "zero" such that we can split the matrix
+                
+                # Set istart to the beginning of the second block
+                istart = _istart + 1
+
                 debug && @printf("Split! Subdiagonal element is: %10.3e and istart now %6d\n", HH[istart, istart - 1], istart)
+
+                # Set the subdiagonal element to zero to signal that a split has taken place
+                HH[istart, istart - 1] = 0
                 break
-            elseif _istart > 1 && abs(HH[_istart, _istart - 1]) <= tol*(abs(HH[_istart - 1, _istart - 1]) + abs(HH[_istart, _istart]))
-                    debug && @printf("Split! Next subdiagonal element is: %10.3e and istart now %6d\n", HH[_istart, _istart - 1], _istart)
-                istart = _istart
-                break
+#             elseif _istart > 1 && abs(HH[_istart, _istart - 1]) <= tol*(abs(HH[_istart - 1, _istart - 1]) + abs(HH[_istart, _istart]))
+                
+#                 debug && @printf("Split! Next subdiagonal element is: %10.3e and istart now %6d\n", HH[_istart, _istart - 1], _istart)
+# HH[_istart, _istart - 1]=0
+#                 istart = _istart
+#                 break
             end
+
+            # If no splits have taken place then we start from the top
             istart = 1
         end
 
@@ -251,29 +269,33 @@ _eigvals!(H::HessenbergFactorization; kwargs...) = _eigvals!(_schur!(H; kwargs..
 
 # Overload methods from LinearAlgebra to make them work generically
 if VERSION > v"1.2.0-DEV.0"
-    function LinearAlgebra.eigvals!(A::StridedMatrix;
-                                    sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
-                                    kwargs...)
-            if ishermitian(A)
-                return LinearAlgebra.sorteig!(eigvals!(Hermitian(A)), sortby)
-            end
-            LinearAlgebra.sorteig!(_eigvals!(A; kwargs...), sortby)
+    function LinearAlgebra.eigvals!(
+        A::StridedMatrix;
+        sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+        kwargs...)
+        
+        if ishermitian(A)
+            return LinearAlgebra.sorteig!(eigvals!(Hermitian(A)), sortby)
+        end
+        LinearAlgebra.sorteig!(_eigvals!(A; kwargs...), sortby)
     end
 
-    LinearAlgebra.eigvals!(H::HessenbergMatrix;
-                        sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
-                        kwargs...) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
+    LinearAlgebra.eigvals!(
+        H::HessenbergMatrix;
+        sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+        kwargs...) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
 
-    LinearAlgebra.eigvals!(H::HessenbergFactorization;
-                        sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
-                        kwargs...) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
+    LinearAlgebra.eigvals!(
+        H::HessenbergFactorization;
+        sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+        kwargs...) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
 else
-
     function LinearAlgebra.eigvals!(A::StridedMatrix; kwargs...)
         if ishermitian(A)
             return eigvals!(Hermitian(A))
+        else
+            return _eigvals!(A; kwargs...)
         end
-        _eigvals!(A; kwargs...)
     end
 
     LinearAlgebra.eigvals!(H::HessenbergMatrix; kwargs...) = _eigvals!(H; kwargs...)
@@ -281,7 +303,10 @@ else
     LinearAlgebra.eigvals!(H::HessenbergFactorization; kwargs...) = _eigvals!(H; kwargs...)
 end
 
-
+# To compute the eigenvalue of the pseudo triangular Schur matrix we just return
+# the values of the 1x1 diagonal blocks and compute the eigenvalues of the 2x2
+# blocks on the fly. We can check for exact zeros in the subdiagonal because
+# the QR algorithm sets the elements to zero when a split happens
 function _eigvals!(S::Schur{T}; tol = eps(real(T))) where T
     HH = S.data
     n = size(HH, 1)
@@ -289,16 +314,18 @@ function _eigvals!(S::Schur{T}; tol = eps(real(T))) where T
     i = 1
     while i < n
         Hii = HH[i, i]
-        Hi1i1 = HH[i + 1, i + 1]
-        if abs(HH[i + 1, i]) <= tol*(abs(Hi1i1) + abs(Hii))
+        if iszero(HH[i + 1, i])
+            # 1x1 block
             vals[i] = Hii
             i += 1
         else
+            # 2x2 block
+            Hi1i1 = HH[i + 1, i + 1]
             d = Hii*Hi1i1 - HH[i, i + 1]*HH[i + 1, i]
             t = Hii + Hi1i1
             x = 0.5*t
             y = sqrt(complex(x*x - d))
-            vals[i] = x + y
+            vals[i    ] = x + y
             vals[i + 1] = x - y
             i += 2
         end
