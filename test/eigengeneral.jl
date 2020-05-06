@@ -64,4 +64,33 @@ end
     @test sum(eigvals(schur(A).Schur)) ≈ sum(eigvals(Float64.(schur(big.(A)).Schur)))
 end
 
+@testset "Issue 63" begin
+    A = [1 2 1 1 1 1
+         0 1 0 1 0 1
+         1 1 2 0 1 0
+         0 1 0 2 1 1
+         1 1 1 0 2 0
+         0 1 1 1 0 2]
+
+    z1 = [complex(1, sqrt(big(3))), complex(1, -sqrt(big(3)))]
+    z2 = [
+        4*2^(big(2)/3)/complex(5, 3*sqrt(big(111)))^(big(1)/3),
+        complex(5, 3*sqrt(big(111)))^(big(1)/3)/2^(big(2)/3)
+        ]
+
+    truevals = real.([
+        (7 - transpose(z1)*z2),
+        3,
+        3,
+        3,
+        (7 - adjoint(z1)*z2),
+        (7 + [2, 2]'*z2)])/3
+
+    if VERSION > v"1.2.0-DEV.0"
+        @test eigvals(big.(A)) ≈ truevals
+    else
+        @test sort(eigvals(big.(A)), by=real) ≈ truevals
+    end
+end
+
 end
