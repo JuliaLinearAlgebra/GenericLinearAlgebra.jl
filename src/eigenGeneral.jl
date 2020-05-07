@@ -116,12 +116,6 @@ function _schur!(
                 # Set the subdiagonal element to zero to signal that a split has taken place
                 HH[istart, istart - 1] = 0
                 break
-#             elseif _istart > 1 && abs(HH[_istart, _istart - 1]) <= tol*(abs(HH[_istart - 1, _istart - 1]) + abs(HH[_istart, _istart]))
-                
-#                 debug && @printf("Split! Next subdiagonal element is: %10.3e and istart now %6d\n", HH[_istart, _istart - 1], _istart)
-# HH[_istart, _istart - 1]=0
-#                 istart = _istart
-#                 break
             end
 
             # If no splits have taken place then we start from the top
