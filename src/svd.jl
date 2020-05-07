@@ -102,9 +102,28 @@ function svdDemmelKahan!(B::Bidiagonal{T}, n1, n2, U = nothing, Vᴴ = nothing) 
     return B
 end
 
+# Recurrence to estimate smallest singular value from LAWN3 Lemma 1
+function estimate_σ⁻(dv::AbstractVector, ev::AbstractVector, n1::Integer, n2::Integer)
+    λ  = abs(dv[n2])
+    B∞ = λ
+    for j in (n2 - 1):-1:n1
+        λ = abs(dv[j])*(λ/(λ + abs(ev[j])))
+        B∞ = min(B∞, λ)
+    end
+
+    μ  = abs(dv[n1])
+    B1 = μ
+    for j in n1:(n2 - 1)
+        μ = abs(dv[j + 1])*(μ*(μ + abs(ev[j])))
+        B1 = min(B1, μ)
+    end
+
+    return min(B∞, B1)
+end
+
 # The actual SVD solver routine
 # Notice that this routine doesn't adjust the sign and sorts the values
-function __svd!(B::Bidiagonal{T}, U = nothing, Vᴴ = nothing; tol = eps(T), debug = false) where T<:Real
+function __svd!(B::Bidiagonal{T}, U = nothing, Vᴴ = nothing; tol = 100eps(T), debug = false) where T<:Real
 
     n = size(B, 1)
     n1 = 1
@@ -113,6 +132,11 @@ function __svd!(B::Bidiagonal{T}, U = nothing, Vᴴ = nothing; tol = eps(T), deb
     e = B.ev
     count = 0
 
+    # See LAWN3 page 6 and 22
+    σ⁻ = estimate_σ⁻(d, e, n1, n2)
+    fudge = n
+    thresh = tol*σ⁻
+
     if istriu(B)
         while true
 
@@ -120,15 +144,9 @@ function __svd!(B::Bidiagonal{T}, U = nothing, Vᴴ = nothing; tol = eps(T), deb
             for n2i = n2:-1:1
                 if n2i == 1
                     # We are done!
-
                     return nothing
                 else
-                    tolcritTop = tol * abs(d[n2i - 1] * d[n2i])
-
-                    # debug && println("n2i=", n2i, ", d[n2i-1]=", d[n2i-1], ", d[n2i]=", d[n2i],
-                        # ", e[n2i-1]=", e[n2i-1], ", tolcritTop=", tolcritTop)
-
-                    if abs(e[n2i - 1]) > tolcritTop
+                    if abs(e[n2i - 1]) > thresh
                         n2 = n2i
                         break
                     end
@@ -137,40 +155,45 @@ function __svd!(B::Bidiagonal{T}, U = nothing, Vᴴ = nothing; tol = eps(T), deb
 
             # Search for largest sub-bidiagonal matrix ending at n2
             for _n1 = (n2 - 1):-1:1
-
-                if _n1 == 1
+                if abs(e[_n1]) < thresh
                     n1 = _n1
                     break
-                else
-                    tolcritBottom = tol * abs(d[_n1 - 1] * d[_n1])
-
-                    # debug && println("n1=", n1, ", d[n1]=", d[n1], ", d[n1-1]=", d[n1-1], ", e[n1-1]", e[n1-1],
-                        # ", tolcritBottom=", tolcritBottom)
-
-                    if abs(e[_n1 - 1]) < tolcritBottom
-                        n1 = _n1
-                        break
-                    end
+                elseif _n1 == 1
+                    n1 = _n1
+                    break
                 end
             end
 
-            debug && println("n1=", n1, ", n2=", n2, ", d[n1]=", d[n1], ", d[n2]=", d[n2], ", e[n1]=", e[n1])
+            debug && println("n1=", n1, ", n2=", n2, ", d[n1]=", d[n1], ", d[n2]=", d[n2], ", e[n1]=", e[n1], " e[n2]=", e[n2-1], " thresh=", thresh)
 
-            # FixMe! Calling the zero shifted version only the first time is adhoc but seems
-            # to work well. Reexamine analysis in LAWN 3 to improve this later.
-            if count == 0
+
+            # See LAWN 3 p 18 and
+            # We approximate the smallest and largest singular values of the
+            # current block to determine if it's safe to use shift or if
+            # the zero shift algorithm is required to maintain high relative
+            # accuracy
+            σ⁻ = estimate_σ⁻(d, e, n1, n2)
+            σ⁺ = max(maximum(view(d, n1:n2)), maximum(view(e, n1:(n2 - 1))))
+
+            if fudge*tol*σ⁻ <= eps(σ⁺)
                 svdDemmelKahan!(B, n1, n2, U, Vᴴ)
             else
                 shift = svdvals2x2(d[n2 - 1], d[n2], e[n2 - 1])[1]
-                svdIter!(B, n1, n2, shift, U, Vᴴ)
+                if shift^2 < eps(B.dv[n1]^2)
+                    # Shift is too small to affect the iteration so just use
+                    # zero-shift algorithm anyway
+                    svdDemmelKahan!(B, n1, n2, U, Vᴴ)
+                else
+                    svdIter!(B, n1, n2, shift, U, Vᴴ)
+                end
             end
+
             count += 1
             debug && println("count=", count)
         end
     else
         # Just transpose the matrix
-        error("")
-        # return _svd!(Bidiagonal(d, e, :U), Vᴴ, U; tol = tol, debug = debug)
+        error("SVD for lower triangular bidiagonal matrices isn't implemented yet.")
     end
 end
 
