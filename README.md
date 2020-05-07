@@ -7,7 +7,7 @@
 
 The purpose of this package is partly to extend linear algebra functionality in base to cover generic element types, e.g. `BigFloat` and `Quaternion`, and partly to be a place to experiment with fast linear algebra routines written in Julia (except for optimized BLAS). It is my hope that it is possible to have implementations that are generic, fast, and readable.
 
-So far, this has mainly been my playground but you might find some of the functionality here useful. The package has a generic implementation of a singular value solver (vectors not handled yet) which will make it possible to compute `norm` and `cond` of matrices of `BigFloat`. The package extends the necessary method (`svdvals!`) in base. Hence
+So far, this has mainly been my playground but you might find some of the functionality here useful. The package has a generic implementation of a singular value solver which will make it possible to compute `norm` and `cond` of matrices of `BigFloat`. Hence
 
 ```jl
 julia> using GenericLinearAlgebra
