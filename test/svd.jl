@@ -45,4 +45,12 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
         @test abs.(F.U'Float64.(Fbig.U)) ≈ I
         @test abs.(F.V'Float64.(Fbig.V)) ≈ I
     end
+
+    @testset "Issue 54" begin
+        U0, _, V0 = svd(big.(reshape(0:15, 4, 4)))
+        A = U0[:, 1:3] * V0[:, 1:3]'
+
+        U, S, V = svd(A)
+        @test A ≈ U*Diagonal(S)*V'
+    end
 end
