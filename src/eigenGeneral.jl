@@ -85,7 +85,7 @@ function _schur!(
     tol = eps(real(T)),
     debug = false,
     shiftmethod = :Francis,
-    maxiter = 100*size(H, 1),
+    maxiter = 30*size(H, 1),
     kwargs...) where T
 
     n = size(H, 1)
@@ -99,6 +99,7 @@ function _schur!(
 
     @inbounds while true
         i += 1
+        debug && println("iteration: $i")
         if i > maxiter
             throw(ArgumentError("iteration limit $maxiter reached"))
         end
@@ -137,35 +138,20 @@ function _schur!(
         else
             Hmm = HH[iend, iend]
             Hm1m1 = HH[iend - 1, iend - 1]
-            d = Hm1m1*Hmm - HH[iend, iend - 1]*HH[iend - 1, iend]
-            t = Hm1m1 + Hmm
-            t = iszero(t) ? eps(real(one(t))) : t # introduce a small pertubation for zero shifts
+            if iszero(i % 10)
+                # Use Eispack exceptional shift
+                β = abs(HH[iend, iend - 1]) + abs(HH[iend - 1, iend - 2])
+                d = (Hmm + β)^2 - Hmm*β/2
+                t = 2*Hmm + 3*β/2
+            else
+                d = Hm1m1*Hmm - HH[iend, iend - 1]*HH[iend - 1, iend]
+                t = Hm1m1 + Hmm
+            end
             debug && @printf("block start is: %6d, block end is: %6d, d: %10.3e, t: %10.3e\n", istart, iend, d, t)
 
             if shiftmethod == :Francis
-                # Run a bulge chase
-                if iszero(i % 10)
-                    # Vary the shift strategy to avoid dead locks
-                    # We use a Wilkinson-like shift as suggested in "Sandia technical report 96-0913J: How the QR algorithm fails to converge and how fix it".
-
-                    debug && @printf("Wilkinson-like shift! Subdiagonal is: %10.3e, last subdiagonal is: %10.3e\n", HH[iend, iend - 1], HH[iend - 1, iend - 2])
-                    _d = t*t - 4d
-                    if _d isa Real && _d >= 0
-                        # real eigenvalues
-                        a = t/2
-                        b = sqrt(_d)/2
-                        s = a > Hmm ? a - b : a + b
-                    else
-                        # complex case
-                        s = t/2
-                    end
-                    singleShiftQR!(HH, τ, s, istart, iend)
-                else
-                    # most of the time use Francis double shifts
-
-                    debug && @printf("Francis double shift! Subdiagonal is: %10.3e, last subdiagonal is: %10.3e\n", HH[iend, iend - 1], HH[iend - 1, iend - 2])
-                    doubleShiftQR!(HH, τ, t, d, istart, iend)
-                end
+                debug && @printf("Francis double shift! Subdiagonal is: %10.3e, last subdiagonal is: %10.3e\n", HH[iend, iend - 1], HH[iend - 1, iend - 2])
+                doubleShiftQR!(HH, τ, t, d, istart, iend)
             elseif shiftmethod == :Rayleigh
                 debug && @printf("Single shift with Rayleigh shift! Subdiagonal is: %10.3e\n", HH[iend, iend - 1])
 

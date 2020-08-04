@@ -93,4 +93,61 @@ end
     end
 end
 
+Demmel(η) = [0  1 0 0
+             1  0 η 0
+             0 -η 0 1
+             0  0 1 0]
+
+@testset "Demmel matrix" for t in (1e-10, 1e-9, 1e-8)
+    # See "Sandia technical report 96-0913J: How the QR algorithm fails to converge and how fix it"
+    A = Demmel(t)
+    vals = GenericLinearAlgebra._eigvals!(GenericLinearAlgebra._schur!(A, maxiter=35))
+    @test abs.(vals) ≈ ones(4)
+end
+
+function Hevil2(θ, κ, α, γ)
+    # Eq (13) and (14)
+    β = ω = 0.0
+    ν = cos(θ)*cos(2γ) + cos(α + β + ω)*sin(2γ)*κ/2
+    σ = 1 + κ*sin(2γ)*cos(α + β + ω - θ) + κ^2*sin(γ)^2
+    μ = -sin(θ)*cos(2γ) - sin(α + β + ω)*sin(2γ)*κ/2
+    ρ = sqrt(σ - ν^2)
+
+    return [ν    (cos(2θ) - ν^2)/ρ              μ/ρ*(cos(2θ) - ν^2 + ρ^2)/sqrt(ρ^2 - μ^2)      (-2*μ*ν - sin(2*θ))/sqrt(ρ^2 - μ^2)
+            ρ   -ν - sin(2*θ)*μ/ρ^2            -μ/ρ^2*(μ*sin(2*θ) + 2*ν*ρ^2)/sqrt(ρ^2 - μ^2)    -μ/ρ*(cos(2*θ) - ν^2 + ρ^2)/sqrt(ρ^2 - μ^2)
+            0    sin(2*θ)*sqrt(ρ^2 - μ^2)/ρ^2   ν + sin(2*θ)*μ/ρ^2                              (cos(2*θ) - ν^2)/ρ
+            0    0                              ρ                                               -ν]
+end
+
+@testset "Complicate matrix from Sandia technical report" begin
+    H = Hevil2(0.111866322512629152, 1.08867072154101741, 0.338146383137297168, -0.313987810419091240)
+
+    @test Float64.(abs.(eigvals(big.(H)))) ≈ ones(4)
+end
+
+@testset "Issue 67" for (A, λs) in (
+    ([1 -2 1 -1 -1 0; 0 1 0 1 0 1; 1 -1 2 0 -1 0; 0 1 0 2 1 1; 1 0 1 0 0 0; 0 -1 1 -1 -2 0]    ,
+        [0.0, 0.0, (3 - √big(3)*im)/2, (3 + √big(3)*im)/2, (3 - √big(3)im)/2, (3 + √big(3)im)/2]),
+    ([1 0 -1 0 0 0; 0 1 1 1 -1 0; 1 0 -1 0 0 0; 1 -1 0 -1 1 1; 0 0 1 0 0 0; -1 0 1 0 0 0]      ,
+        zeros(6)),
+    ([1 -2 -1 1 -1 0; 0 1 0 -1 0 1; -1 1 2 0 1 0; 0 -1 -2 2 -1 -1; 1 0 -1 0 0 0; 0 -1 -1 1 0 0],
+        [(1 - √big(3)*im)/2, (1 + √big(3)*im)/2, (1 - √big(3)im)/2, (1 + √big(3)im)/2, 2, 2]),
+    ([2 0 -1 0 0 1; 0 2 0 -1 -1 0; -1 0 1 0 0 -1; 0 -1 0 1 1 0; 0 1 0 -1 0 0; -1 0 1 0 0 0]    ,
+        ones(6)),
+    ([1 0 1 0 -1 0; -2 1 2 -1 1 1; -1 0 -1 0 1 0; 2 1 2 -1 -2 1; 1 0 1 0 -1 0; 1 -1 -2 1 0 -1] ,
+        [-1, -1, 0, 0, 0, 0]))
+
+    @testset "shouldn't need excessive iterations (30*n) in the Float64 case" begin
+        GenericLinearAlgebra._schur!(float(A))
+    end
+
+    # For BigFloats, many iterations are required for convergence
+    # Improving this is probably a hard problem
+    vals = eigvals(big.(A), maxiter=1500)
+
+    # It's hard to compare complex conjugate pairs so we compare the real and imaginary parts separately
+    @test sort(real(vals)) ≈ sort(real(λs)) atol=1e-25
+    @test sort(imag(vals)) ≈ sort(imag(λs)) atol=1e-25
+end
+
 end
