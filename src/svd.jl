@@ -2,9 +2,6 @@ using LinearAlgebra
 
 import LinearAlgebra: mul!, rmul!
 
-lmul!(G::LinearAlgebra.Givens, ::Nothing) = nothing
-rmul!(::Nothing, G::LinearAlgebra.Givens) = nothing
-
 function svdvals2x2(d1, d2, e)
     d1sq = d1*d1
     d2sq = d2*d2

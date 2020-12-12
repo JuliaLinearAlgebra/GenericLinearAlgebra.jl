@@ -42,21 +42,6 @@ struct HessenbergFactorization{T, S<:StridedMatrix,U} <: Factorization{T}
     τ::Vector{U}
 end
 
-function _hessenberg!(A::StridedMatrix{T}) where T
-    n = LinearAlgebra.checksquare(A)
-    τ = Vector{Householder{T}}(undef, n - 1)
-    for i = 1:n - 1
-        xi = view(A, i + 1:n, i)
-        t  = LinearAlgebra.reflector!(xi)
-        H  = Householder{T,typeof(xi)}(view(xi, 2:n - i), t)
-        τ[i] = H
-        lmul!(H', view(A, i + 1:n, i + 1:n))
-        rmul!(view(A, :, i + 1:n), H)
-    end
-    return HessenbergFactorization{T, typeof(A), eltype(τ)}(A, τ)
-end
-LinearAlgebra.hessenberg!(A::StridedMatrix) = _hessenberg!(A)
-
 Base.size(H::HessenbergFactorization, args...) = size(H.data, args...)
 
 # Schur
@@ -166,7 +151,7 @@ function _schur!(
 
     return Schur{T,typeof(HH)}(HH, τ)
 end
-_schur!(A::StridedMatrix; kwargs...) = _schur!(_hessenberg!(A); kwargs...)
+_schur!(A::StridedMatrix; kwargs...) = _schur!(hessenberg!(A); kwargs...)
 LinearAlgebra.schur!(A::StridedMatrix; kwargs...) = _schur!(A; kwargs...)
 
 function singleShiftQR!(HH::StridedMatrix, τ::Rotation, shift::Number, istart::Integer, iend::Integer)
