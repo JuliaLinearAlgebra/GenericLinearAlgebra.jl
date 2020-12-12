@@ -36,14 +36,6 @@ function LinearAlgebra.ldiv!(H::HessenbergMatrix, B::AbstractVecOrMat)
     ldiv!(Triangular(Hd, :U), B)
 end
 
-# Hessenberg factorization
-struct HessenbergFactorization{T, S<:StridedMatrix,U} <: Factorization{T}
-    data::S
-    τ::Vector{U}
-end
-
-Base.size(H::HessenbergFactorization, args...) = size(H.data, args...)
-
 # Schur
 struct Schur{T,S<:StridedMatrix} <: Factorization{T}
     data::S
@@ -66,7 +58,7 @@ end
 
 # We currently absorb extra unsupported keywords in kwargs. These could e.g. be scale and permute. Do we want to check that these are false?
 function _schur!(
-    H::HessenbergFactorization{T};
+    H::GenericSchur.HessenbergArg{T};
     tol = eps(real(T)),
     debug = false,
     shiftmethod = :Francis,
@@ -76,7 +68,7 @@ function _schur!(
     n = size(H, 1)
     istart = 1
     iend = n
-    HH = H.data
+    HH = GenericSchur._getdata(H)
     τ = Rotation(Givens{T}[])
 
     # iteration count
@@ -230,7 +222,7 @@ end
 
 _eigvals!(A::StridedMatrix; kwargs...)           = _eigvals!(_schur!(A; kwargs...))
 _eigvals!(H::HessenbergMatrix; kwargs...)        = _eigvals!(_schur!(H; kwargs...))
-_eigvals!(H::HessenbergFactorization; kwargs...) = _eigvals!(_schur!(H; kwargs...))
+_eigvals!(H::GenericSchur.HessenbergArg; kwargs...) = _eigvals!(_schur!(H; kwargs...))
 
 # Overload methods from LinearAlgebra to make them work generically
 if VERSION > v"1.2.0-DEV.0"
@@ -251,7 +243,7 @@ if VERSION > v"1.2.0-DEV.0"
         kwargs...) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
 
     LinearAlgebra.eigvals!(
-        H::HessenbergFactorization;
+        H::GenericSchur.HessenbergArg;
         sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
         kwargs...) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
 else
@@ -265,7 +257,7 @@ else
 
     LinearAlgebra.eigvals!(H::HessenbergMatrix; kwargs...) = _eigvals!(H; kwargs...)
 
-    LinearAlgebra.eigvals!(H::HessenbergFactorization; kwargs...) = _eigvals!(H; kwargs...)
+    LinearAlgebra.eigvals!(H::GenericSchur.HessenbergArg; kwargs...) = _eigvals!(H; kwargs...)
 end
 
 # To compute the eigenvalue of the pseudo triangular Schur matrix we just return
