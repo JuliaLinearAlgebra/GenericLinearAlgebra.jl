@@ -1,7 +1,7 @@
 module GenericLinearAlgebra
 
 import LinearAlgebra: mul!, ldiv!
-import GenericSVD
+import GenericSVD, GenericSchur
 
 include("juliaBLAS.jl")
 include("lapack.jl")
