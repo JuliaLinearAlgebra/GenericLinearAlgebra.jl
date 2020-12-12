@@ -13,28 +13,6 @@ QR2(factors::AbstractMatrix{T}, τ::Vector{T}) where {T} = QR2{T,typeof(factors)
 
 size(F::QR2, i::Integer...) = size(F.factors, i...)
 
-# Similar to the definition in base but applies the reflector from the right
-@inline function reflectorApply!(A::StridedMatrix, x::AbstractVector, τ::Number) # apply conjugate transpose reflector from right.
-    m, n = size(A)
-    if length(x) != n
-        throw(DimensionMismatch("reflector must have same length as second dimension of matrix"))
-    end
-    @inbounds begin
-        for i in 1:m
-            Aiv = A[i, 1]
-            for j in 2:n
-                Aiv += A[i, j]*x[j]
-            end
-            Aiv = Aiv*τ
-            A[i, 1] -= Aiv
-            for j in 2:n
-                A[i, j] -= Aiv*x[j]'
-            end
-        end
-    end
-    return A
-end
-
 # FixMe! Consider how to represent Q
 
 # immutable Q{T,S<:QR2} <: AbstractMatrix{T}
