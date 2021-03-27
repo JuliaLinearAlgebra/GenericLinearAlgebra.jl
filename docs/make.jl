@@ -1,6 +1,8 @@
 using Documenter
 using GenericLinearAlgebra
 
+DocMeta.setdocmeta!(GenericLinearAlgebra, :DocTestSetup, :(using GenericLinearAlgebra, LinearAlgebra); recursive=true)
+
 makedocs(
     sitename = "GenericLinearAlgebra",
     format = Documenter.HTML(),
