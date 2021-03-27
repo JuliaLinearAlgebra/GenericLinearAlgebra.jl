@@ -552,11 +552,15 @@ function LinearAlgebra.svd!(A::StridedMatrix{T};
 
     # Form the matrices U and Vᴴ by combining the singular vector matrices of the bidiagonal SVD with the Householder reflectors from the bidiagonal factorization.
     if istriu(_B)
-        U  = BF.leftQ*F.U
+        U  = Matrix{T}(I, m, full ? m : n)
+        U[1:n,1:n] = F.U
+        lmul!(BF.leftQ, U)
         Vᴴ = F.Vt*BF.rightQ'
     else
         U  = BF.leftQ*F.V
-        Vᴴ = (BF.rightQ*F.U)'
+        Vᴴ = Matrix{T}(I, full ? n : m, n)
+        Vᴴ[1:m,1:m] = F.U'
+        rmul!(Vᴴ, BF.rightQ')
     end
 
     s = F.S
