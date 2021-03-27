@@ -515,6 +515,20 @@ A generic singular value decomposition (SVD). The implementation only uses Julia
 # Example
 
 ```jldoctest
+julia> svd(big.([1 2; 3 4]))
+SVD{BigFloat, BigFloat, Matrix{BigFloat}}
+U factor:
+2×2 Matrix{BigFloat}:
+ -0.404554   0.914514
+ -0.914514  -0.404554
+singular values:
+2-element Vector{BigFloat}:
+ 5.464985704219042650451188493284182533042584640492784181017488774646871847029449
+ 0.3659661906262578204229643842614005434788136943931877734325179702209382149672422
+Vt factor:
+2×2 Matrix{BigFloat}:
+ -0.576048  -0.817416
+ -0.817416   0.576048
 ```
 """
 function LinearAlgebra.svd!(A::StridedMatrix{T};
