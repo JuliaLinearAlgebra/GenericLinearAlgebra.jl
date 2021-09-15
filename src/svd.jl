@@ -19,7 +19,7 @@ end
 
 function svdIter!(B::Bidiagonal{T}, n1, n2, shift, U = nothing, Vᴴ = nothing) where T<:Real
 
-    if istriu(B)
+    if B.uplo === 'U'
 
         d = B.dv
         e = B.ev
@@ -71,7 +71,7 @@ end
 # See LAWN 3
 function svdDemmelKahan!(B::Bidiagonal{T}, n1, n2, U = nothing, Vᴴ = nothing) where T<:Real
 
-    if istriu(B)
+    if B.uplo === 'U'
 
         d = B.dv
         e = B.ev
@@ -137,7 +137,7 @@ function __svd!(B::Bidiagonal{T}, U = nothing, Vᴴ = nothing; tol = 100eps(T), 
     fudge = n
     thresh = tol*σ⁻
 
-    if istriu(B)
+    if B.uplo === 'U'
         while true
 
             # Search for biggest index for non-zero off diagonal value in e
@@ -252,7 +252,7 @@ function bidiagonalize!(A::AbstractMatrix)
 
     if m >= n
         # tall case: upper bidiagonal
-        for i = 1:min(m, n)
+        for i in 1:min(m, n)
             x = view(A, i:m, i)
             τi = LinearAlgebra.reflector!(x)
             push!(τl, τi)
@@ -271,7 +271,7 @@ function bidiagonalize!(A::AbstractMatrix)
         return BidiagonalFactorization{eltype(bd),typeof(bd.dv),typeof(A),typeof(τl)}(bd, A, τl, τr)
     else
         # wide case: lower bidiagonal
-        for i = 1:min(m, n)
+        for i in 1:min(m, n)
             x = view(A, i, i:n)
             conj!(x)
             τi = LinearAlgebra.reflector!(x)
@@ -299,7 +299,7 @@ function Base.getproperty(F::BidiagonalFactorization, s::Symbol)
     R  = getfield(F, :reflectors)
     τl = getfield(F, :τl)
     τr = getfield(F, :τr)
-    if istriu(BD)
+    if BD.uplo === 'U'
         if s === :leftQ
             return LinearAlgebra.QRPackedQ(R, τl)
         elseif s === :rightQ
@@ -559,13 +559,13 @@ function LinearAlgebra.svd!(A::StridedMatrix{T};
     # |x x x x x|   |O O O| |  x x| |O O O O O|
 
     _B = BF.bidiagonal
-    B  = istriu(_B) ? _B : Bidiagonal(_B.dv, _B.ev, :U)
+    B  = _B.uplo === 'U' ? _B : Bidiagonal(_B.dv, _B.ev, :U)
 
     # Compute the SVD of the bidiagonal matrix B
     F = _svd!(B, tol = tol, debug = debug)
 
     # Form the matrices U and Vᴴ by combining the singular vector matrices of the bidiagonal SVD with the Householder reflectors from the bidiagonal factorization.
-    if istriu(_B)
+    if _B.uplo === 'U'
         U  = Matrix{T}(I, m, full ? m : n)
         U[1:n,1:n] = F.U
         lmul!(BF.leftQ, U)

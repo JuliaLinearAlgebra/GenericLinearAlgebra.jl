@@ -59,4 +59,15 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
         @test A ≈ U*Diagonal(S)*V'
     end
 
+    @testset "Very small matrices. Issue 79" begin
+        A = randn(1, 2)
+        FA = svd(A)
+        FAb = svd(big.(A))
+        FAtb = svd(big.(A'))
+        @test FA.S ≈ Float64.(FAb.S) ≈ Float64.(FAtb.S)
+        @test abs.(FA.U'*Float64.(FAb.U))  ≈ I
+        @test abs.(FA.U'*Float64.(FAtb.V)) ≈ I
+        @test abs.(FA.V'*Float64.(FAb.V))  ≈ I
+        @test abs.(FA.V'*Float64.(FAtb.U)) ≈ I
+    end
 end
