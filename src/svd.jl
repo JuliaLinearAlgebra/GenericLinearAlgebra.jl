@@ -155,10 +155,10 @@ function __svd!(B::Bidiagonal{T}, U = nothing, Vᴴ = nothing; tol = 100eps(T), 
 
             # Search for largest sub-bidiagonal matrix ending at n2
             for _n1 = (n2 - 1):-1:1
-                if abs(e[_n1]) < thresh
+                if _n1 == 1
                     n1 = _n1
                     break
-                elseif _n1 == 1
+                elseif abs(e[_n1 - 1]) < thresh
                     n1 = _n1
                     break
                 end

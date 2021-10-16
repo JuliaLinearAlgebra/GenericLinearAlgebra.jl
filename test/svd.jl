@@ -70,4 +70,9 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
         @test abs.(FA.V'*Float64.(FAb.V))  ≈ I
         @test abs.(FA.V'*Float64.(FAtb.U)) ≈ I
     end
+
+    @testset "Issue 81" begin
+        m = [1 0 0 0; 0 2 1 0; 0 1 2 0; 0 0 0 -1]
+        @test Float64.(svdvals(big.(m))) ≈ svdvals(m)
+    end
 end
