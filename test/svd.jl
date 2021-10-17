@@ -19,6 +19,7 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
 
         F = svd(A)
         @test vals ≈ F.S
+        @show norm(F.U'*A*F.V - Diagonal(F.S), Inf)
         @test F.U'*A*F.V ≈ Diagonal(F.S)
     end
 
