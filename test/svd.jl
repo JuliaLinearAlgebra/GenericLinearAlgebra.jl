@@ -19,6 +19,7 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
 
         F = svd(A)
         @test vals ≈ F.S
+        @show norm(F.U'*A*F.V - Diagonal(F.S), Inf)
         @test F.U'*A*F.V ≈ Diagonal(F.S)
     end
 
@@ -69,5 +70,10 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
         @test abs.(FA.U'*Float64.(FAtb.V)) ≈ I
         @test abs.(FA.V'*Float64.(FAb.V))  ≈ I
         @test abs.(FA.V'*Float64.(FAtb.U)) ≈ I
+    end
+
+    @testset "Issue 81" begin
+        m = [1 0 0 0; 0 2 1 0; 0 1 2 0; 0 0 0 -1]
+        @test Float64.(svdvals(big.(m))) ≈ svdvals(m)
     end
 end
