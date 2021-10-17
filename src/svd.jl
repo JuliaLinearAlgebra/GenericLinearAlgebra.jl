@@ -24,7 +24,7 @@ function svdIter!(B::Bidiagonal{T}, n1, n2, shift, U = nothing, Vᴴ = nothing) 
         d = B.dv
         e = B.ev
 
-        G, r = givens(d[n1] - abs2(shift)/d[n1], e[n1], 1, 2)
+        G, r = givens(d[n1] - abs2(shift)/d[n1], e[n1], n1, n1 + 1)
         lmul!(G, Vᴴ)
 
         ditmp       = d[n1]
@@ -164,7 +164,7 @@ function __svd!(B::Bidiagonal{T}, U = nothing, Vᴴ = nothing; tol = 100eps(T), 
                 end
             end
 
-            debug && println("n1=", n1, ", n2=", n2, ", d[n1]=", d[n1], ", d[n2]=", d[n2], ", e[n1]=", e[n1], " e[n2]=", e[n2-1], " thresh=", thresh)
+            debug && println("n1=", n1, ", n2=", n2, ", d[n1]=", d[n1], ", d[n2]=", d[n2], ", e[n1]=", e[n1], " e[n2-1]=", e[n2-1], " thresh=", thresh)
 
 
             # See LAWN 3 p 18 and
