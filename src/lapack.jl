@@ -1,9 +1,12 @@
 module LAPACK2
 
+    using libblastrampoline_jll
     using LinearAlgebra
     using LinearAlgebra: BlasInt, chkstride1, LAPACKException
     using LinearAlgebra.BLAS: @blasfunc
     using LinearAlgebra.LAPACK: chkdiag, chkside, chkuplo
+
+    liblapack_name = libblastrampoline_jll.libblastrampoline
 
     ## Standard QR/QL
     function steqr!(compz::Char,
@@ -34,7 +37,7 @@ module LAPACK2
         # Allocations
         info = Vector{BlasInt}(undef, 1)
 
-        ccall((@blasfunc("dsteqr_"), Base.liblapack_name),Cvoid,
+        ccall((@blasfunc("dsteqr_"), liblapack_name),Cvoid,
             (Ref{UInt8}, Ref{BlasInt}, Ptr{Float64}, Ptr{Float64},
              Ptr{Float64}, Ref{BlasInt}, Ptr{Float64}, Ptr{BlasInt}),
              compz, n, d, e,
@@ -56,7 +59,7 @@ module LAPACK2
         # Allocations
         info = BlasInt[0]
 
-        ccall((@blasfunc("dsterf_"), Base.liblapack_name), Cvoid,
+        ccall((@blasfunc("dsterf_"), liblapack_name), Cvoid,
             (Ref{BlasInt}, Ptr{Float64}, Ptr{Float64}, Ptr{BlasInt}),
             n, d, e, info)
 
@@ -87,7 +90,7 @@ module LAPACK2
         # Allocations
         info = BlasInt[0]
 
-        ccall((@blasfunc("dstedc_"), Base.liblapack_name), Cvoid,
+        ccall((@blasfunc("dstedc_"), liblapack_name), Cvoid,
                 (Ref{UInt8}, Ref{BlasInt}, Ptr{Float64}, Ptr{Float64},
                  Ptr{Float64}, Ref{BlasInt}, Ptr{Float64}, Ref{BlasInt},
                  Ptr{BlasInt}, Ref{BlasInt}, Ptr{BlasInt}),
@@ -153,7 +156,7 @@ module LAPACK2
                 tryrac = BlasInt[1]
                 info   = Vector{BlasInt}(undef, 1)
 
-                ccall((@blasfunc($lsymb), Base.liblapack_name), Cvoid,
+                ccall((@blasfunc($lsymb), liblapack_name), Cvoid,
                     (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ptr{$elty},
                     Ptr{$elty}, Ref{$elty}, Ref{$elty}, Ref{BlasInt},
                     Ref{BlasInt}, Ptr{BlasInt}, Ptr{$elty}, Ptr{$elty},
@@ -242,7 +245,7 @@ module LAPACK2
 
         info = Ref{BlasInt}(0)
 
-        ccall((@blasfunc("dlahqr_"), Base.liblapack_name), Cvoid,
+        ccall((@blasfunc("dlahqr_"), liblapack_name), Cvoid,
             (Ref{BlasInt}, Ref{BlasInt}, Ref{BlasInt}, Ref{BlasInt},
              Ref{BlasInt}, Ptr{Float64}, Ref{BlasInt}, Ptr{Float64},
              Ptr{Float64}, Ref{BlasInt}, Ref{BlasInt}, Ptr{Float64},
@@ -295,7 +298,7 @@ module LAPACK2
 
         info = Vector{BlasInt}(undef, 1)
 
-        ccall((@blasfunc(:dpteqr_), Base.liblapack_name), Cvoid,
+        ccall((@blasfunc(:dpteqr_), liblapack_name), Cvoid,
             (Ref{UInt8}, Ref{BlasInt}, Ptr{Float64}, Ptr{Float64},
              Ptr{Float64}, Ref{BlasInt}, Ptr{Float64}, Ptr{BlasInt}),
             compz, n, d, e,
@@ -321,7 +324,7 @@ module LAPACK2
                 liwork = BlasInt(-1)
                 info = BlasInt[0]
                 for i = 1:2
-                    ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+                    ccall((@blasfunc($f), liblapack_name), Cvoid,
                         (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ptr{$elty},
                          Ref{BlasInt}, Ptr{$elty}, Ptr{$elty}, Ref{BlasInt},
                          Ptr{BlasInt}, Ref{BlasInt}, Ptr{BlasInt}),
@@ -359,7 +362,7 @@ module LAPACK2
                 liwork = BlasInt(-1)
                 info = BlasInt[0]
                 for i = 1:2
-                    ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+                    ccall((@blasfunc($f), liblapack_name), Cvoid,
                         (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ptr{$elty},
                          Ref{BlasInt}, Ptr{$relty}, Ptr{$elty}, Ref{BlasInt},
                          Ptr{$relty}, Ref{BlasInt}, Ptr{BlasInt}, Ref{BlasInt},
@@ -443,7 +446,7 @@ for (f, elty) in ((:dtgevc_, :Float64),
             m = BlasInt[0]
             info = BlasInt[0]
 
-            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+            ccall((@blasfunc($f), liblapack_name), Cvoid,
                 (Ref{UInt8}, Ref{UInt8}, Ptr{BlasInt}, Ref{BlasInt},
                  Ptr{$elty}, Ref{BlasInt}, Ptr{$elty}, Ref{BlasInt},
                  Ptr{$elty}, Ref{BlasInt}, Ptr{$elty}, Ref{BlasInt},
@@ -520,7 +523,7 @@ for (f, elty, relty) in ((:dsfrk_, :Float64, :Float64),
             end
             lda = max(1, stride(A, 2))
 
-            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+            ccall((@blasfunc($f), liblapack_name), Cvoid,
                 (Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{BlasInt},
                  Ref{BlasInt}, Ref{$relty}, Ptr{$elty}, Ref{BlasInt},
                  Ref{$relty}, Ptr{$elty}),
@@ -544,7 +547,7 @@ for (f, elty) in ((:dpftrf_, :Float64),
             n = round(Int,div(sqrt(8length(A)), 2))
             info = Vector{BlasInt}(undef, 1)
 
-            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+            ccall((@blasfunc($f), liblapack_name), Cvoid,
                 (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ptr{$elty},
                  Ptr{BlasInt}),
                 transr, uplo, n, A,
@@ -566,7 +569,7 @@ for (f, elty) in ((:dpftri_, :Float64),
             n = round(Int,div(sqrt(8length(A)), 2))
             info = Vector{BlasInt}(undef, 1)
 
-            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+            ccall((@blasfunc($f), liblapack_name), Cvoid,
                 (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ptr{$elty},
                  Ptr{BlasInt}),
                 transr, uplo, n, A,
@@ -595,7 +598,7 @@ for (f, elty) in ((:dpftrs_, :Float64),
             ldb = max(1, stride(B, 2))
             info = Vector{BlasInt}(undef, 1)
 
-            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+            ccall((@blasfunc($f), liblapack_name), Cvoid,
                 (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt},
                  Ptr{$elty}, Ptr{$elty}, Ref{BlasInt}, Ptr{BlasInt}),
                  transr, uplo, n, nhrs,
@@ -631,7 +634,7 @@ for (f, elty) in ((:dtfsm_, :Float64),
             end
             ldb = max(1, stride(B, 2))
 
-            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+            ccall((@blasfunc($f), liblapack_name), Cvoid,
                 (Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{UInt8},
                  Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt}, Ref{$elty},
                  Ptr{$elty}, Ptr{$elty}, Ref{BlasInt}),
@@ -657,7 +660,7 @@ for (f, elty) in ((:dtftri_, :Float64),
             n = round(Int,div(sqrt(8length(A)), 2))
             info = Vector{BlasInt}(undef, 1)
 
-            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+            ccall((@blasfunc($f), liblapack_name), Cvoid,
                 (Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{BlasInt},
                  Ptr{$elty}, Ptr{BlasInt}),
                 transr, uplo, diag, n,
@@ -681,7 +684,7 @@ for (f, elty) in ((:dtfttr_, :Float64),
             info = Vector{BlasInt}(undef, 1)
             A = similar(Arf, $elty, n, n)
 
-            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+            ccall((@blasfunc($f), liblapack_name), Cvoid,
                 (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ptr{$elty},
                 Ptr{$elty}, Ref{BlasInt}, Ptr{BlasInt}),
                 transr, uplo, n, Arf,
@@ -707,7 +710,7 @@ for (f, elty) in ((:dtrttf_, :Float64),
             info = Vector{BlasInt}(undef, 1)
             Arf = similar(A, $elty, div(n*(n+1), 2))
 
-            ccall((@blasfunc($f), Base.liblapack_name), Cvoid,
+            ccall((@blasfunc($f), liblapack_name), Cvoid,
                 (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ptr{$elty},
                  Ref{BlasInt}, Ptr{$elty}, Ptr{BlasInt}),
                 transr, uplo, n, A,
