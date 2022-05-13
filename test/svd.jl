@@ -1,4 +1,4 @@
-using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
+using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
 
 @testset "Singular value decomposition" begin
     @testset "Problem dimension ($m,$n)" for
@@ -73,7 +73,38 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
     end
 
     @testset "Issue 81" begin
-        m = [1 0 0 0; 0 2 1 0; 0 1 2 0; 0 0 0 -1]
-        @test Float64.(svdvals(big.(m))) ≈ svdvals(m)
+        A = [1 0 0 0; 0 2 1 0; 0 1 2 0; 0 0 0 -1]
+        @test Float64.(svdvals(big.(A))) ≈ svdvals(A)
+
+        A = [
+            0.3   0.0   0.0  0.0  0.0  0.2  0.3   0.0;
+            0.0   0.0   0.0  0.0  0.1  0.0  0.0   0.0;
+            0.0  -0.2   0.0  0.0  0.0  0.0  0.0  -0.2;
+            0.3   0.0   0.0  0.0  0.0  0.2  0.4   0.0;
+            0.0   0.4  -0.2  0.0  0.0  0.0  0.0   0.3;
+            0.2   0.0   0.0  0.0  0.0  0.0  0.2   0.0;
+            0.0   0.0   0.0  0.1  0.0  0.0  0.0   0.0;
+            0.0   0.3  -0.2  0.0  0.0  0.0  0.0   0.3
+        ]
+        @test GenericLinearAlgebra._svdvals!(
+            GenericLinearAlgebra.bidiagonalize!(copy(A)).bidiagonal
+        ) ≈ svdvals(A)
+
+        n = 17
+        A = zeros(Double64, n, n)
+        for j in 1:n, i in 1:n
+            A[i, j] = 1 / Double64(i + j - 1)
+        end
+        @test svdvals(A) ≈ svdvals(Float64.(A))
+
+        # From https://github.com/JuliaMath/DoubleFloats.jl/issues/149
+        n = 64
+        c = Complex{BigFloat}(3//1 + 1im//1)
+        A = diagm(
+            1 => c*ones(BigFloat, n - 1),
+            -1 => c*ones(BigFloat,n - 1),
+            -2 => ones(BigFloat, n - 2)
+        )
+        @test svdvals(A) ≈ svdvals(Complex{Double64}.(A))
     end
 end
