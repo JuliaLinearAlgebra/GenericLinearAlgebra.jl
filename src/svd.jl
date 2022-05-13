@@ -114,7 +114,7 @@ function estimate_σ⁻(dv::AbstractVector, ev::AbstractVector, n1::Integer, n2:
     μ  = abs(dv[n1])
     B1 = μ
     for j in n1:(n2 - 1)
-        μ = abs(dv[j + 1])*(μ*(μ + abs(ev[j])))
+        μ = abs(dv[j + 1])*(μ/(μ + abs(ev[j])))
         B1 = min(B1, μ)
     end
 

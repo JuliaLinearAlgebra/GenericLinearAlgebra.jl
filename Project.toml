@@ -12,8 +12,9 @@ libblastrampoline_jll = "8e850b90-86db-534c-a0d3-1478176c7d93"
 julia = "1.6"
 
 [extras]
+DoubleFloats = "497a8b3b-efae-58df-a0af-a86822472b78"
 Quaternions = "94ee1d12-ae83-5a48-8b1c-48b8ff168ae0"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Quaternions", "Test"]
+test = ["DoubleFloats", "Quaternions", "Test"]
