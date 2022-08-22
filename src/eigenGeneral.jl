@@ -62,7 +62,7 @@ Base.size(H::HessenbergFactorization, args...) = size(H.data, args...)
 # Schur
 struct Schur{T,S<:StridedMatrix} <: Factorization{T}
     data::S
-    R::Rotation
+    R::Rotation{T}
 end
 
 function Base.getproperty(F::Schur, s::Symbol)
