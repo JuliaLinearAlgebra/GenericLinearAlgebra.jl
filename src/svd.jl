@@ -1,7 +1,7 @@
 using LinearAlgebra
 
 import LinearAlgebra: mul!, rmul!
-@static if VERSION > v"1.8"
+@static if VERSION >= v"1.9-"
     AdjointQtype = LinearAlgebra.AdjointQ
 else
     AdjointQtype = Adjoint
