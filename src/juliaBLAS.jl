@@ -49,10 +49,10 @@ Base.@deprecate rankUpdate!(α::Real, a::StridedVector, A::Hermitian) rankUpdate
 
 # Rank k update
 ## Real
-rankUpdate!(C::HermOrSym{T,S}, A::StridedMatrix{T}, α::T, β::T) where {T<:BlasReal,S<:StridedMatrix} = syrk!(C.uplo, 'N', α, A, β, C.data)
+rankUpdate!(C::HermOrSym{T,S}, A::StridedMatrix{T}, α::T, β::T) where {T<:BlasReal,S<:StridedMatrix} = BLAS.syrk!(C.uplo, 'N', α, A, β, C.data)
 
 ## Complex
-rankUpdate!(C::Hermitian{T,S}, A::StridedMatrix{Complex{T}}, α::T, β::T) where {T<:BlasReal,S<:StridedMatrix} = herk!(C.uplo, 'N', α, A, β, C.data)
+rankUpdate!(C::Hermitian{T,S}, A::StridedMatrix{Complex{T}}, α::T, β::T) where {T<:BlasReal,S<:StridedMatrix} = BLAS.herk!(C.uplo, 'N', α, A, β, C.data)
 
 ### Generic
 function rankUpdate!(C::Hermitian, A::StridedVecOrMat, α::Real)
@@ -84,7 +84,7 @@ end
 Base.@deprecate rankUpdate!(α::Real, A::StridedVecOrMat, C::Hermitian) rankUpdate!(C, A, α)
 Base.@deprecate rankUpdate!(α::Real, A::StridedVecOrMat, β::Real, C::Hermitian) rankUpdate!(C, A, α, β)
 
-if VERSION < v"1.3.0-alpha.115"
+if VERSION < v"1.3.0-alpha.115"  # Project.toml has julia = "1.6" so this block should no longer be necessary
 # BLAS style mul!
 ## gemv
 mul!(y::StridedVector{T}, A::StridedMatrix{T}, x::StridedVector{T}, α::T, β::T) where {T<:BlasFloat} = gemv!('N', α, A, x, β, y)
