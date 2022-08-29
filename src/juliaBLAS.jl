@@ -130,63 +130,63 @@ end
 function lmul!(A::UnitLowerTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
     AA = A.data
     m, n = size(B)
-    for i = m:-1:1
-        for j = 1:n
+    for i ∈ m:-1:1
+        for j ∈ 1:n
             B[i,j] = α*B[i,j]
-            for l = 1:(i - 1)
+            for l ∈ 1:(i - 1)
                 B[i,j] += α*AA[i,l]*B[l,j]
             end
         end
     end
     return B
 end
-function lmul!(A::Adjoint{T,UpperTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
-    AA = parent(A).data
+function lmul!(A::LowerTriangular{T,Adjoint{T,S}}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
+    AA = parent(A.data)
     m, n = size(B)
-    for i = m:-1:1
-        for j = 1:n
-            B[i,j] = α*AA[i,i]*B[i,j]
-            for l = 1:i - 1
+    for i ∈ m:-1:1
+        for j ∈ 1:n
+            B[i,j] = α*AA[i,i]'*B[i,j]
+            for l ∈ 1:(i - 1)
                 B[i,j] += α*AA[l,i]'*B[l,j]
             end
         end
     end
     return B
 end
-function lmul!(A::Adjoint{T,LowerTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
-    AA = parent(A).data
+function lmul!(A::UpperTriangular{T,Adjoint{T,S}}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
+    AA = parent(A.data)
     m, n = size(B)
-    for i = 1:m
-        for j = 1:n
-            B[i,j] = α*AA[i,i]*B[i,j]
-            for l = i + 1:m
+    for i ∈ 1:m
+        for j ∈ 1:n
+            B[i,j] = α*AA[i,i]'*B[i,j]
+            for l ∈ (i + 1):m
                 B[i,j] += α*AA[l,i]'*B[l,j]
             end
         end
     end
     return B
 end
-function lmul!(A::Adjoint{T,UnitUpperTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
-    AA = parent(A).data
+function lmul!(A::UnitLowerTriangular{T,Adjoint{T,S}}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
+    AA = parent(A.data)
     m, n = size(B)
-    for i = m:-1:1
-        for j = 1:n
+    for i ∈ m:-1:1
+        for j ∈ 1:n
             B[i,j] = α*B[i,j]
-            for l = 1:i - 1
+            for l ∈ 1:(i - 1)
                 B[i,j] += α*AA[l,i]'*B[l,j]
             end
         end
     end
     return B
 end
-function lmul!(A::Adjoint{T,UnitLowerTriangular{T,S}}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
-    AA = parent(A).data
+function lmul!(A::UnitUpperTriangular{T,Adjoint{T,S}}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
+    AA = parent(A.data)
     m, n = size(B)
-    for i = 1:m
-        for j = 1:n
+    for i ∈ 1:m
+        for j ∈ 1:n
             B[i,j] = α*B[i,j]
-            for l = i + 1:m
-                B[i,j] = α*AA[l,i]'*B[l,j]
+            for l ∈ (i + 1):m
+                B[i,j] += α*AA[l,i]'*B[l,j]
             end
         end
     end
