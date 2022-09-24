@@ -1,11 +1,8 @@
 using LinearAlgebra
 
 import LinearAlgebra: mul!, rmul!
-@static if VERSION >= v"1.9-"
-    AdjointQtype = LinearAlgebra.AdjointQ
-else
-    AdjointQtype = Adjoint
-end
+
+AdjointQtype = isdefined(LinearAlgebra, :AdjointQ) ? : LinearAlgebra.AdjointQ : Adjoint
 
 lmul!(G::LinearAlgebra.Givens, ::Nothing) = nothing
 rmul!(::Nothing, G::LinearAlgebra.Givens) = nothing
