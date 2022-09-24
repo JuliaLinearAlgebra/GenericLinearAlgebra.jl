@@ -2,7 +2,7 @@ using LinearAlgebra
 
 import LinearAlgebra: mul!, rmul!
 
-AdjointQtype = isdefined(LinearAlgebra, :AdjointQ) ? : LinearAlgebra.AdjointQ : Adjoint
+AdjointQtype = isdefined(LinearAlgebra, :AdjointQ) ? LinearAlgebra.AdjointQ : Adjoint
 
 lmul!(G::LinearAlgebra.Givens, ::Nothing) = nothing
 rmul!(::Nothing, G::LinearAlgebra.Givens) = nothing
