@@ -303,23 +303,15 @@ function Base.getproperty(F::BidiagonalFactorization, s::Symbol)
         if s === :leftQ
             return LinearAlgebra.QRPackedQ(R, τl)
         elseif s === :rightQ
-            if VERSION < v"1.3.0-DEV.243"
-                return LinearAlgebra.HessenbergQ(copy(transpose(R[1:size(R,2),:])), τr)
-            else
-                factors = copy(transpose(R[1:size(R,2),:]))
-                return LinearAlgebra.HessenbergQ{eltype(factors),typeof(factors),typeof(τr),false}('U', factors, τr)
-            end
+            factors = copy(transpose(R[1:size(R,2),:]))
+            return LinearAlgebra.HessenbergQ{eltype(factors),typeof(factors),typeof(τr),false}('U', factors, τr)
         else
             return getfield(F, s)
         end
     else
         if s === :leftQ
-            if VERSION < v"1.3.0-DEV.243"
-                return LinearAlgebra.HessenbergQ(R[:,1:size(R,1)], τl)
-            else
-                factors = R[:,1:size(R,1)]
-                return LinearAlgebra.HessenbergQ{eltype(factors),typeof(factors),typeof(τr),false}('U', factors, τl)
-            end
+            factors = R[:,1:size(R,1)]
+            return LinearAlgebra.HessenbergQ{eltype(factors),typeof(factors),typeof(τr),false}('U', factors, τl)
         elseif s === :rightQ
             # return transpose(LinearAlgebra.LQPackedQ(R, τr)) # FixMe! check that this shouldn't be adjoint
             LinearAlgebra.QRPackedQ(copy(transpose(R)), τr)
