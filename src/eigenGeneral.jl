@@ -62,7 +62,7 @@ Base.size(H::HessenbergFactorization, args...) = size(H.data, args...)
 # Schur
 struct Schur{T,S<:StridedMatrix} <: Factorization{T}
     data::S
-    R::Rotation
+    R::Rotation{T}
 end
 
 function Base.getproperty(F::Schur, s::Symbol)
@@ -247,41 +247,26 @@ _eigvals!(A::StridedMatrix; kwargs...)           = _eigvals!(_schur!(A; kwargs..
 _eigvals!(H::HessenbergMatrix; kwargs...)        = _eigvals!(_schur!(H; kwargs...))
 _eigvals!(H::HessenbergFactorization; kwargs...) = _eigvals!(_schur!(H; kwargs...))
 
-# Overload methods from LinearAlgebra to make them work generically
-if VERSION > v"1.2.0-DEV.0"
-    function LinearAlgebra.eigvals!(
-        A::StridedMatrix;
-        sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
-        kwargs...)
-        
-        if ishermitian(A)
-            return LinearAlgebra.sorteig!(eigvals!(Hermitian(A)), sortby)
-        end
-        LinearAlgebra.sorteig!(_eigvals!(A; kwargs...), sortby)
+function LinearAlgebra.eigvals!(
+    A::StridedMatrix;
+    sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+    kwargs...)
+    
+    if ishermitian(A)
+        return LinearAlgebra.sorteig!(eigvals!(Hermitian(A)), sortby)
     end
-
-    LinearAlgebra.eigvals!(
-        H::HessenbergMatrix;
-        sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
-        kwargs...) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
-
-    LinearAlgebra.eigvals!(
-        H::HessenbergFactorization;
-        sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
-        kwargs...) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
-else
-    function LinearAlgebra.eigvals!(A::StridedMatrix; kwargs...)
-        if ishermitian(A)
-            return eigvals!(Hermitian(A))
-        else
-            return _eigvals!(A; kwargs...)
-        end
-    end
-
-    LinearAlgebra.eigvals!(H::HessenbergMatrix; kwargs...) = _eigvals!(H; kwargs...)
-
-    LinearAlgebra.eigvals!(H::HessenbergFactorization; kwargs...) = _eigvals!(H; kwargs...)
+    LinearAlgebra.sorteig!(_eigvals!(A; kwargs...), sortby)
 end
+
+LinearAlgebra.eigvals!(
+    H::HessenbergMatrix;
+    sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+    kwargs...) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
+
+LinearAlgebra.eigvals!(
+    H::HessenbergFactorization;
+    sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+    kwargs...) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
 
 # To compute the eigenvalue of the pseudo triangular Schur matrix we just return
 # the values of the 1x1 diagonal blocks and compute the eigenvalues of the 2x2

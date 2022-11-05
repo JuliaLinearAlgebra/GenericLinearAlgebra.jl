@@ -14,9 +14,7 @@ cplxord = t -> (real(t), imag(t))
     vBig    = eigvals(big.(A)) # not defined in LinearAlgebra so will dispatch to the version in GenericLinearAlgebra
     @test sort(vGLA, by = cplxord) ≈ sort(vLAPACK, by = cplxord)
     @test sort(vGLA, by = cplxord) ≈ sort(complex(eltype(A)).(vBig), by = cplxord)
-    if VERSION > v"1.2.0-DEV.0"
-        @test issorted(vBig, by = cplxord)
-    end
+    @test issorted(vBig, by = cplxord)
 end
 
 @testset "make sure that solver doesn't hang" begin
@@ -86,11 +84,7 @@ end
         (7 - adjoint(z1)*z2),
         (7 + [2, 2]'*z2)])/3
 
-    if VERSION > v"1.2.0-DEV.0"
-        @test eigvals(big.(A)) ≈ truevals
-    else
-        @test sort(eigvals(big.(A)), by=real) ≈ truevals
-    end
+    @test eigvals(big.(A)) ≈ truevals
 end
 
 Demmel(η) = [0  1 0 0
