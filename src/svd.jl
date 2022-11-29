@@ -2,6 +2,8 @@ using LinearAlgebra
 
 import LinearAlgebra: mul!, rmul!
 
+AdjointQtype = isdefined(LinearAlgebra, :AdjointQ) ? LinearAlgebra.AdjointQ : Adjoint
+
 lmul!(G::LinearAlgebra.Givens, ::Nothing) = nothing
 rmul!(::Nothing, G::LinearAlgebra.Givens) = nothing
 
@@ -347,7 +349,7 @@ function lmul!(Q::LinearAlgebra.HessenbergQ, B::AbstractVecOrMat)
     return B
 end
 
-function lmul!(adjQ::Adjoint{<:Any,<:LinearAlgebra.HessenbergQ}, B::AbstractVecOrMat)
+function lmul!(adjQ::AdjointQtype{<:Any,<:LinearAlgebra.HessenbergQ}, B::AbstractVecOrMat)
 
     Q = parent(adjQ)
     m, n = size(B, 1), size(B, 2)
@@ -398,8 +400,7 @@ function rmul!(A::AbstractMatrix, Q::LinearAlgebra.HessenbergQ)
     return A
 end
 
-function rmul!(A::AbstractMatrix, adjQ::Adjoint{<:Any,<:LinearAlgebra.HessenbergQ})
-
+function rmul!(A::AbstractMatrix, adjQ::AdjointQtype{<:Any,<:LinearAlgebra.HessenbergQ})
     m, n = size(A)
     Q = parent(adjQ)
 
