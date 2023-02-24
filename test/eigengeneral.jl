@@ -144,4 +144,16 @@ end
     @test sort(imag(vals)) ≈ sort(imag(λs)) atol=1e-25
 end
 
+@testset "_hessenberg! and Hessenberg" begin
+    n = 10
+    A = randn(n, n)
+    HF = GenericLinearAlgebra._hessenberg!(copy(A))
+    for i in 1:length(HF.τ)
+        HM = convert(Matrix, HF.τ[i])
+        A[(i + 1):end, :] = HM * A[(i + 1):end, :]
+        A[:, (i + 1):end] = A[:, (i + 1):end] * HM'
+    end
+    @test tril(A, -2) ≈ zeros(n, n) atol = 1e-14
+end
+
 end
