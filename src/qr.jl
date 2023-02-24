@@ -6,8 +6,10 @@ import LinearAlgebra: reflectorApply!
 struct QR2{T,S<:AbstractMatrix{T},V<:AbstractVector{T}} <: Factorization{T}
     factors::S
     τ::V
-    QR2{T,S,V}(factors::AbstractMatrix{T}, τ::AbstractVector{T}) where {T,S<:AbstractMatrix,V<:AbstractVector} =
-        new(factors, τ)
+    QR2{T,S,V}(
+        factors::AbstractMatrix{T},
+        τ::AbstractVector{T},
+    ) where {T,S<:AbstractMatrix,V<:AbstractVector} = new(factors, τ)
 end
 QR2(factors::AbstractMatrix{T}, τ::Vector{T}) where {T} = QR2{T,typeof(factors)}(factors, τ)
 
@@ -17,18 +19,22 @@ size(F::QR2, i::Integer...) = size(F.factors, i...)
 @inline function reflectorApply!(A::StridedMatrix, x::AbstractVector, τ::Number) # apply conjugate transpose reflector from right.
     m, n = size(A)
     if length(x) != n
-        throw(DimensionMismatch("reflector must have same length as second dimension of matrix"))
+        throw(
+            DimensionMismatch(
+                "reflector must have same length as second dimension of matrix",
+            ),
+        )
     end
     @inbounds begin
-        for i in 1:m
+        for i = 1:m
             Aiv = A[i, 1]
-            for j in 2:n
-                Aiv += A[i, j]*x[j]
+            for j = 2:n
+                Aiv += A[i, j] * x[j]
             end
-            Aiv = Aiv*τ
+            Aiv = Aiv * τ
             A[i, 1] -= Aiv
-            for j in 2:n
-                A[i, j] -= Aiv*x[j]'
+            for j = 2:n
+                A[i, j] -= Aiv * x[j]'
             end
         end
     end
@@ -46,7 +52,7 @@ end
 
 # getindex{T}(A::QR2{T}, ::Type{Tuple{:Q}}) = Q{T,typeof(A)}(A)
 
-function getindex(A::QR2{T}, ::Type{Tuple{:R}}) where T
+function getindex(A::QR2{T}, ::Type{Tuple{:R}}) where {T}
     m, n = size(A)
     if m >= n
         UpperTriangular(view(A.factors, 1:n, 1:n))
@@ -55,30 +61,32 @@ function getindex(A::QR2{T}, ::Type{Tuple{:R}}) where T
     end
 end
 
-function getindex(A::QR2{T}, ::Type{Tuple{:QBlocked}}) where T
+function getindex(A::QR2{T}, ::Type{Tuple{:QBlocked}}) where {T}
     m, n = size(A)
-    mmn = min(m,n)
+    mmn = min(m, n)
     F = A.factors
     τ = A.τ
     Tmat = zeros(T, mmn, mmn)
     for j = 1:mmn
-        for i = 1:j - 1
-            Tmat[i,j] = τ[i]*(F[j,i] + dot(view(F, j + 1:m, i), view(F, j + 1:m, j)))
+        for i = 1:j-1
+            Tmat[i, j] = τ[i] * (F[j, i] + dot(view(F, j+1:m, i), view(F, j+1:m, j)))
         end
     end
     LinearAlgebra.inv!(LinearAlgebra.UnitUpperTriangular(Tmat))
-    for j = 1:min(m,n)
-        Tmat[j,j] = τ[j]
-        for i = 1:j - 1
-            Tmat[i,j] = Tmat[i,j]*τ[j]
+    for j = 1:min(m, n)
+        Tmat[j, j] = τ[j]
+        for i = 1:j-1
+            Tmat[i, j] = Tmat[i, j] * τ[j]
         end
     end
     HouseholderBlock{T,typeof(F),Matrix{T}}(F, UpperTriangular(Tmat))
 end
 
 # qrUnblocked!(A::StridedMatrix) = LinearAlgebra.qrfactUnblocked!(A)
-function qrUnblocked!(A::StridedMatrix{T},
-                      τ::StridedVector{T} = fill(zero(T), min(size(A)...))) where {T}
+function qrUnblocked!(
+    A::StridedMatrix{T},
+    τ::StridedVector{T} = fill(zero(T), min(size(A)...)),
+) where {T}
 
     m, n = size(A)
 
@@ -102,10 +110,12 @@ function qrUnblocked!(A::StridedMatrix{T},
     return QR2{T,typeof(A),typeof(τ)}(A, τ)
 end
 
-function qrBlocked!(A::StridedMatrix{T},
-                    blocksize::Integer = 12,
-                    τ::StridedVector{T} = fill(zero(T), min(size(A)...)),
-                    work = Matrix{T}(undef, blocksize, size(A, 2))) where T
+function qrBlocked!(
+    A::StridedMatrix{T},
+    blocksize::Integer = 12,
+    τ::StridedVector{T} = fill(zero(T), min(size(A)...)),
+    work = Matrix{T}(undef, blocksize, size(A, 2)),
+) where {T}
 
     m, n = size(A)
 
@@ -117,17 +127,19 @@ function qrBlocked!(A::StridedMatrix{T},
     # Apply the QR factorization to the trailing columns (if any) and recurse
     if n > blocksize
         # Make a view of the trailing columns
-        A2 = view(A, :, blocksize + 1:n)
+        A2 = view(A, :, blocksize+1:n)
         # Apply Q' to the trailing columns
-        lmul!(F[Tuple{:QBlocked}]', A2, view(work, 1:min(m, blocksize), 1:(n - blocksize)))
+        lmul!(F[Tuple{:QBlocked}]', A2, view(work, 1:min(m, blocksize), 1:(n-blocksize)))
     end
 
     # Compute QR factorization of trailing block
     if m > blocksize && n > blocksize
-        qrBlocked!(view(A, (blocksize + 1):m, (blocksize + 1):n),
-                   blocksize,
-                   view(τ, (blocksize + 1):min(m, n)),
-                   work)
+        qrBlocked!(
+            view(A, (blocksize+1):m, (blocksize+1):n),
+            blocksize,
+            view(τ, (blocksize+1):min(m, n)),
+            work,
+        )
     end
 
     return QR2{T,typeof(A),typeof(τ)}(A, τ)
