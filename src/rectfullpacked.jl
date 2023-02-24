@@ -14,7 +14,7 @@ end
 
 function Base.size(A::HermitianRFP, i::Integer)
     if i == 1 || i == 2
-        return (isqrt(8*length(A.data) + 1) - 1) >> 1
+        return (isqrt(8 * length(A.data) + 1) - 1) >> 1
     elseif i > 2
         return 1
     else
@@ -30,56 +30,72 @@ function Base.getindex(A::HermitianRFP, i::Integer, j::Integer)
     n = size(A, 1)
     n2 = n >> 1
     if i < 1 || i > n || j < 0 || j > n
-        throw(BoundsError(A, (i,j)))
+        throw(BoundsError(A, (i, j)))
     end
     if A.uplo == 'L'
         if i < j
-            return conj(A[j,i])
+            return conj(A[j, i])
         end
 
         if j <= n2 + isodd(n)
             if A.transr == 'N'
-                return A.data[i + iseven(n) + (j - 1)*(n + iseven(n))]
+                return A.data[i+iseven(n)+(j-1)*(n+iseven(n))]
             else
-                return conj(A.data[(i - 1)*(n + iseven(n)) + j + iseven(n)])
+                return conj(A.data[(i-1)*(n+iseven(n))+j+iseven(n)])
             end
         else
             if A.transr == 'N'
-                return conj(A.data[(i - n2 - 1)*(n + iseven(n)) + j - n2 - isodd(n)])
+                return conj(A.data[(i-n2-1)*(n+iseven(n))+j-n2-isodd(n)])
             else
-                return A.data[i - n2 - isodd(n) + (j - n2 - 1)*(n + iseven(n))]
+                return A.data[i-n2-isodd(n)+(j-n2-1)*(n+iseven(n))]
             end
         end
     else
         if i > j
-            return conj(A[j,i])
+            return conj(A[j, i])
         end
 
         if j > n2
             if A.transr == 'N'
-                return A.data[i + (j - n2 - 1)*(n + iseven(n))]
+                return A.data[i+(j-n2-1)*(n+iseven(n))]
             else
-                return conj(A.data[(i - n2 - 1)*(n + iseven(n)) + j])
+                return conj(A.data[(i-n2-1)*(n+iseven(n))+j])
             end
         else
             if A.transr == 'N'
-                return conj(A.data[(i - 1)*(n + iseven(n)) + j + n2 + 1])
+                return conj(A.data[(i-1)*(n+iseven(n))+j+n2+1])
             else
-                return A.data[i - n2 - isodd(n) + (j - n2 - 1)*(n + iseven(n))]
+                return A.data[i-n2-isodd(n)+(j-n2-1)*(n+iseven(n))]
             end
         end
     end
 end
 
-function Ac_mul_A_RFP(A::Matrix{T}, uplo = :U) where T<:BlasFloat
+function Ac_mul_A_RFP(A::Matrix{T}, uplo = :U) where {T<:BlasFloat}
     n = size(A, 2)
     if uplo == :U
-        C = LAPACK2.sfrk!('N', 'U', T <: Complex ? 'C' : 'T', 1.0, A, 0.0, Vector{T}(undef, (n*(n + 1)) >> 1))
+        C = LAPACK2.sfrk!(
+            'N',
+            'U',
+            T <: Complex ? 'C' : 'T',
+            1.0,
+            A,
+            0.0,
+            Vector{T}(undef, (n * (n + 1)) >> 1),
+        )
         return HermitianRFP(C, 'N', 'U')
     elseif uplo == :L
-        C = LAPACK2.sfrk!('N', 'L', T <: Complex ? 'C' : 'T', 1.0, A, 0.0, Vector{T}(undef, (n*(n + 1)) >> 1))
-       return  HermitianRFP(C, 'N', 'L')
-   else
+        C = LAPACK2.sfrk!(
+            'N',
+            'L',
+            T <: Complex ? 'C' : 'T',
+            1.0,
+            A,
+            0.0,
+            Vector{T}(undef, (n * (n + 1)) >> 1),
+        )
+        return HermitianRFP(C, 'N', 'L')
+    else
         throw(ArgumentError("uplo must be either :L or :U"))
     end
 end
@@ -104,7 +120,7 @@ end
 
 function Base.size(A::TriangularRFP, i::Integer)
     if i == 1 || i == 2
-        return (isqrt(8*length(A.data) + 1) - 1) >> 1
+        return (isqrt(8 * length(A.data) + 1) - 1) >> 1
     elseif i > 2
         return 1
     else
@@ -127,10 +143,11 @@ function Base.Array(A::TriangularRFP)
     end
 end
 
-LinearAlgebra.inv!(A::TriangularRFP) = TriangularRFP(LAPACK2.tftri!(A.transr, A.uplo, 'N', A.data), A.transr, A.uplo)
-LinearAlgebra.inv(A::TriangularRFP)  = LinearAlgebra.inv!(copy(A))
+LinearAlgebra.inv!(A::TriangularRFP) =
+    TriangularRFP(LAPACK2.tftri!(A.transr, A.uplo, 'N', A.data), A.transr, A.uplo)
+LinearAlgebra.inv(A::TriangularRFP) = LinearAlgebra.inv!(copy(A))
 
-ldiv!(A::TriangularRFP{T}, B::StridedVecOrMat{T}) where T =
+ldiv!(A::TriangularRFP{T}, B::StridedVecOrMat{T}) where {T} =
     LAPACK2.tfsm!(A.transr, 'L', A.uplo, 'N', 'N', one(T), A.data, B)
 (\)(A::TriangularRFP, B::StridedVecOrMat) = ldiv!(A, copy(B))
 
@@ -140,16 +157,18 @@ struct CholeskyRFP{T<:BlasFloat} <: Factorization{T}
     uplo::Char
 end
 
-LinearAlgebra.cholesky!(A::HermitianRFP{T}) where {T<:BlasFloat} = CholeskyRFP(LAPACK2.pftrf!(A.transr, A.uplo, copy(A.data)), A.transr, A.uplo)
+LinearAlgebra.cholesky!(A::HermitianRFP{T}) where {T<:BlasFloat} =
+    CholeskyRFP(LAPACK2.pftrf!(A.transr, A.uplo, copy(A.data)), A.transr, A.uplo)
 LinearAlgebra.cholesky(A::HermitianRFP{T}) where {T<:BlasFloat} = cholesky!(copy(A))
 LinearAlgebra.factorize(A::HermitianRFP) = cholesky(A)
 
-Base.copy(F::CholeskyRFP{T}) where T = CholeskyRFP{T}(copy(F.data), F.transr, F.uplo)
+Base.copy(F::CholeskyRFP{T}) where {T} = CholeskyRFP{T}(copy(F.data), F.transr, F.uplo)
 
 # Solve
 (\)(A::CholeskyRFP, B::StridedVecOrMat) = LAPACK2.pftrs!(A.transr, A.uplo, A.data, copy(B))
-(\)(A::HermitianRFP, B::StridedVecOrMat) = cholesky(A)\B
+(\)(A::HermitianRFP, B::StridedVecOrMat) = cholesky(A) \ B
 
-LinearAlgebra.inv!(A::CholeskyRFP) = HermitianRFP(LAPACK2.pftri!(A.transr, A.uplo, A.data), A.transr, A.uplo)
-LinearAlgebra.inv(A::CholeskyRFP)  = LinearAlgebra.inv!(copy(A))
+LinearAlgebra.inv!(A::CholeskyRFP) =
+    HermitianRFP(LAPACK2.pftri!(A.transr, A.uplo, A.data), A.transr, A.uplo)
+LinearAlgebra.inv(A::CholeskyRFP) = LinearAlgebra.inv!(copy(A))
 LinearAlgebra.inv(A::HermitianRFP) = LinearAlgebra.inv!(cholesky(A))
