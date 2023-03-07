@@ -670,7 +670,7 @@ for (f, elty) in ((:dtgevc_, :Float64), (:stgevc_, :Float32))
                 if mm != n
                     throw(
                         DimensionMismatch(
-                            "the number of columne in the output matrices are $mm, but should be $n",
+                            "the number of columns in the output matrices are $mm, but should be $n",
                         ),
                     )
                 end

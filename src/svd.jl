@@ -572,7 +572,7 @@ A generic singular value decomposition (SVD). The implementation only uses Julia
 
 - `tol`: The relative tolerance for determining convergence. The default value is `eltype(T)` where `T` is the element type of the input matrix bidiagonal (i.e. after converting the matrix to bidiagonal form).
 
-- `full`: Sepcifies if all the left and right singular vectors be returned or if only the vectors us to the number of rows and columns of the input matrix `A` should be returned (the default).
+- `full`: If set to `true` then all the left and right singular vectors are returned. If set to `false` then only the vectors corresponding to the number of rows and columns of the input matrix `A` are returned (the default).
 
 - `debug`: A Boolean flag to activate debug information during the executions of the algorithm. The default is false.
 
@@ -613,7 +613,7 @@ function LinearAlgebra.svd!(
     # Convert the input matrix A to bidiagonal form and return a BidiagonalFactorization object
     BF = bidiagonalize!(A)
 
-    # The location of the super/sub-diagonal of the bidiagonal matrix depends on the aspect ratio of the input. For tall and square matrices, the bidiagonal matrix is upper whereas it is lower for wide input matrices as illustrated below. The 'O' entried indicate orthogonal (unitary) matrices.
+    # The location of the super/sub-diagonal of the bidiagonal matrix depends on the aspect ratio of the input. For tall and square matrices, the bidiagonal matrix is upper whereas it is lower for wide input matrices as illustrated below. The 'O' entries indicate orthogonal (unitary) matrices.
 
     #      A      =   Q_l  *   B   * Q_r^H
 
