@@ -118,19 +118,28 @@ function svdDemmelKahan!(
 end
 
 # Recurrence to estimate smallest singular value from LAWN3 Lemma 1
-function estimate_σ⁻(dv::AbstractVector, ev::AbstractVector, n1::Integer, n2::Integer)
-    λ = abs(dv[n2])
-    B∞ = λ
-    for j = (n2-1):-1:n1
-        λ = abs(dv[j]) * (λ / (λ + abs(ev[j])))
-        B∞ = min(B∞, λ)
-    end
+function estimate_σ⁻!(dv::AbstractVector, ev::AbstractVector, n1::Integer, n2::Integer, tol::Real)
 
+    # (4.3) p 18
     μ = abs(dv[n1])
     B1 = μ
     for j = n1:(n2-1)
         μ = abs(dv[j+1]) * (μ / (μ + abs(ev[j])))
+        if abs(ev[j] / μ) < tol
+            ev[j] = 0
+        end
         B1 = min(B1, μ)
+    end
+
+    # (4.4) p 18
+    λ = abs(dv[n2])
+    B∞ = λ
+    for j = (n2-1):-1:n1
+        λ = abs(dv[j]) * (λ / (λ + abs(ev[j])))
+        if abs(ev[j] / λ) < tol
+            ev[j] = 0
+        end
+        B∞ = min(B∞, λ)
     end
 
     return min(B∞, B1)
@@ -154,7 +163,7 @@ function __svd!(
     count = 0
 
     # See LAWN3 page 6 and 22
-    σ⁻ = estimate_σ⁻(d, e, n1, n2)
+    σ⁻ = estimate_σ⁻!(d, e, n1, n2, tol)
     fudge = n
     thresh = tol * σ⁻
 
@@ -208,7 +217,7 @@ function __svd!(
             # current block to determine if it's safe to use shift or if
             # the zero shift algorithm is required to maintain high relative
             # accuracy
-            σ⁻ = estimate_σ⁻(d, e, n1, n2)
+            σ⁻ = estimate_σ⁻!(d, e, n1, n2, tol)
             σ⁺ = max(maximum(view(d, n1:n2)), maximum(view(e, n1:(n2-1))))
 
             if fudge * tol * σ⁻ <= eps(σ⁺)
