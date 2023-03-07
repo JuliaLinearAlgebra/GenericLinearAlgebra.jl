@@ -248,7 +248,7 @@ function doubleShiftQR!(
         Htmp22 = HH[istart+3, istart+1]
         HH[istart+3, istart+1] = 0
     else
-        # values doen't matter in this case but variables should be initialized
+        # values don't matter in this case but variables should be initialized
         Htmp21 = Htmp22 = Htmp11
     end
     G1, r = givens(

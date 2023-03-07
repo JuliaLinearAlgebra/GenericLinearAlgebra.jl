@@ -2,7 +2,7 @@ using Test
 import GenericLinearAlgebra
 import GenericLinearAlgebra: Ac_mul_A_RFP, TriangularRFP
 
-@testset "Rectuangular Full Pack Format" begin
+@testset "Rectangular Full Pack Format" begin
 
     @testset "Core generic functionality" for n in (6, 7), uplo in (:U, :L)
 

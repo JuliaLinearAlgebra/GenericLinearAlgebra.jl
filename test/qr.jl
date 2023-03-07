@@ -19,7 +19,7 @@ using GenericLinearAlgebra: qrBlocked!
         AqrQ = Aqr[Tuple{:QBlocked}]
         if m >= n
             @test (AqrQ'A)[1:min(m, n), :] ≈ Aqr[Tuple{:R}]
-        else # For type stbility getindex(,Tuple{:R}) throw when the output is trapezoid
+        else # For type stability getindex(,Tuple{:R}) throw when the output is trapezoid
             @test (AqrQ'A) ≈ triu(Aqr.factors)
         end
         @test AqrQ' * (AqrQ * A) ≈ A
