@@ -1,6 +1,6 @@
 # GenericLinearAlgebra.jl
-[![Build Status](https://travis-ci.org/JuliaLinearAlgebra/GenericLinearAlgebra.jl.svg?branch=master)](https://travis-ci.org/JuliaLinearAlgebra/GenericLinearAlgebra.jl)
-[![Coverage Status](https://coveralls.io/repos/github/JuliaLinearAlgebra/GenericLinearAlgebra.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/JuliaLinearAlgebra/GenericLinearAlgebra.jl?branch=master)
+[![CI](https://github.com/JuliaLinearAlgebra/GenericLinearAlgebra.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/JuliaLinearAlgebra/GenericLinearAlgebra.jl/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/JuliaLinearAlgebra/GenericLinearAlgebra.jl/branch/master/graph/badge.svg?token=eO37qmAboR)](https://codecov.io/gh/JuliaLinearAlgebra/GenericLinearAlgebra.jl)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaLinearAlgebra.github.io/GenericLinearAlgebra.jl/stable)
 
 ### A fresh approach to numerical linear algebra in Julia

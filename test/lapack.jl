@@ -33,7 +33,7 @@ using GenericLinearAlgebra.LAPACK2
         @test vals ≈ _vals
         @test abs.(_vecs'vecs) ≈ Matrix(I, n, n)
 
-        _vals, _vecs = LAPACK2.stedc!('V', copy(T.dv), copy(T.ev), Matrix{Float64}(I, n,n))
+        _vals, _vecs = LAPACK2.stedc!('V', copy(T.dv), copy(T.ev), Matrix{Float64}(I, n, n))
         @test vals ≈ _vals
         @test abs.(_vecs'vecs) ≈ Matrix(I, n, n)
     end
