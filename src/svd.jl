@@ -118,7 +118,13 @@ function svdDemmelKahan!(
 end
 
 # Recurrence to estimate smallest singular value from LAWN3 Lemma 1
-function estimate_σ⁻!(dv::AbstractVector, ev::AbstractVector, n1::Integer, n2::Integer, tol::Real)
+function estimate_σ⁻!(
+    dv::AbstractVector,
+    ev::AbstractVector,
+    n1::Integer,
+    n2::Integer,
+    tol::Real,
+)
 
     # (4.3) p 18
     μ = abs(dv[n1])
@@ -169,6 +175,24 @@ function __svd!(
 
     if B.uplo === 'U'
         while true
+            @label top
+
+            # Deflation check. See LAWN3 p21
+            for i = n1:n2
+                if d[i] == 0
+                    debug && println("Deflation! Exact zero in $(i)th diagonal element.")
+                    svdDemmelKahan!(B, n1, n2, U, Vᴴ)
+
+                    # We have now moved a zero to the end so the problem is one smaller
+                    n2 -= 1
+
+                    # We can now reestimate the smallest value and set a new threshold
+                    σ⁻ = estimate_σ⁻!(d, e, n1, n2, tol)
+                    fudge = n2 - n1 + 1
+                    thresh = tol * σ⁻
+                    @goto top
+                end
+            end
 
             # Search for biggest index for non-zero off diagonal value in e
             for n2i = n2:-1:1
