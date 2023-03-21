@@ -236,9 +236,9 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
         @test diag(F.U' * B * F.Vt') ≈ F.S rtol = 5e-15
     end
 
-    @testset "HessenbergQ multiplicatin" begin
-        A = randn(10, 10)
+    @testset "Generic HessenbergQ multiplication" begin
+        A = big.(randn(10, 10))
         BF = GenericLinearAlgebra.bidiagonalize!(copy(A))
-        @test BF.rightQ'*Matrix(I, size(A)...)*BF.rightQ ≈ I
+        @test (BF.rightQ'*Matrix(I, size(A)...))*BF.rightQ ≈ I
     end
 end
