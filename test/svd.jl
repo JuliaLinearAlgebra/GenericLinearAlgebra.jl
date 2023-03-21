@@ -239,6 +239,6 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
     @testset "Generic HessenbergQ multiplication" begin
         A = big.(randn(10, 10))
         BF = GenericLinearAlgebra.bidiagonalize!(copy(A))
-        @test (BF.rightQ'*Matrix(I, size(A)...))*BF.rightQ ≈ I
+        @test (BF.rightQ' * Matrix(I, size(A)...)) * BF.rightQ ≈ I
     end
 end

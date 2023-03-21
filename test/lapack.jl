@@ -91,7 +91,7 @@ using GenericLinearAlgebra.LAPACK2
                                                                      (Float32, Float64),
         side in ('L', 'R', 'B'),
         howmny in ('A', 'S')
- #='B', =#
+
         select = ones(Int, n)
         S, P = triu(randn(eltype, n, n)), triu(randn(eltype, n, n))
         VL, VR, m = LAPACK2.tgevc!(side, howmny, select, copy(S), copy(P))
@@ -105,5 +105,15 @@ using GenericLinearAlgebra.LAPACK2
             @test VL' * S ≈ Diagonal(w) * VL' * P rtol = sqrt(eps(eltype)) atol =
                 sqrt(eps(eltype))
         end
+    end
+
+    @testset "pteqr" begin
+        d = fill(10.0, n)
+        e = fill(1.0, n - 1)
+        vals, vecs = LAPACK2.pteqr!('I', copy(d), copy(e))
+        @test SymTridiagonal(d, e) ≈ vecs * Diagonal(vals) * vecs'
+
+        vals2, _ = LAPACK2.pteqr!('N', copy(d), copy(e))
+        @test vals ≈ vals2
     end
 end
