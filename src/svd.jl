@@ -392,6 +392,7 @@ function Base.getproperty(F::BidiagonalFactorization, s::Symbol)
                 τl,
             )
         elseif s === :rightQ
+            # FIXME! Can I get the LQPackedQ versino going to avoid the copy?
             # return transpose(LinearAlgebra.LQPackedQ(R, τr)) # FixMe! check that this shouldn't be adjoint
             LinearAlgebra.QRPackedQ(copy(transpose(R)), τr)
         else
@@ -502,30 +503,32 @@ function rmul!(A::AbstractMatrix, adjQ::AdjointQtype{<:Any,<:LinearAlgebra.Hesse
     return A
 end
 
-function rmul!(A::AbstractMatrix, Q::LinearAlgebra.LQPackedQ)
+# FIXME! Commented out for now because we currently don't produce
+# any LQPackedQ matrices.
+# function rmul!(A::AbstractMatrix, Q::LinearAlgebra.LQPackedQ)
 
-    m, n = size(A)
+#     m, n = size(A)
 
-    if n != size(Q, 1)
-        throw(DimensionMismatch(""))
-    end
+#     if n != size(Q, 1)
+#         throw(DimensionMismatch(""))
+#     end
 
-    for i = 1:m
-        for l = length(Q.τ):-1:1
-            τl = Q.τ[l]
-            ṽ = view(Q.factors, l, (l+1):n)
-            aᵀ = transpose(view(A, i, (l+1):n))
-            aᵀv = A[i, l]
-            if length(ṽ) > 0
-                aᵀv += aᵀ * ṽ
-            end
-            A[i, l] -= aᵀv * τl
-            aᵀ .-= aᵀv .* τl .* ṽ'
-        end
-    end
+#     for i = 1:m
+#         for l = length(Q.τ):-1:1
+#             τl = Q.τ[l]
+#             ṽ = view(Q.factors, l, (l+1):n)
+#             aᵀ = transpose(view(A, i, (l+1):n))
+#             aᵀv = A[i, l]
+#             if length(ṽ) > 0
+#                 aᵀv += aᵀ * ṽ
+#             end
+#             A[i, l] -= aᵀv * τl
+#             aᵀ .-= aᵀv .* τl .* ṽ'
+#         end
+#     end
 
-    return A
-end
+#     return A
+# end
 
 # Overload LinearAlgebra methods
 

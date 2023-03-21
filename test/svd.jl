@@ -235,4 +235,10 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
         F = GenericLinearAlgebra._svd!(copy(B))
         @test diag(F.U' * B * F.Vt') ≈ F.S rtol = 5e-15
     end
+
+    @testset "HessenbergQ multiplicatin" begin
+        A = randn(10, 10)
+        BF = GenericLinearAlgebra.bidiagonalize!(copy(A))
+        @test BF.rightQ'*Matrix(I, size(A)...)*BF.rightQ ≈ I
+    end
 end
