@@ -483,12 +483,12 @@ for (f, elty) in ((:dsyevd_, :Float64), (:ssyevd_, :Float32))
         function syevd!(jobz::Char, uplo::Char, A::StridedMatrix{$elty})
             n = LinearAlgebra.checksquare(A)
             lda = stride(A, 2)
-            w = Vector{$elty}(n)
+            w = Vector{$elty}(undef, n)
             work = Vector{$elty}(undef, 1)
             lwork = BlasInt(-1)
             iwork = Vector{BlasInt}(undef, 1)
             liwork = BlasInt(-1)
-            info = BlasInt[0]
+            info = Ref(BlasInt(0))
             for i = 1:2
                 ccall(
                     (@blasfunc($f), liblapack_name),
@@ -504,7 +504,7 @@ for (f, elty) in ((:dsyevd_, :Float64), (:ssyevd_, :Float32))
                         Ref{BlasInt},
                         Ptr{BlasInt},
                         Ref{BlasInt},
-                        Ptr{BlasInt},
+                        Ref{BlasInt},
                     ),
                     jobz,
                     uplo,
@@ -519,8 +519,8 @@ for (f, elty) in ((:dsyevd_, :Float64), (:ssyevd_, :Float32))
                     info,
                 )
 
-                if info[1] != 0
-                    return LinearAlgebra.LAPACKException(info[1])
+                if info[] != 0
+                    return LinearAlgebra.LAPACKException(info[])
                 end
                 if i == 1
                     lwork = BlasInt(work[1])
@@ -540,14 +540,14 @@ for (f, elty, relty) in
         function heevd!(jobz::Char, uplo::Char, A::StridedMatrix{$elty})
             n = LinearAlgebra.checksquare(A)
             lda = stride(A, 2)
-            w = Vector{$relty}(n)
+            w = Vector{$relty}(undef, n)
             work = Vector{$elty}(undef, 1)
             lwork = BlasInt(-1)
             rwork = Vector{$relty}(undef, 1)
             lrwork = BlasInt(-1)
             iwork = Vector{BlasInt}(undef, 1)
             liwork = BlasInt(-1)
-            info = BlasInt[0]
+            info = Ref(BlasInt(0))
             for i = 1:2
                 ccall(
                     (@blasfunc($f), liblapack_name),
@@ -565,7 +565,7 @@ for (f, elty, relty) in
                         Ref{BlasInt},
                         Ptr{BlasInt},
                         Ref{BlasInt},
-                        Ptr{BlasInt},
+                        Ref{BlasInt},
                     ),
                     jobz,
                     uplo,
@@ -582,8 +582,8 @@ for (f, elty, relty) in
                     info,
                 )
 
-                if info[1] != 0
-                    return LinearAlgebra.LAPACKException(info[1])
+                if info[] != 0
+                    return LinearAlgebra.LAPACKException(info[])
                 end
 
                 if i == 1
@@ -675,23 +675,23 @@ for (f, elty) in ((:dtgevc_, :Float64), (:stgevc_, :Float32))
                     )
                 end
             elseif howmny == 'S'
-                mx, mn = extrama(select)
-                if mx > 1 || nm < 0
+                mx, mn = extrema(select)
+                if mx > 1 || mn < 0
                     throw(ArgumentError("the elements of select must be either 0 or 1"))
                 end
-                if sum(howmny) != mm
+                if sum(select) != mm
                     throw(
                         DimensionMismatch(
-                            "the number of columns in the output arrays is $mm, but you have selected $(sum(howmny)) vectors",
+                            "the number of columns in the output arrays is $mm, but you have selected $(sum(select)) vectors",
                         ),
                     )
                 end
             else
-                throw(ArgumentError("howmny must be either A, B, or S"))
+                throw(ArgumentError("howmny must be either A, B, or S but was $howmny"))
             end
 
-            m = BlasInt[0]
-            info = BlasInt[0]
+            m = Ref(BlasInt(0))
+            info = Ref(BlasInt(0))
 
             ccall(
                 (@blasfunc($f), liblapack_name),
@@ -710,9 +710,9 @@ for (f, elty) in ((:dtgevc_, :Float64), (:stgevc_, :Float32))
                     Ptr{$elty},
                     Ref{BlasInt},
                     Ref{BlasInt},
-                    Ptr{BlasInt},
+                    Ref{BlasInt},
                     Ptr{$elty},
-                    Ptr{BlasInt},
+                    Ref{BlasInt},
                 ),
                 side,
                 howmny,
@@ -732,11 +732,11 @@ for (f, elty) in ((:dtgevc_, :Float64), (:stgevc_, :Float32))
                 info,
             )
 
-            if info[1] != 0
-                throw(LAPACKException(info[1]))
+            if info[] != 0
+                throw(LAPACKException(info[]))
             end
 
-            return VL, VR, m[1]
+            return VL, VR, m[]
         end
 
         function tgevc!(
@@ -750,7 +750,7 @@ for (f, elty) in ((:dtgevc_, :Float64), (:stgevc_, :Float32))
         )
 
             n = LinearAlgebra.checksquare(S)
-            work = Vector{$elty}(6n)
+            work = Vector{$elty}(undef, 6n)
 
             return tgevc!(side, howmny, select, S, P, VL, VR, work)
         end
@@ -765,26 +765,26 @@ for (f, elty) in ((:dtgevc_, :Float64), (:stgevc_, :Float32))
             # No checks here as they are done in method above
             n = LinearAlgebra.checksquare(S)
             if side == 'L'
-                VR = Matrix{$elty}(n, 0)
+                VR = Matrix{$elty}(undef, n, 0)
                 if howmny == 'A' || howmny == 'B'
-                    VL = Matrix{$elty}(n, n)
+                    VL = Matrix{$elty}(undef, n, n)
                 else
-                    VL = Matrix{$elty}(n, sum(select))
+                    VL = Matrix{$elty}(undef, n, sum(select))
                 end
             elseif side == 'R'
-                VL = Matrix{$elty}(n, 0)
+                VL = Matrix{$elty}(undef, n, 0)
                 if howmny == 'A' || howmny == 'B'
-                    VR = Matrix{$elty}(n, n)
+                    VR = Matrix{$elty}(undef, n, n)
                 else
-                    VR = Matrix{$elty}(n, sum(select))
+                    VR = Matrix{$elty}(undef, n, sum(select))
                 end
             else
                 if howmny == 'A' || howmny == 'B'
-                    VL = Matrix{$elty}(n, n)
-                    VR = Matrix{$elty}(n, n)
+                    VL = Matrix{$elty}(undef, n, n)
+                    VR = Matrix{$elty}(undef, n, n)
                 else
-                    VL = Matrix{$elty}(n, sum(select))
-                    VR = Matrix{$elty}(n, sum(select))
+                    VL = Matrix{$elty}(undef, n, sum(select))
+                    VR = Matrix{$elty}(undef, n, sum(select))
                 end
             end
 
