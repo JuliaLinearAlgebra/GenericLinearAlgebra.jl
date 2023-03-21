@@ -3,8 +3,6 @@ env:
   JULIA_NUM_THREADS: 2
 on:
   pull_request:
-    branches:
-      - master
   push:
     branches:
       - master
