@@ -431,26 +431,6 @@ function singleShiftQR!(
     S
 end
 
-function zeroshiftQR!(A::Bidiagonal{T}) where {T}
-    d = A.dv
-    e = A.ev
-    n = length(d)
-    oldc = one(T)
-    olds = oldc
-    c = oldc
-    for i = 1:n-1
-        c, s, r = givensAlgorithm(d[i] * c, e[i])
-        if i > 1
-            e[i-1] = olds * r
-        end
-        oldc, olds, d[i] = givensAlgorithm(oldc * r, d[i+1] * s)
-    end
-    h = d[n] * c
-    e[n-1] = h * olds
-    d[n] = h * oldc
-    return A
-end
-
 symtri!(A::Hermitian) = A.uplo == 'L' ? symtriLower!(A.data) : symtriUpper!(A.data)
 symtri!(A::Symmetric{T}) where {T<:Real} =
     A.uplo == 'L' ? symtriLower!(A.data) : symtriUpper!(A.data)
