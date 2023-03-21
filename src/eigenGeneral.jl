@@ -1,17 +1,8 @@
 using Printf
 using LinearAlgebra
-using LinearAlgebra: Givens, Rotation
+using LinearAlgebra: Givens, Rotation, givens
 
-# Auxiliary
-function adiagmax(A::StridedMatrix)
-    adm = zero(typeof(real(A[1])))
-    @inbounds begin
-        for i in size(A, 1)
-            adm = max(adm, abs(A[i, i]))
-        end
-    end
-    return adm
-end
+import Base: \
 
 # Hessenberg Matrix
 struct HessenbergMatrix{T,S<:StridedMatrix} <: AbstractMatrix{T}
@@ -30,18 +21,22 @@ function LinearAlgebra.ldiv!(H::HessenbergMatrix, B::AbstractVecOrMat)
     n = size(H, 1)
     Hd = H.data
     for i = 1:n-1
-        G, _ = givens!(Hd, i, i + 1, i)
-        lmul!(G, view(Hd, 1:n, i+1:n))
+        G, _ = givens(Hd, i, i + 1, i)
+        lmul!(G, view(Hd, 1:n, i:n))
         lmul!(G, B)
     end
-    ldiv!(Triangular(Hd, :U), B)
+    ldiv!(UpperTriangular(Hd), B)
 end
+(\)(H::HessenbergMatrix, B::AbstractVecOrMat) = ldiv!(copy(H), copy(B))
 
 # Hessenberg factorization
 struct HessenbergFactorization{T,S<:StridedMatrix,U} <: Factorization{T}
     data::S
     τ::Vector{U}
 end
+
+Base.copy(HF::HessenbergFactorization{T,S,U}) where {T,S,U} =
+    HessenbergFactorization{T,S,U}(copy(HF.data), copy(HF.τ))
 
 function _hessenberg!(A::StridedMatrix{T}) where {T}
     n = LinearAlgebra.checksquare(A)
@@ -60,6 +55,14 @@ LinearAlgebra.hessenberg!(A::StridedMatrix) = _hessenberg!(A)
 
 Base.size(H::HessenbergFactorization, args...) = size(H.data, args...)
 
+function Base.getproperty(F::HessenbergFactorization, s::Symbol)
+    if s === :H
+        return HessenbergMatrix{eltype(F.data),typeof(F.data)}(F.data)
+    else
+        return getfield(F, s)
+    end
+end
+
 # Schur
 struct Schur{T,S<:StridedMatrix} <: Factorization{T}
     data::S
@@ -74,19 +77,12 @@ function Base.getproperty(F::Schur, s::Symbol)
     end
 end
 
-function wilkinson(Hmm, t, d)
-    λ1 = (t + sqrt(t * t - 4d)) / 2
-    λ2 = (t - sqrt(t * t - 4d)) / 2
-    return ifelse(abs(Hmm - λ1) < abs(Hmm - λ2), λ1, λ2)
-end
-
 # We currently absorb extra unsupported keywords in kwargs. These could e.g. be scale and permute. Do we want to check that these are false?
 function _schur!(
     H::HessenbergFactorization{T};
     tol = eps(real(T)),
     shiftmethod = :Francis,
     maxiter = 30 * size(H, 1),
-    kwargs...,
 ) where {T}
 
     n = size(H, 1)
@@ -176,6 +172,8 @@ function _schur!(
     return Schur{T,typeof(HH)}(HH, τ)
 end
 _schur!(A::StridedMatrix; kwargs...) = _schur!(_hessenberg!(A); kwargs...)
+
+# FIXME! Move this method to piracy extension
 LinearAlgebra.schur!(A::StridedMatrix; kwargs...) = _schur!(A; kwargs...)
 
 function singleShiftQR!(
