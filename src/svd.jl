@@ -158,7 +158,6 @@ function __svd!(
     U = nothing,
     Vᴴ = nothing;
     tol = 100eps(T),
-    debug = false,
 ) where {T<:Real}
 
     n = size(B, 1)
@@ -166,7 +165,7 @@ function __svd!(
     n2 = n
     d = B.dv
     e = B.ev
-    count = 0
+    iteration = 0
 
     # See LAWN3 page 6 and 22
     σ⁻ = estimate_σ⁻!(d, e, n1, n2, tol)
@@ -176,23 +175,6 @@ function __svd!(
     if B.uplo === 'U'
         while true
             @label top
-
-            # Deflation check. See LAWN3 p21
-            for i = n1:n2
-                if d[i] == 0
-                    debug && println("Deflation! Exact zero in $(i)th diagonal element.")
-                    svdDemmelKahan!(B, n1, n2, U, Vᴴ)
-
-                    # We have now moved a zero to the end so the problem is one smaller
-                    n2 -= 1
-
-                    # We can now reestimate the smallest value and set a new threshold
-                    σ⁻ = estimate_σ⁻!(d, e, n1, n2, tol)
-                    fudge = n2 - n1 + 1
-                    thresh = tol * σ⁻
-                    @goto top
-                end
-            end
 
             # Search for biggest index for non-zero off diagonal value in e
             for n2i = n2:-1:1
@@ -218,31 +200,32 @@ function __svd!(
                 end
             end
 
-            debug && println(
-                "n1=",
-                n1,
-                ", n2=",
-                n2,
-                ", d[n1]=",
-                d[n1],
-                ", d[n2]=",
-                d[n2],
-                ", e[n1]=",
-                e[n1],
-                " e[n2-1]=",
-                e[n2-1],
-                " thresh=",
-                thresh,
-            )
+            # Deflation check. See LAWN3 p21
+            # The Demmel-Kahan iteration moves the zero to the end and produces a
+            # zero super diagonal element as well
+            for i = n1:n2
+                if d[i] == 0
+                    @debug "Deflation! Exact zero in diagonal element" i
+                    svdDemmelKahan!(B, n1, n2, U, Vᴴ)
 
+                    # We have now moved a zero to the end so the problem is one smaller
+                    n2 -= 1
+                end
+            end
 
             # See LAWN 3 p 18 and
             # We approximate the smallest and largest singular values of the
             # current block to determine if it's safe to use shift or if
             # the zero shift algorithm is required to maintain high relative
             # accuracy
+            #
+            # We also set a new threshhold to be used in the next iteration
             σ⁻ = estimate_σ⁻!(d, e, n1, n2, tol)
             σ⁺ = max(maximum(view(d, n1:n2)), maximum(view(e, n1:(n2-1))))
+            fudge = n2 - n1 + 1
+            thresh = tol * σ⁻
+
+            @debug "__svd!" iteration n1 n2 d[n1] d[n2] e[n1] e[n2-1] thresh
 
             if fudge * tol * σ⁻ <= eps(σ⁺)
                 svdDemmelKahan!(B, n1, n2, U, Vᴴ)
@@ -257,8 +240,7 @@ function __svd!(
                 end
             end
 
-            count += 1
-            debug && println("count=", count)
+            iteration += 1
         end
     else
         # Just transpose the matrix
@@ -266,8 +248,8 @@ function __svd!(
     end
 end
 
-function _svdvals!(B::Bidiagonal{T}; tol = eps(T), debug = false) where {T<:Real}
-    __svd!(B, tol = tol, debug = debug)
+function _svdvals!(B::Bidiagonal{T}; tol = eps(T)) where {T<:Real}
+    __svd!(B, tol = tol)
     return sort(abs.(diag(B)), rev = true)
 end
 
@@ -292,13 +274,13 @@ function _sort_and_adjust!(U, s, Vᴴ)
     return nothing
 end
 
-function _svd!(B::Bidiagonal{T}; tol = eps(T), debug = false) where {T<:Real}
+function _svd!(B::Bidiagonal{T}; tol = eps(T)) where {T<:Real}
     n = size(B, 1)
 
     U = Matrix{T}(I, n, n)
     Vᴴ = Matrix{T}(I, n, n)
 
-    __svd!(B, U, Vᴴ, tol = tol, debug = debug)
+    __svd!(B, U, Vᴴ, tol = tol)
 
     s = diag(B)
 
@@ -547,11 +529,11 @@ end
 
 # Overload LinearAlgebra methods
 
-LinearAlgebra.svdvals!(B::Bidiagonal{T}; tol = eps(T), debug = false) where {T<:Real} =
-    _svdvals!(B, tol = tol, debug = debug)
+LinearAlgebra.svdvals!(B::Bidiagonal{T}; tol = eps(T)) where {T<:Real} =
+    _svdvals!(B, tol = tol)
 
 """
-    svdvals!(A [, tol, debug])
+    svdvals!(A [, tol])
 
 Generic computation of singular values.
 ```jldoctest
@@ -572,10 +554,10 @@ julia> svdvals(A) ≈ [3, 2, 1]
 true
 ```
 """
-function LinearAlgebra.svdvals!(A::StridedMatrix; tol = eps(real(eltype(A))), debug = false)
+function LinearAlgebra.svdvals!(A::StridedMatrix; tol = eps(real(eltype(A))))
     B = bidiagonalize!(A).bidiagonal
     # It doesn't matter that we transpose the bidiagonal matrix when we are only interested in the values
-    return svdvals!(Bidiagonal(B.dv, B.ev, :U), tol = tol, debug = debug)
+    return svdvals!(Bidiagonal(B.dv, B.ev, :U), tol = tol)
 end
 
 # FixMe! The full keyword is redundant for Bidiagonal and should be removed from Base
@@ -586,19 +568,16 @@ LinearAlgebra.svd!(
     # To avoid breaking on <Julia 1.3, the `alg` keyword doesn't do anything. Once we drop support for Julia 1.2
     # and below, we can make the keyword argument work correctly
     alg = nothing,
-    debug = false,
-) where {T<:Real} = _svd!(B, tol = tol, debug = debug)
+) where {T<:Real} = _svd!(B, tol = tol)
 
 """
-    svd!(A[, tol, full, debug])::SVD
+    svd!(A[, tol, full])::SVD
 
 A generic singular value decomposition (SVD). The implementation only uses Julia functions so the SVD can be computed for any element type provided that the necessary arithmetic operations are supported by the element type.
 
 - `tol`: The relative tolerance for determining convergence. The default value is `eltype(T)` where `T` is the element type of the input matrix bidiagonal (i.e. after converting the matrix to bidiagonal form).
 
 - `full`: If set to `true` then all the left and right singular vectors are returned. If set to `false` then only the vectors corresponding to the number of rows and columns of the input matrix `A` are returned (the default).
-
-- `debug`: A Boolean flag to activate debug information during the executions of the algorithm. The default is false.
 
 # Algorithm
 ...tomorrow
@@ -629,7 +608,6 @@ function LinearAlgebra.svd!(
     # To avoid breaking on <Julia 1.3, the `alg` keyword doesn't do anything. Once we drop support for Julia 1.2
     # and below, we can make the keyword argument work correctly
     alg = nothing,
-    debug = false,
 ) where {T}
 
     m, n = size(A)
@@ -655,7 +633,7 @@ function LinearAlgebra.svd!(
     B = _B.uplo === 'U' ? _B : Bidiagonal(_B.dv, _B.ev, :U)
 
     # Compute the SVD of the bidiagonal matrix B
-    F = _svd!(B, tol = tol, debug = debug)
+    F = _svd!(B, tol = tol)
 
     # Form the matrices U and Vᴴ by combining the singular vector matrices of the bidiagonal SVD with the Householder reflectors from the bidiagonal factorization.
     if _B.uplo === 'U'

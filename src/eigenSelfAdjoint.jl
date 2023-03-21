@@ -160,11 +160,7 @@ function eigQL2x2!(d::StridedVector, e::StridedVector, j::Integer, vectors::Matr
     return c, s
 end
 
-function eigvalsPWK!(
-    S::SymTridiagonal{T};
-    tol = eps(T),
-    debug::Bool = false,
-) where {T<:Real}
+function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T)) where {T<:Real}
     d = S.dv
     e = S.ev
     n = length(d)
@@ -187,15 +183,16 @@ function eigvalsPWK!(
 
             # Deflate?
             if blockstart == blockend
-                # Yes
+                @debug "Deflate? Yes!"
                 blockstart += 1
             elseif blockstart + 1 == blockend
-                debug && println("Yes, but after sreolving 2x2 block")
+                @debug "Defalte? Yes, but after solving 2x2 block!"
                 d[blockstart], d[blockend] =
                     eigvals2x2(d[blockstart], d[blockend], sqrt(e[blockstart]))
                 e[blockstart] = zero(T)
                 blockstart += 1
             else
+                @debug "Deflate? No!"
                 # Calculate shift
                 sqrte = sqrt(e[blockstart])
                 μ = (d[blockstart+1] - d[blockstart]) / (2 * sqrte)
@@ -205,15 +202,9 @@ function eigvalsPWK!(
                 # QL bulk chase
                 singleShiftQLPWK!(S, μ, blockstart, blockend)
 
-                debug && @printf(
-                    "QL, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, μ: %e, rotations: %d\n",
-                    blockstart,
-                    blockend,
-                    e[blockstart],
-                    e[blockend-1],
-                    μ,
-                    iter += blockend - blockstart
-                )
+                rotations = blockend - blockstart
+                iter += rotations
+                @debug "QL, blockstart, blockend, e[blockstart], e[blockend-1], μ, rotations" blockstart blockend e[blockstart] e[blockend-1] μ rotations
             end
             if blockstart >= n
                 break
@@ -227,7 +218,6 @@ function eigQL!(
     S::SymTridiagonal{T};
     vectors::Matrix = zeros(T, 0, size(S, 1)),
     tol = eps(T),
-    debug::Bool = false,
 ) where {T<:Real}
     d = S.dv
     e = S.ev
@@ -262,13 +252,14 @@ function eigQL!(
             end
             # Deflate?
             if blockstart == blockend
-                # Yes!
+                @debug "Deflate? Yes!"
                 blockstart += 1
             elseif blockstart + 1 == blockend
-                debug && println("Yes, but after solving 2x2 block")
+                @debug "Deflate? Yes, but after solving 2x2 block"
                 eigQL2x2!(d, e, blockstart, vectors)
                 blockstart += 1
             else
+                @debug "Deflate? No!"
                 # Calculate shift
                 μ = (d[blockstart+1] - d[blockstart]) / (2 * e[blockstart])
                 r = hypot(μ, one(T))
@@ -276,14 +267,7 @@ function eigQL!(
 
                 # QL bulk chase
                 singleShiftQL!(S, μ, blockstart, blockend, vectors)
-                debug && @printf(
-                    "QL, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, μ: %f\n",
-                    blockstart,
-                    blockend,
-                    e[blockstart],
-                    e[blockend-1],
-                    μ
-                )
+                @debug "QL, blockstart, blockend, e[blockstart], e[blockend-1] μ" blockstart blockend e[blockstart] e[blockend-1] μ
             end
             if blockstart >= n
                 break
@@ -298,7 +282,6 @@ function eigQR!(
     S::SymTridiagonal{T};
     vectors::Matrix = zeros(T, 0, size(S, 1)),
     tol = eps(T),
-    debug::Bool = false,
 ) where {T<:Real}
     d = S.dv
     e = S.ev
@@ -317,13 +300,14 @@ function eigQR!(
             end
             # Deflate?
             if blockstart == blockend
-                # Yes!
+                @debug "Deflate? Yes!"
                 blockstart += 1
             elseif blockstart + 1 == blockend
-                debug && println("Yes, but after solving 2x2 block")
+                @debug "Deflate? Yes, but after solving 2x2 block!"
                 eigQL2x2!(d, e, blockstart, vectors)
                 blockstart += 1
             else
+                @debug "Deflate? No!"
                 # Calculate shift
                 μ = (d[blockend-1] - d[blockend]) / (2 * e[blockend-1])
                 r = hypot(μ, one(T))
@@ -332,15 +316,7 @@ function eigQR!(
                 # QR bulk chase
                 singleShiftQR!(S, μ, blockstart, blockend, vectors)
 
-                debug && @printf(
-                    "QR, blockstart: %d, blockend: %d, e[blockstart]: %e, e[blockend-1]:%e, d[blockend]: %f, μ: %f\n",
-                    blockstart,
-                    blockend,
-                    e[blockstart],
-                    e[blockend-1],
-                    d[blockend],
-                    μ
-                )
+                @debug "QR, blockstart, blockend, e[blockstart], e[blockend-1], d[blockend], μ" blockstart blockend e[blockstart] e[blockend-1] d[blockend] μ
             end
             if blockstart >= n
                 break
@@ -601,87 +577,66 @@ function symtriUpper!(
 end
 
 
-_eigvals!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), debug = false) =
-    eigvalsPWK!(A.diagonals, tol = tol, debug = debug)
+_eigvals!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A)))) =
+    eigvalsPWK!(A.diagonals, tol = tol)
 
-_eigvals!(A::SymTridiagonal; tol = eps(real(eltype(A))), debug = false) =
-    eigvalsPWK!(A, tol = tol, debug = debug)
+_eigvals!(A::SymTridiagonal; tol = eps(real(eltype(A)))) = eigvalsPWK!(A, tol = tol)
 
-_eigvals!(A::Hermitian; tol = eps(real(eltype(A))), debug = false) =
-    eigvals!(symtri!(A), tol = tol, debug = debug)
+_eigvals!(A::Hermitian; tol = eps(real(eltype(A)))) = eigvals!(symtri!(A), tol = tol)
 
 
-LinearAlgebra.eigvals!(
-    A::SymmetricTridiagonalFactorization;
-    tol = eps(real(eltype(A))),
-    debug = false,
-) = _eigvals!(A, tol = tol, debug = debug)
+LinearAlgebra.eigvals!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A)))) =
+    _eigvals!(A, tol = tol)
 
-LinearAlgebra.eigvals!(A::SymTridiagonal; tol = eps(real(eltype(A))), debug = false) =
-    _eigvals!(A, tol = tol, debug = debug)
+LinearAlgebra.eigvals!(A::SymTridiagonal; tol = eps(real(eltype(A)))) =
+    _eigvals!(A, tol = tol)
 
-LinearAlgebra.eigvals!(A::Hermitian; tol = eps(real(eltype(A))), debug = false) =
-    _eigvals!(A, tol = tol, debug = debug)
+LinearAlgebra.eigvals!(A::Hermitian; tol = eps(real(eltype(A)))) = _eigvals!(A, tol = tol)
 
 
-_eigen!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), debug = false) =
-    LinearAlgebra.Eigen(
-        eigQL!(A.diagonals, vectors = Array(A.Q), tol = tol, debug = debug)...,
-    )
+_eigen!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A)))) =
+    LinearAlgebra.Eigen(eigQL!(A.diagonals, vectors = Array(A.Q), tol = tol)...)
 
-_eigen!(A::SymTridiagonal; tol = eps(real(eltype(A))), debug = false) = LinearAlgebra.Eigen(
-    eigQL!(
-        A,
-        vectors = Matrix{eltype(A)}(I, size(A, 1), size(A, 1)),
-        tol = tol,
-        debug = debug,
-    )...,
+_eigen!(A::SymTridiagonal; tol = eps(real(eltype(A)))) = LinearAlgebra.Eigen(
+    eigQL!(A, vectors = Matrix{eltype(A)}(I, size(A, 1), size(A, 1)), tol = tol)...,
 )
 
-_eigen!(A::Hermitian; tol = eps(real(eltype(A))), debug = false) =
-    _eigen!(symtri!(A), tol = tol, debug = debug)
+_eigen!(A::Hermitian; tol = eps(real(eltype(A)))) = _eigen!(symtri!(A), tol = tol)
 
 
-LinearAlgebra.eigen!(
-    A::SymmetricTridiagonalFactorization;
-    tol = eps(real(eltype(A))),
-    debug = false,
-) = _eigen!(A, tol = tol, debug = debug)
+LinearAlgebra.eigen!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A)))) =
+    _eigen!(A, tol = tol)
 
-LinearAlgebra.eigen!(A::SymTridiagonal; tol = eps(real(eltype(A))), debug = false) =
-    _eigen!(A, tol = tol, debug = debug)
+LinearAlgebra.eigen!(A::SymTridiagonal; tol = eps(real(eltype(A)))) = _eigen!(A, tol = tol)
 
-LinearAlgebra.eigen!(A::Hermitian; tol = eps(real(eltype(A))), debug = false) =
-    _eigen!(A, tol = tol, debug = debug)
+LinearAlgebra.eigen!(A::Hermitian; tol = eps(real(eltype(A)))) = _eigen!(A, tol = tol)
 
 
 function eigen2!(
     A::SymmetricTridiagonalFactorization;
     tol = eps(real(float(one(eltype(A))))),
-    debug = false,
 )
     V = zeros(eltype(A), 2, size(A, 1))
     V[1] = 1
     V[end] = 1
-    eigQL!(A.diagonals, vectors = rmul!(V, A.Q), tol = tol, debug = debug)
+    eigQL!(A.diagonals, vectors = rmul!(V, A.Q), tol = tol)
 end
 
-function eigen2!(A::SymTridiagonal; tol = eps(real(float(one(eltype(A))))), debug = false)
+function eigen2!(A::SymTridiagonal; tol = eps(real(float(one(eltype(A))))))
     V = zeros(eltype(A), 2, size(A, 1))
     V[1] = 1
     V[end] = 1
-    eigQL!(A, vectors = V, tol = tol, debug = debug)
+    eigQL!(A, vectors = V, tol = tol)
 end
 
-eigen2!(A::Hermitian; tol = eps(float(real(one(eltype(A))))), debug = false) =
-    eigen2!(symtri!(A), tol = tol, debug = debug)
+eigen2!(A::Hermitian; tol = eps(float(real(one(eltype(A)))))) =
+    eigen2!(symtri!(A), tol = tol)
 
 
-eigen2(A::SymTridiagonal; tol = eps(float(real(one(eltype(A))))), debug = false) =
-    eigen2!(copy(A), tol = tol, debug = debug)
+eigen2(A::SymTridiagonal; tol = eps(float(real(one(eltype(A)))))) =
+    eigen2!(copy(A), tol = tol)
 
-eigen2(A::Hermitian, tol = eps(float(real(one(eltype(A))))), debug = false) =
-    eigen2!(copy(A), tol = tol, debug = debug)
+eigen2(A::Hermitian, tol = eps(float(real(one(eltype(A)))))) = eigen2!(copy(A), tol = tol)
 
 # First method of each type here is identical to the method defined in
 # LinearAlgebra but is needed for disambiguation

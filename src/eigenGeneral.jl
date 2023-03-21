@@ -84,7 +84,6 @@ end
 function _schur!(
     H::HessenbergFactorization{T};
     tol = eps(real(T)),
-    debug = false,
     shiftmethod = :Francis,
     maxiter = 30 * size(H, 1),
     kwargs...,
@@ -101,7 +100,7 @@ function _schur!(
 
     @inbounds while true
         i += 1
-        debug && println("iteration: $i")
+        @debug "iteration" i
         if i > maxiter
             throw(ArgumentError("iteration limit $maxiter reached"))
         end
@@ -115,11 +114,7 @@ function _schur!(
                 # Set istart to the beginning of the second block
                 istart = _istart + 1
 
-                debug && @printf(
-                    "Split! Subdiagonal element is: %10.3e and istart now %6d\n",
-                    HH[istart, istart-1],
-                    istart
-                )
+                @debug "Split!" HH[istart, istart-1] istart
 
                 # Set the subdiagonal element to zero to signal that a split has taken place
                 HH[istart, istart-1] = 0
@@ -132,14 +127,12 @@ function _schur!(
 
         # if block size is one we deflate
         if istart >= iend
-            debug &&
-                @printf("Bottom deflation! Block size is one. New iend is %6d\n", iend - 1)
+            @debug "Bottom deflation! Block size is one. New iend is" iend - 1
             iend -= 1
 
             # and the same for a 2x2 block
         elseif istart + 1 == iend
-            debug &&
-                @printf("Bottom deflation! Block size is two. New iend is %6d\n", iend - 2)
+            @debug "Bottom deflation! Block size is two. New iend is" iend - 2
             iend -= 2
 
             # run a QR iteration
@@ -156,26 +149,14 @@ function _schur!(
                 d = Hm1m1 * Hmm - HH[iend, iend-1] * HH[iend-1, iend]
                 t = Hm1m1 + Hmm
             end
-            debug && @printf(
-                "block start is: %6d, block end is: %6d, d: %10.3e, t: %10.3e\n",
-                istart,
-                iend,
-                d,
-                t
-            )
+            @debug "block start is, block end, d, and t" istart iend d t
 
             if shiftmethod == :Francis
-                debug && @printf(
-                    "Francis double shift! Subdiagonal is: %10.3e, last subdiagonal is: %10.3e\n",
-                    HH[iend, iend-1],
-                    HH[iend-1, iend-2]
-                )
+                @debug "Francis double shift!" HH[iend, iend-1] HH[iend-1, iend-2]
+
                 doubleShiftQR!(HH, τ, t, d, istart, iend)
             elseif shiftmethod == :Rayleigh
-                debug && @printf(
-                    "Single shift with Rayleigh shift! Subdiagonal is: %10.3e\n",
-                    HH[iend, iend-1]
-                )
+                @debug "Single shift with Rayleigh shift!" HH[iend, iend-1]
 
                 # Run a bulge chase
                 singleShiftQR!(HH, τ, Hmm, istart, iend)
