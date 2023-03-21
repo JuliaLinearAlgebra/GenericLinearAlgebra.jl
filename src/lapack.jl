@@ -425,31 +425,39 @@ function lahqr!(H::StridedMatrix{Float64})
 end
 
 ## Cholesky + singular values
-function spteqr!(
+function pteqr!(
     compz::Char,
     d::StridedVector{Float64},
     e::StridedVector{Float64},
     Z::StridedMatrix{Float64},
-    work::StridedVector{Float64} = Vector{Float64}(undef, 4length(d)),
+    work::StridedVector{Float64},
 )
-
     n = length(d)
     ldz = stride(Z, 2)
 
     # Checks
-    length(e) >= n - 1 || throw(DimensionMismatch("subdiagonal vector is too short"))
+    if length(e) < n - 1
+        throw(DimensionMismatch("subdiagonal vector is too short"))
+    end
+    chkstride1(d)
+    chkstride1(e)
+    chkstride1(Z)
     if compz == 'N'
-    elseif compz == in('V', 'I')
-        size(Z, 1) >= n || throw(DimensionMismatch("Z does not have enough rows"))
-        size(Z, 2) >= ldz || throw(DimensionMismatch("Z does not have enough columns"))
+    elseif compz ∈ ('V', 'I')
+        if size(Z, 1) < n
+            throw(DimensionMismatch("Z does not have enough rows"))
+        end
+        if size(Z, 2) < ldz
+            throw(DimensionMismatch("Z does not have enough columns"))
+        end
     else
         throw(ArgumentError("compz must be either 'N', 'V', or 'I'"))
     end
 
-    info = Vector{BlasInt}(undef, 1)
+    info = Ref{BlasInt}(1)
 
     ccall(
-        (@blasfunc(:dpteqr_), liblapack_name),
+        (@blasfunc(dpteqr_), liblapack_name),
         Cvoid,
         (
             Ref{UInt8},
@@ -459,7 +467,7 @@ function spteqr!(
             Ptr{Float64},
             Ref{BlasInt},
             Ptr{Float64},
-            Ptr{BlasInt},
+            Ref{BlasInt},
         ),
         compz,
         n,
@@ -471,9 +479,23 @@ function spteqr!(
         info,
     )
 
-    info[1] == 0 || throw(LAPACKException(info[1]))
+    if info[] != 0
+        throw(LAPACKException(info[]))
+    end
 
-    d, Z
+    return d, Z
+end
+
+function pteqr!(compz::Char, d::StridedVector{Float64}, e::StridedVector{Float64})
+    n = length(d)
+
+    Z = if compz == 'I'
+        Matrix{Float64}(undef, n, n)
+    else
+        Matrix{Float64}(undef, 0, 0)
+    end
+    work = Vector{Float64}(undef, 4 * n)
+    return pteqr!(compz, d, e, Z, work)
 end
 
 # Gu's dnc eigensolver
