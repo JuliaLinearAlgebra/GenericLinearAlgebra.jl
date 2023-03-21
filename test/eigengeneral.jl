@@ -14,6 +14,17 @@ using Test, GenericLinearAlgebra, LinearAlgebra
         @test sort(vGLA, by = cplxord) ≈ sort(vLAPACK, by = cplxord)
         @test sort(vGLA, by = cplxord) ≈ sort(complex(eltype(A)).(vBig), by = cplxord)
         @test issorted(vBig, by = cplxord)
+
+        if T <: Complex
+            @testset "Rayleigh shifts" begin
+                @test sort(
+                    GenericLinearAlgebra._eigvals!(
+                        GenericLinearAlgebra._schur!(copy(A), shiftmethod = :Rayleigh),
+                    ),
+                    by = t -> (real(t), imag(t)),
+                ) ≈ sort(eigvals(A), by = t -> (real(t), imag(t)))
+            end
+        end
     end
 
     @testset "make sure that solver doesn't hang" begin
@@ -235,6 +246,9 @@ using Test, GenericLinearAlgebra, LinearAlgebra
             A[:, (i+1):end] = A[:, (i+1):end] * HM'
         end
         @test tril(A, -2) ≈ zeros(n, n) atol = 1e-14
-    end
 
+        @test eigvals(HF.H) ≈ eigvals(A)
+        @test eigvals(HF.H) ≈ eigvals!(copy(HF))
+        @test HF.H \ ones(n) ≈ Matrix(HF.H) \ ones(n)
+    end
 end

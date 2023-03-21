@@ -69,7 +69,14 @@ using GenericLinearAlgebra.LAPACK2
         @test !(_vals ≈ sort(eigvals(T)))
     end
 
-    @testset "syevd: eltype=$eltype, uplo=$uplo" for eltype in (Float32, Float64, ComplexF32, ComplexF64), uplo in ('U', 'L')
+    @testset "syevd: eltype=$eltype, uplo=$uplo" for eltype in (
+            Float32,
+            Float64,
+            ComplexF32,
+            ComplexF64,
+        ),
+        uplo in ('U', 'L')
+
         A = randn(eltype, n, n)
         A = A + A'
         if eltype <: Real
@@ -77,26 +84,26 @@ using GenericLinearAlgebra.LAPACK2
         else
             vals, vecs = LAPACK2.heevd!('V', uplo, copy(A))
         end
-        @test diag(vecs'*A*vecs) ≈ eigvals(A)
+        @test diag(vecs' * A * vecs) ≈ eigvals(A)
     end
 
-    @testset "tgevc: eltype=$eltype, side=$side, howmny=$howmny" for eltype in (Float32, Float64), side in ('L', 'R', 'B'), howmny in ('A', #='B', =#'S')
+    @testset "tgevc: eltype=$eltype, side=$side, howmny=$howmny" for eltype in
+                                                                     (Float32, Float64),
+        side in ('L', 'R', 'B'),
+        howmny in ('A', 'S')
+ #='B', =#
         select = ones(Int, n)
         S, P = triu(randn(eltype, n, n)), triu(randn(eltype, n, n))
-        VL, VR, m = LAPACK2.tgevc!(
-            side,
-            howmny,
-            select,
-            copy(S),
-            copy(P),
-        )
+        VL, VR, m = LAPACK2.tgevc!(side, howmny, select, copy(S), copy(P))
         if side ∈ ('R', 'B')
-            w = diag(S*VR) ./ diag(P*VR)
-            @test S*VR ≈ P*VR*Diagonal(w) rtol=sqrt(eps(eltype)) atol=sqrt(eps(eltype))
+            w = diag(S * VR) ./ diag(P * VR)
+            @test S * VR ≈ P * VR * Diagonal(w) rtol = sqrt(eps(eltype)) atol =
+                sqrt(eps(eltype))
         end
         if side ∈ ('L', 'B')
-            w = w = diag(VL'*S) ./ diag(VL'*P)
-            @test VL'*S ≈ Diagonal(w)*VL'*P rtol=sqrt(eps(eltype)) atol=sqrt(eps(eltype))
+            w = w = diag(VL' * S) ./ diag(VL' * P)
+            @test VL' * S ≈ Diagonal(w) * VL' * P rtol = sqrt(eps(eltype)) atol =
+                sqrt(eps(eltype))
         end
     end
 end
