@@ -253,7 +253,7 @@ function _svdvals!(B::Bidiagonal{T}; tol = eps(T)) where {T<:Real}
     return sort(abs.(diag(B)), rev = true)
 end
 
-# We want to avoid that zero eigenvalues zero out any singular vectors so we'd
+# We want to avoid that zero singular values zero out any singular vectors so we'd
 # have to use a modified sign function
 _sign(x) = ifelse(iszero(x), one(x), sign(x))
 
