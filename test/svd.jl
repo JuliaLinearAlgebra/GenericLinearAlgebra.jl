@@ -241,4 +241,11 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
         BF = GenericLinearAlgebra.bidiagonalize!(copy(A))
         @test (BF.rightQ' * Matrix(I, size(A)...)) * BF.rightQ ≈ I
     end
+
+    @testset "Issue 119" begin
+        F = svd(zeros(BigFloat, 2, 2))
+        @test F.S == zeros(2)
+        @test F.U == I
+        @test F.Vt == I
+    end
 end
