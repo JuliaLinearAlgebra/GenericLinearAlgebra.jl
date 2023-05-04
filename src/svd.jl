@@ -167,10 +167,7 @@ function __svd!(
     e = B.ev
     iteration = 0
 
-    # See LAWN3 page 6 and 22
-    σ⁻ = estimate_σ⁻!(d, e, n1, n2, tol)
-    fudge = n
-    thresh = tol * σ⁻
+    thresh = tol * zero(first(d))
 
     if B.uplo === 'U'
         while true
@@ -199,6 +196,7 @@ function __svd!(
                     break
                 end
             end
+            @debug "Active submatrix" iteration n1 n2 d[n1] d[n2] e[n1] e[n2 - 1]
 
             # Deflation check. See LAWN3 p21
             # The Demmel-Kahan iteration moves the zero to the end and produces a
@@ -210,6 +208,9 @@ function __svd!(
 
                     # We have now moved a zero to the end so the problem is one smaller
                     n2 -= 1
+
+                    # We'll start over to find the relevant submatrix after deflation
+                    @goto top
                 end
             end
 
@@ -225,7 +226,7 @@ function __svd!(
             fudge = n2 - n1 + 1
             thresh = tol * σ⁻
 
-            @debug "__svd!" iteration n1 n2 d[n1] d[n2] e[n1] e[n2-1] thresh
+            @debug "estimated quantities" σ⁻ σ⁺ fudge thresh
 
             if fudge * tol * σ⁻ <= eps(σ⁺)
                 svdDemmelKahan!(B, n1, n2, U, Vᴴ)
