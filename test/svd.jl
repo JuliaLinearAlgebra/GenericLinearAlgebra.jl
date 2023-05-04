@@ -248,4 +248,9 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
         @test F.U == I
         @test F.Vt == I
     end
+
+    @testset "Issue 121" begin
+        @test svdvals(BigFloat[0 0; 1 -1]) ≈ [sqrt(2), 0]
+        @test svdvals(BigFloat[1 0 0; 0 0 0; 0 1 -1]) ≈ [sqrt(2), 1, 0]
+    end
 end
