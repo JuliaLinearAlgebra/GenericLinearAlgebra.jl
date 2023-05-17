@@ -161,6 +161,10 @@ function __svd!(
 ) where {T<:Real}
 
     n = size(B, 1)
+    if n == 0
+        # Exit early in the empty case
+        return nothing
+    end
     n1 = 1
     n2 = n
     d = B.dv
