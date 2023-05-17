@@ -135,24 +135,26 @@ function eigvals2x2(d1::Number, d2::Number, e::Number)
     r2 = hypot(d1 - d2, 2 * e) / 2
     return r1 + r2, r1 - r2
 end
-function eigQL2x2!(d::StridedVector, e::StridedVector, j::Integer, vectors::Matrix)
+function eig2x2!(d::StridedVector, e::StridedVector, j::Integer, vectors::Matrix)
     dj = d[j]
-    dj1 = d[j+1]
+    dj1 = d[j + 1]
     ej = e[j]
     r1 = (dj + dj1) / 2
     r2 = hypot(dj - dj1, 2 * ej) / 2
-    λ = r1 + r2
-    d[j] = λ
-    d[j+1] = r1 - r2
+    λ⁺ = r1 + r2
+    λ⁻ = r1 - r2
+    d[j] = λ⁺
+    d[j + 1] = λ⁻
     e[j] = 0
-    c = ej / (dj - λ)
-    if isfinite(c) # FixMe! is this the right fix for overflow?
-        h = hypot(one(c), c)
-        c /= h
-        s = inv(h)
+    if iszero(ej)
+        c = one(λ⁺)
+        s = zero(λ⁺)
+    elseif abs(λ⁺ - dj) > abs(λ⁻ - dj)
+        c = -ej / hypot(ej, λ⁺ - dj)
+        s = sqrt(1 - c*c)
     else
-        c = one(c)
-        s = zero(c)
+        s = abs(ej) / hypot(ej, λ⁻ - dj)
+        c = copysign(sqrt(1 - s*s), -ej)
     end
 
     _updateVectors!(c, s, j, vectors)
@@ -173,13 +175,15 @@ function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T)) where {T<:Real}
         end
         while true
             # Check for zero off diagonal elements
-            for be = blockstart+1:n
-                if abs(e[be-1]) <= tol * sqrt(abs(d[be-1])) * sqrt(abs(d[be]))
+            for be = (blockstart + 1):n
+                if abs(e[be - 1]) <= tol * sqrt(abs(d[be - 1])) * sqrt(abs(d[be]))
                     blockend = be - 1
                     break
                 end
                 blockend = n
             end
+
+            @debug "submatrix" blockstart blockend
 
             # Deflate?
             if blockstart == blockend
@@ -200,11 +204,12 @@ function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T)) where {T<:Real}
                 μ = d[blockstart] - sqrte / (μ + copysign(r, μ))
 
                 # QL bulk chase
+                @debug "Values before PWK QL bulge chase" e[blockstart] e[blockend-1] μ
                 singleShiftQLPWK!(S, μ, blockstart, blockend)
 
                 rotations = blockend - blockstart
                 iter += rotations
-                @debug "QL, blockstart, blockend, e[blockstart], e[blockend-1], μ, rotations" blockstart blockend e[blockstart] e[blockend-1] μ rotations
+                @debug "Values after PWK QL bulge chase" e[blockstart] e[blockend-1] rotations
             end
             if blockstart >= n
                 break
@@ -243,32 +248,37 @@ function eigQL!(
     @inbounds begin
         while true
             # Check for zero off diagonal elements
-            for be = blockstart+1:n
-                if abs(e[be-1]) <= tol * sqrt(abs(d[be-1])) * sqrt(abs(d[be]))
+            for be = (blockstart + 1):n
+                if abs(e[be - 1]) <= tol * sqrt(abs(d[be - 1])) * sqrt(abs(d[be]))
                     blockend = be - 1
                     break
                 end
                 blockend = n
             end
+
+            @debug "submatrix" blockstart blockend
+
             # Deflate?
             if blockstart == blockend
                 @debug "Deflate? Yes!"
                 blockstart += 1
             elseif blockstart + 1 == blockend
                 @debug "Deflate? Yes, but after solving 2x2 block"
-                eigQL2x2!(d, e, blockstart, vectors)
-                blockstart += 1
+                eig2x2!(d, e, blockstart, vectors)
+                blockstart += 2
             else
                 @debug "Deflate? No!"
                 # Calculate shift
-                μ = (d[blockstart+1] - d[blockstart]) / (2 * e[blockstart])
+                μ = (d[blockstart + 1] - d[blockstart]) / (2 * e[blockstart])
                 r = hypot(μ, one(T))
                 μ = d[blockstart] - (e[blockstart] / (μ + copysign(r, μ)))
 
                 # QL bulk chase
+                @debug "Values before bulge chase" e[blockstart] e[blockend - 1] d[blockstart] μ
                 singleShiftQL!(S, μ, blockstart, blockend, vectors)
-                @debug "QL, blockstart, blockend, e[blockstart], e[blockend-1] μ" blockstart blockend e[blockstart] e[blockend-1] μ
+                @debug "Values after bulge chase" e[blockstart] e[blockend - 1] d[blockstart]
             end
+
             if blockstart >= n
                 break
             end
@@ -291,32 +301,35 @@ function eigQR!(
     @inbounds begin
         while true
             # Check for zero off diagonal elements
-            for be = (blockstart+1):n
-                if abs(e[be-1]) <= tol * sqrt(abs(d[be-1])) * sqrt(abs(d[be]))
+            for be = (blockstart + 1):n
+                if abs(e[be - 1]) <= tol * sqrt(abs(d[be - 1])) * sqrt(abs(d[be]))
                     blockend = be - 1
                     break
                 end
                 blockend = n
             end
+
+            @debug "submatrix" blockstart blockend
+
             # Deflate?
             if blockstart == blockend
                 @debug "Deflate? Yes!"
                 blockstart += 1
             elseif blockstart + 1 == blockend
                 @debug "Deflate? Yes, but after solving 2x2 block!"
-                eigQL2x2!(d, e, blockstart, vectors)
-                blockstart += 1
+                eig2x2!(d, e, blockstart, vectors)
+                blockstart += 2
             else
                 @debug "Deflate? No!"
                 # Calculate shift
-                μ = (d[blockend-1] - d[blockend]) / (2 * e[blockend-1])
+                μ = (d[blockend - 1] - d[blockend]) / (2 * e[blockend - 1])
                 r = hypot(μ, one(T))
-                μ = d[blockend] - (e[blockend-1] / (μ + copysign(r, μ)))
+                μ = d[blockend] - (e[blockend - 1] / (μ + copysign(r, μ)))
 
                 # QR bulk chase
+                @debug "Values before QR bulge chase" e[blockstart] e[blockend - 1] d[blockend] μ
                 singleShiftQR!(S, μ, blockstart, blockend, vectors)
-
-                @debug "QR, blockstart, blockend, e[blockstart], e[blockend-1], d[blockend], μ" blockstart blockend e[blockstart] e[blockend-1] d[blockend] μ
+                @debug "Values after QR bulge chase" e[blockstart] e[blockend - 1] d[blockend]
             end
             if blockstart >= n
                 break
