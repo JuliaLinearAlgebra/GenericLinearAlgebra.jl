@@ -165,23 +165,12 @@ end
 
 ## Householder reflections
 
-"""
-    floatmin_maxinv(T)
-
-Smallest floating point number such that 1/(x*eps(T)) can be exactly
-represented for numbers of type `T`.
-"""
-floatmin_maxinv(::Type{Float32}) = reinterpret(Float32, 0x26000000)
-floatmin_maxinv(::Type{Float64}) = reinterpret(Float64, 0x21a0000000000000)
-# This is just a crude guess for generic types T, specialize if necessary.
-floatmin_maxinv(::Type{T}) where {T <: AbstractFloat} = 1e7*sqrt(floatmin(T))
-
 # Householder transform for a 3x3 matrix
 function householderAlgorithm3(alpha::T, x1::T, x2::T) where {T<:AbstractFloat}
     onepar = one(T)
     twopar = 2one(T)
     zeropar = zero(T)
-    safmn2 = floatmin_maxinv(T)
+    safmn2 = LinearAlgebra.floatmin2(T)
     safmx2 = one(T)/safmn2
 
     xnorm = hypot(x1,x2)
