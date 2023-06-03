@@ -263,59 +263,12 @@ end
 ## Givens rotations and helper functions
 
 "Apply the Givens rotation to a range of columns of `A`."
-function givens_lmul!(G::Givens, A::AbstractMatrix, j1::Integer, j2::Integer)
-    m, n = size(A, 1), size(A, 2)
-    if G.i2 > m
-        throw(DimensionMismatch("column indices for rotation are outside the matrix"))
-    end
-    @inbounds for i in j1:j2
-        temp = G.c * A[G.i1, i] + G.s * A[G.i2, i]
-        A[G.i2, i] = -conj(G.s) * A[G.i1, i] + G.c * A[G.i2, i]
-        A[G.i1, i] = temp
-    end
-    A
-end
+givens_lmul!(G::Givens, A::AbstractMatrix, j1::Integer, j2::Integer) =
+    lmul!(G, view(A, :, j1:j2))
 
-"Apply the Givens rotation to a range of columns of `A`."
-function givens_rmul!(A::AbstractMatrix, G::Givens, j1::Integer, j2::Integer)
-    m, n = size(A, 1), size(A, 2)
-    if G.i2 > n
-        throw(DimensionMismatch("column indices for rotation are outside the matrix"))
-    end
-    @inbounds for i in j1:j2
-        temp = A[i, G.i1] * G.c - A[i, G.i2] * conj(G.s)
-        A[i, G.i2] = A[i, G.i1] * G.s + A[i, G.i2] * G.c
-        A[i, G.i1] = temp
-    end
-    A
-end
-
-# Direct implementation of givens using c and s for complex matrices
-function givens_apply_l!(A::AbstractMatrix{Complex{T}},
-    c::T, s::Complex{T},
-    i1::Integer, i2::Integer, j1::Integer, j2::Integer) where {T<:AbstractFloat}
-
-    m, n = size(A, 1), size(A, 2)
-    if i1 > m || i2 > m || i1 < 1 || i2 < 1
-        throw(DimensionMismatch("column indices for rotation are outside the matrix"))
-    end
-    @inbounds for i in j1:j2
-        temp = c * A[i1, i] + s * A[i2, i]
-        A[G.i2, i] = -conj(s) * A[i1, i] + c * A[i2, i]
-        A[G.i1, i] = temp
-    end
-end
-
-function givens_apply_r!(A::AbstractMatrix{Complex{T}},
-    c::T, s::Complex{T},
-    i1::Integer, i2::Integer, j1::Integer, j2::Integer) where {T<:AbstractFloat}
-
-    @inbounds for i in j1:j2
-        temp = A[i, i1] * c - A[i, i2] * conj(s)
-        A[i, i2] = A[i, i1] * s + A[i, i2] * c
-        A[i, i1] = temp
-    end
-end
+"Apply the Givens rotation to a range of rows of `A`."
+givens_rmul!(A::AbstractMatrix, G::Givens, j1::Integer, j2::Integer) =
+    rmul!(view(A, j1:j2, :), G)
 
 # Direct implementation of givens using c and s for real matrices
 function givens_apply_l!(v1::AbstractVector{T}, v2::AbstractVector{T},
