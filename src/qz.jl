@@ -48,35 +48,28 @@ function generalized_eigvals!(A::AbstractArray{<:Real}, B::AbstractArray{<:Real}
         computeQ=false, computeZ=false, computeST=false)
 
     # now we have to check for complex eigenvalues
-    # if there are any, the subdiagonal of A is non-zero and the eigenvalues
-    # are the eigenvalues of a 2x2 block
     complexeig = false
-    for k in 1:n-1
-        if A[k+1,k] != 0
+    eigvals_real = zeros(T, n)
+    eigvals_imag = zeros(T, n)
+    k = 1
+    while k <= n
+        if (k < n) && (A[k+1,k] != 0)
+            αr, αi, δ1, βr, βi, δ2 = gen_eig22(view(A,k:k+1,k:k+1), view(B,k:k+1,k:k+1))
+            eigvals_real[k] = αr / δ1
+            eigvals_imag[k] = αi / δ1
+            eigvals_real[k+1] = βr / δ2
+            eigvals_imag[k+1] = βi / δ2
+            k += 2
             complexeig = true
-            break
+        else
+            eigvals_real[k] = A[k,k] / B[k,k]
+            k += 1
         end
     end
-    if !complexeig
-        # eigenvalues are ratios of diagonal elements
-        eigvals = diag(A) ./ diag(B)
-        LinearAlgebra.sorteig!(eigvals, sortby)
+    if complexeig
+        LinearAlgebra.sorteig!(eigvals_real+im*eigvals_imag, sortby)
     else
-        # there may be 2x2 subblocks
-        eigvals = zeros(Complex{T}, n)
-        k = 1
-        while k <= n
-            if (k < n) && (A[k+1,k] != 0)
-                αr, αi, δ1, βr, βi, δ2 = eig22(view(A,k:k+1,k:k+1), view(B,k:k+1,k:k+1))
-                eigvals[k] = (αr + im*αi) / δ1
-                eigvals[k+1] = (βr + im*βi) / δ2
-                k += 2
-            else
-                eigvals[k] = A[k,k] / B[k,k]
-                k += 1
-            end
-        end
-        LinearAlgebra.sorteig!(eigvals, sortby)
+        LinearAlgebra.sorteig!(eigvals_real, sortby)
     end
 end
 
@@ -123,7 +116,7 @@ function mat_rmul!(A::AbstractMatrix, B::AbstractMatrix, workspace::AbstractVect
 end
 
 # compute eigenvalues of a 2x2 matrix, used to obtain a shift in qz_single
-function eig22(A::AbstractMatrix{Complex{T}}, B::AbstractMatrix{Complex{T}}, e::Complex{T}) where {T<:AbstractFloat}
+function gen_eig22(A::AbstractMatrix{Complex{T}}, B::AbstractMatrix{Complex{T}}, e::Complex{T}) where {T<:AbstractFloat}
     detb = B[1, 1] * B[2, 2] - B[1, 2] * B[2, 1]
 
     ab11 = A[1, 1] * B[2, 2] - A[2, 1] * B[1, 2]
@@ -144,7 +137,7 @@ end
 # compute both generalized eigenvalues of 2x2 matrices A and B
 # the result is αr,αi,δ1,βr,βi,δ2, and the corresponding eigenvalues are
 # (αr+im*αi)/δ1 and (βr+im*βi)/δ1
-function eig22(A::AbstractMatrix{T}, B::AbstractMatrix{T}) where {T<:AbstractFloat}
+function gen_eig22(A::AbstractMatrix{T}, B::AbstractMatrix{T}) where {T<:AbstractFloat}
     detb = B[1, 1] * B[2, 2] - B[1, 2] * B[2, 1]
 
     ab11 = A[1, 1] * B[2, 2] - A[2, 1] * B[1, 2]
@@ -663,7 +656,7 @@ function qz_single!(
 
         # Get shift
         if mod(ld,10) !== 0
-            shift = eig22(view(A,ihi-1:ihi,ihi-1:ihi),view(B,ihi-1:ihi,ihi-1:ihi), A[ihi,ihi]/B[ihi,ihi])
+            shift = gen_eig22(view(A,ihi-1:ihi,ihi-1:ihi),view(B,ihi-1:ihi,ihi-1:ihi), A[ihi,ihi]/B[ihi,ihi])
         else
             eshift = eshift + A[ihi, ihi-1]/B[ihi-1,ihi-1]
             shift = eshift
@@ -859,7 +852,7 @@ function qz_double!(
         # Get shift
         if mod(ld,10) !== 0
             shift1r,shift1i,shift1s,shift2r,shift2i,shift2s =
-                eig22(view(A,ihi-1:ihi,ihi-1:ihi),view(B,ihi-1:ihi,ihi-1:ihi))
+                gen_eig22(view(A,ihi-1:ihi,ihi-1:ihi),view(B,ihi-1:ihi,ihi-1:ihi))
         else
             eshift = eshift + A[ihi, ihi-1]/B[ihi-1,ihi-1]
             shift1r = eshift
@@ -890,7 +883,7 @@ function qz_double!(
     k = is
     while k < ie
         if A[k+1,k] != 0
-            er1,ei1,es1,er2,ei2,es2 = eig22(view(A,k:k+1,k:k+1),view(B,k:k+1,k:k+1))
+            er1,ei1,es1,er2,ei2,es2 = gen_eig22(view(A,k:k+1,k:k+1),view(B,k:k+1,k:k+1))
             if ei1 == 0
                 # Bulge has real eigenvalues, make upper triangular
                 if computeST
