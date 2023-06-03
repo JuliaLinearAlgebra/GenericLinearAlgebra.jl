@@ -1,6 +1,6 @@
 
 ###############################################################################
-# The QZ factorization is used to solve generalized eigenvalue decompositions
+# The QZ algorithm is used to solve generalized eigenvalue decompositions
 # of the form A x = λ B x.
 # Two orthogonal matrices Q and Z are constructed to reduce the "pencil"
 # `(A,B)` to another form `Q'*(A,B)*Z`:
@@ -9,7 +9,9 @@
 # - next a generalized Schur decomposition further reduces both matrices
 #   to upper triangular form
 # - the generalized eigenvalues are then given by the ratios of the diagonals
-#   of those two triangular matrices.
+#   of those two triangular matrices (or, in case of real matrices and complex
+#   eigenvalues, the generalized eigenvalues are available from 2x2 blocks on
+#   the diagonals)
 ###############################################################################
 
 using LinearAlgebra:
