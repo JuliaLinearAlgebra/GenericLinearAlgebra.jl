@@ -604,7 +604,6 @@ LinearAlgebra.eigen!(A::SymTridiagonal; tol = eps(real(eltype(A)))) = _eigen!(A,
 
 LinearAlgebra.eigen!(A::Hermitian; tol = eps(real(eltype(A)))) = _eigen!(A, tol = tol)
 
-
 function eigen2!(
     A::SymmetricTridiagonalFactorization;
     tol = eps(real(float(one(eltype(A))))),
@@ -656,6 +655,12 @@ end
 function LinearAlgebra.eigen(A::Hermitian)
     T = typeof(sqrt(zero(eltype(A))))
     return eigen!(LinearAlgebra.copy_oftype(A, T))
+end
+function LinearAlgebra.eigen(A::Matrix)
+    if !ishermitian(A)
+         throw(ArgumentError("eigen not implement for non-Hermitian matrices of generic type (e.g. Matrix{BigFloat})"))
+    end
+    return eigen(Hermitian(A))
 end
 
 # Aux (should go somewhere else at some point)
