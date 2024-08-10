@@ -29,6 +29,14 @@ function LinearAlgebra.ldiv!(H::HessenbergMatrix, B::AbstractVecOrMat)
 end
 (\)(H::HessenbergMatrix, B::AbstractVecOrMat) = ldiv!(copy(H), copy(B))
 
+if VERSION < v"1.10"
+    # ensure tests pass on Julia v1.6
+    copy_similar(A::AbstractArray, ::Type{T}) where {T} = copyto!(similar(A, T, size(A)), A)
+    eigtype(T) = promote_type(Float32, typeof(zero(T)/sqrt(abs2(one(T)))))
+    eigencopy_oftype(A, S) = copy_similar(A, S)
+    LinearAlgebra.eigvals(A::HessenbergMatrix{T}; kws...) where T = LinearAlgebra.eigvals!(eigencopy_oftype(A, eigtype(T)); kws...)
+end
+
 # Hessenberg factorization
 struct HessenbergFactorization{T,S<:StridedMatrix,U} <: Factorization{T}
     data::S
