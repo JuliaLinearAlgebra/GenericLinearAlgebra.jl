@@ -162,7 +162,7 @@ function eig2x2!(d::StridedVector, e::StridedVector, j::Integer, vectors::Matrix
     return c, s
 end
 
-function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T)) where {T<:Real}
+function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) where {T<:Real}
     d = S.dv
     e = S.ev
     n = length(d)
@@ -216,7 +216,7 @@ function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T)) where {T<:Real}
             end
         end
     end
-    sort!(d)
+    LinearAlgebra.sorteig!(d, sortby)
 end
 
 function eigQL!(
@@ -570,39 +570,39 @@ function symtriUpper!(
 end
 
 
-_eigvals!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A)))) =
-    eigvalsPWK!(A.diagonals, tol = tol)
+_eigvals!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
+    eigvalsPWK!(A.diagonals; tol, sortby)
 
-_eigvals!(A::SymTridiagonal; tol = eps(real(eltype(A)))) = eigvalsPWK!(A, tol = tol)
+_eigvals!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = eigvalsPWK!(A; tol, sortby)
 
-_eigvals!(A::Hermitian; tol = eps(real(eltype(A)))) = eigvals!(symtri!(A), tol = tol)
-
-
-LinearAlgebra.eigvals!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A)))) =
-    _eigvals!(A, tol = tol)
-
-LinearAlgebra.eigvals!(A::SymTridiagonal; tol = eps(real(eltype(A)))) =
-    _eigvals!(A, tol = tol)
-
-LinearAlgebra.eigvals!(A::Hermitian; tol = eps(real(eltype(A)))) = _eigvals!(A, tol = tol)
+_eigvals!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = eigvals!(symtri!(A); tol, sortby)
 
 
-_eigen!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A)))) =
-    LinearAlgebra.Eigen(eigQL!(A.diagonals, vectors = Array(A.Q), tol = tol)...)
+LinearAlgebra.eigvals!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
+    _eigvals!(A; tol, sortby)
 
-_eigen!(A::SymTridiagonal; tol = eps(real(eltype(A)))) = LinearAlgebra.Eigen(
+LinearAlgebra.eigvals!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
+    _eigvals!(A; tol, sortby)
+
+LinearAlgebra.eigvals!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigvals!(A; tol, sortby)
+
+
+_eigen!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
+    LinearAlgebra.Eigen(LinearAlgebra.sorteig!(eigQL!(A.diagonals, vectors = Array(A.Q), tol = tol)..., sortby)...)
+
+_eigen!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = LinearAlgebra.Eigen(
     eigQL!(A, vectors = Matrix{eltype(A)}(I, size(A, 1), size(A, 1)), tol = tol)...,
 )
 
-_eigen!(A::Hermitian; tol = eps(real(eltype(A)))) = _eigen!(symtri!(A), tol = tol)
+_eigen!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(symtri!(A), tol = tol)
 
 
-LinearAlgebra.eigen!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A)))) =
-    _eigen!(A, tol = tol)
+LinearAlgebra.eigen!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
+    _eigen!(A; tol, sortby)
 
-LinearAlgebra.eigen!(A::SymTridiagonal; tol = eps(real(eltype(A)))) = _eigen!(A, tol = tol)
+LinearAlgebra.eigen!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(A; tol, sortby)
 
-LinearAlgebra.eigen!(A::Hermitian; tol = eps(real(eltype(A)))) = _eigen!(A, tol = tol)
+LinearAlgebra.eigen!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(A; tol, sortby)
 
 
 function eigen2!(

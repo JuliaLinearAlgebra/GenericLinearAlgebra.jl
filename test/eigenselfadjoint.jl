@@ -1,5 +1,4 @@
 using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
-Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
 
 @testset "The selfadjoint eigen problem" begin
     n = 50
@@ -156,5 +155,14 @@ Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
             c, s = GenericLinearAlgebra.eig2x2!(d, e, 1, V)
             @test hypot(c, s) ≈ 1
         end
+    end
+
+    @testset "#133" begin
+        A = SymTridiagonal{BigFloat}(randn(5), randn(4))
+        T = Tridiagonal(A)
+        @test eigvals(A) == eigvals(T) == eigvals(A; sortby=LinearAlgebra.eigsortby) == eigvals(T; sortby=LinearAlgebra.eigsortby) ==  eigvals!(deepcopy(A); sortby=LinearAlgebra.eigsortby)
+        @test eigen(A).values == eigen(T).values == eigen(A; sortby=LinearAlgebra.eigsortby).values == eigen(T; sortby=LinearAlgebra.eigsortby).values
+        # compare abs to avoid sign issues
+        @test abs.(eigen(A).vectors) == abs.(eigen(T).vectors) == abs.(eigen(A; sortby=LinearAlgebra.eigsortby).vectors) == abs.(eigen(T; sortby=LinearAlgebra.eigsortby).vectors)
     end
 end
