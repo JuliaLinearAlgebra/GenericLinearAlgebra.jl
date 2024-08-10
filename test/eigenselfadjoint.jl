@@ -148,9 +148,12 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
     @testset "#133" begin
         A = SymTridiagonal{BigFloat}(randn(5), randn(4))
         T = Tridiagonal(A)
-        @test eigvals(A) == eigvals(T) == eigvals(A; sortby=LinearAlgebra.eigsortby) == eigvals(T; sortby=LinearAlgebra.eigsortby) ==  eigvals!(deepcopy(A); sortby=LinearAlgebra.eigsortby)
-        @test eigen(A).values == eigen(T).values == eigen(A; sortby=LinearAlgebra.eigsortby).values == eigen(T; sortby=LinearAlgebra.eigsortby).values
-        # compare abs to avoid sign issues
-        @test abs.(eigen(A).vectors) == abs.(eigen(T).vectors) == abs.(eigen(A; sortby=LinearAlgebra.eigsortby).vectors) == abs.(eigen(T; sortby=LinearAlgebra.eigsortby).vectors)
+        if VERSION ≥ v"1.10"
+            # The following depends on more recent behaviour of eigvals/eigen in stdlib
+            @test eigvals(A) == eigvals(T) == eigvals(A; sortby=LinearAlgebra.eigsortby) == eigvals(T; sortby=LinearAlgebra.eigsortby) ==  eigvals!(deepcopy(A); sortby=LinearAlgebra.eigsortby)
+            @test eigen(A).values == eigen(T).values == eigen(A; sortby=LinearAlgebra.eigsortby).values == eigen(T; sortby=LinearAlgebra.eigsortby).values
+            # compare abs to avoid sign issues
+            @test abs.(eigen(A).vectors) == abs.(eigen(T).vectors) == abs.(eigen(A; sortby=LinearAlgebra.eigsortby).vectors) == abs.(eigen(T; sortby=LinearAlgebra.eigsortby).vectors)
+        end
     end
 end
