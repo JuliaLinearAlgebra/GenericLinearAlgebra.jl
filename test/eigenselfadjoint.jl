@@ -1,5 +1,4 @@
 using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
-Base.isreal(q::Quaternion) = q.v1 == q.v2 == q.v3 == 0
 
 @testset "The selfadjoint eigen problem" begin
     n = 50
