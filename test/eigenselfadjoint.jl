@@ -156,4 +156,12 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
             @test abs.(eigen(A).vectors) == abs.(eigen(T).vectors) == abs.(eigen(A; sortby=LinearAlgebra.eigsortby).vectors) == abs.(eigen(T; sortby=LinearAlgebra.eigsortby).vectors)
         end
     end
+
+    if VERSION >= v"1.9"
+        @testset "#139" begin
+            A = Hermitian(Diagonal([1.0, 2.0]))
+            @test eigvals(A) == diag(A)
+            @test eigen(A).values == diag(A)
+        end
+    end
 end
