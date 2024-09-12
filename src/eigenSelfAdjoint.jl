@@ -633,29 +633,35 @@ eigen2(A::Hermitian, tol = eps(float(real(one(eltype(A)))))) = eigen2!(copy(A), 
 
 # First method of each type here is identical to the method defined in
 # LinearAlgebra but is needed for disambiguation
+const _eigencopy_oftype = if VERSION >= v"1.9"
+    LinearAlgebra.eigencopy_oftype
+else
+    LinearAlgebra.copy_oftype
+end
+
 function LinearAlgebra.eigvals(A::Hermitian{<:Real})
     T = typeof(sqrt(zero(eltype(A))))
-    return eigvals!(LinearAlgebra.copy_oftype(A, T))
+    return eigvals!(_eigencopy_oftype(A, T))
 end
 function LinearAlgebra.eigvals(A::Hermitian{<:Complex})
     T = typeof(sqrt(zero(eltype(A))))
-    return eigvals!(LinearAlgebra.copy_oftype(A, T))
+    return eigvals!(_eigencopy_oftype(A, T))
 end
 function LinearAlgebra.eigvals(A::Hermitian)
     T = typeof(sqrt(zero(eltype(A))))
-    return eigvals!(LinearAlgebra.copy_oftype(A, T))
+    return eigvals!(_eigencopy_oftype(A, T))
 end
 function LinearAlgebra.eigen(A::Hermitian{<:Real})
     T = typeof(sqrt(zero(eltype(A))))
-    return eigen!(LinearAlgebra.copy_oftype(A, T))
+    return eigen!(_eigencopy_oftype(A, T))
 end
 function LinearAlgebra.eigen(A::Hermitian{<:Complex})
     T = typeof(sqrt(zero(eltype(A))))
-    return eigen!(LinearAlgebra.copy_oftype(A, T))
+    return eigen!(_eigencopy_oftype(A, T))
 end
 function LinearAlgebra.eigen(A::Hermitian)
     T = typeof(sqrt(zero(eltype(A))))
-    return eigen!(LinearAlgebra.copy_oftype(A, T))
+    return eigen!(_eigencopy_oftype(A, T))
 end
 
 # Aux (should go somewhere else at some point)
