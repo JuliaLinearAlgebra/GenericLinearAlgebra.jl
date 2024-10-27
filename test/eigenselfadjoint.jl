@@ -164,4 +164,11 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
             @test eigen(A).values == diag(A)
         end
     end
+
+    if VERSION >= v"1.11"
+        @testset "Method ambiguity in eigen with Julia 1.11 #141" begin
+            M = Hermitian(Tridiagonal(ones(ComplexF64, 2), ones(ComplexF64, 3), ones(ComplexF64, 2)))
+            @test eigen(M).values ≈ Float64.(eigen(big.(M)).values)
+        end
+    end
 end

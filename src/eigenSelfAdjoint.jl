@@ -216,7 +216,10 @@ function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T), sortby::Union{Function,
             end
         end
     end
-    LinearAlgebra.sorteig!(d, sortby)
+
+    # LinearAlgebra.eigvals will pass sortby=nothing but LAPACK always sort the symmetric
+    # eigenvalue problem so we'll will do the same here
+    LinearAlgebra.sorteig!(d, sortby === nothing ? LinearAlgebra.eigsortby : sortby)
 end
 
 function eigQL!(
@@ -639,29 +642,31 @@ else
     LinearAlgebra.copy_oftype
 end
 
-function LinearAlgebra.eigvals(A::Hermitian{<:Real})
-    T = typeof(sqrt(zero(eltype(A))))
-    return eigvals!(_eigencopy_oftype(A, T))
-end
-function LinearAlgebra.eigvals(A::Hermitian{<:Complex})
-    T = typeof(sqrt(zero(eltype(A))))
-    return eigvals!(_eigencopy_oftype(A, T))
-end
-function LinearAlgebra.eigvals(A::Hermitian)
-    T = typeof(sqrt(zero(eltype(A))))
-    return eigvals!(_eigencopy_oftype(A, T))
-end
-function LinearAlgebra.eigen(A::Hermitian{<:Real})
-    T = typeof(sqrt(zero(eltype(A))))
-    return eigen!(_eigencopy_oftype(A, T))
-end
-function LinearAlgebra.eigen(A::Hermitian{<:Complex})
-    T = typeof(sqrt(zero(eltype(A))))
-    return eigen!(_eigencopy_oftype(A, T))
-end
-function LinearAlgebra.eigen(A::Hermitian)
-    T = typeof(sqrt(zero(eltype(A))))
-    return eigen!(_eigencopy_oftype(A, T))
+if VERSION < v"1.7"
+    function LinearAlgebra.eigvals(A::Hermitian{<:Real})
+        T = typeof(sqrt(zero(eltype(A))))
+        return eigvals!(_eigencopy_oftype(A, T))
+    end
+    function LinearAlgebra.eigvals(A::Hermitian{<:Complex})
+        T = typeof(sqrt(zero(eltype(A))))
+        return eigvals!(_eigencopy_oftype(A, T))
+    end
+    function LinearAlgebra.eigvals(A::Hermitian)
+        T = typeof(sqrt(zero(eltype(A))))
+        return eigvals!(_eigencopy_oftype(A, T))
+    end
+    function LinearAlgebra.eigen(A::Hermitian{<:Real})
+        T = typeof(sqrt(zero(eltype(A))))
+        return eigen!(_eigencopy_oftype(A, T))
+    end
+    function LinearAlgebra.eigen(A::Hermitian{<:Complex})
+        T = typeof(sqrt(zero(eltype(A))))
+        return eigen!(_eigencopy_oftype(A, T))
+    end
+    function LinearAlgebra.eigen(A::Hermitian)
+        T = typeof(sqrt(zero(eltype(A))))
+        return eigen!(_eigencopy_oftype(A, T))
+    end
 end
 
 # Aux (should go somewhere else at some point)
