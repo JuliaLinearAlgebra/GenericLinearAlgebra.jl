@@ -34,7 +34,7 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
     end
 
     @testset "(full) Symmetric" for uplo in (:L, :U)
-        A = Hermitian(big.(randn(n, n)), uplo)
+        A = Symmetric(big.(randn(n, n)), uplo)
         vals, vecs = eigen(A)
         @testset "default" begin
             @test vecs' * A * vecs ≈ diagm(0 => vals)
