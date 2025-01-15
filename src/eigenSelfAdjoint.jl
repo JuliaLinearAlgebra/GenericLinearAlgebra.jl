@@ -580,6 +580,7 @@ _eigvals!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,
 
 _eigvals!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = eigvals!(symtri!(A); tol, sortby)
 
+_eigvals!(A::Symmetric{<:Real}; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = eigvals!(symtri!(A); tol, sortby)
 
 LinearAlgebra.eigvals!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
     _eigvals!(A; tol, sortby)
@@ -589,6 +590,7 @@ LinearAlgebra.eigvals!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Un
 
 LinearAlgebra.eigvals!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigvals!(A; tol, sortby)
 
+LinearAlgebra.eigvals!(A::Symmetric{<:Real}; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigvals!(A; tol, sortby)
 
 _eigen!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
     LinearAlgebra.Eigen(LinearAlgebra.sorteig!(eigQL!(A.diagonals, vectors = Array(A.Q), tol = tol)..., sortby)...)
@@ -599,6 +601,7 @@ _eigen!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,No
 
 _eigen!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(symtri!(A), tol = tol)
 
+_eigen!(A::Symmetric{<:Real}; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(symtri!(A), tol = tol)
 
 LinearAlgebra.eigen!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
     _eigen!(A; tol, sortby)
@@ -606,6 +609,8 @@ LinearAlgebra.eigen!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype
 LinearAlgebra.eigen!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(A; tol, sortby)
 
 LinearAlgebra.eigen!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(A; tol, sortby)
+
+LinearAlgebra.eigen!(A::Symmetric{<:Real}; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(A; tol, sortby)
 
 
 function eigen2!(
@@ -628,11 +633,16 @@ end
 eigen2!(A::Hermitian; tol = eps(float(real(one(eltype(A)))))) =
     eigen2!(symtri!(A), tol = tol)
 
+eigen2!(A::Symmetric{<:Real}; tol = eps(float(real(one(eltype(A)))))) =
+    eigen2!(symtri!(A), tol = tol)
+
 
 eigen2(A::SymTridiagonal; tol = eps(float(real(one(eltype(A)))))) =
     eigen2!(copy(A), tol = tol)
 
 eigen2(A::Hermitian, tol = eps(float(real(one(eltype(A)))))) = eigen2!(copy(A), tol = tol)
+
+eigen2(A::Symmetric{<:Real}, tol = eps(float(real(one(eltype(A)))))) = eigen2!(copy(A), tol = tol)
 
 # First method of each type here is identical to the method defined in
 # LinearAlgebra but is needed for disambiguation
