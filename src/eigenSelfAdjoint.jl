@@ -598,9 +598,9 @@ _eigen!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,No
     eigQL!(A, vectors = Matrix{eltype(A)}(I, size(A, 1), size(A, 1)), tol = tol)...,
 )
 
-_eigen!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(symtri!(A), tol = tol)
+_eigen!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(symtri!(A), tol = tol, sortby = sortby)
 
-_eigen!(A::Symmetric{<:Real}; tol = eps(eltype(A)), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(symtri!(A), tol = tol)
+_eigen!(A::Symmetric{<:Real}; tol = eps(eltype(A)), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(symtri!(A), tol = tol, sortby = sortby)
 
 LinearAlgebra.eigen!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
     _eigen!(A; tol, sortby)
