@@ -1,6 +1,3 @@
-import Base: *, eltype, size
-import LinearAlgebra: adjoint, mul!, rmul!
-
 struct Householder{T,S<:StridedVector}
     v::S
     τ::T
@@ -10,14 +7,14 @@ struct HouseholderBlock{T,S<:StridedMatrix,U<:StridedMatrix}
     T::UpperTriangular{T,U}
 end
 
-size(H::Householder) = (length(H.v) + 1, length(H.v) + 1)
-size(H::Householder, i::Integer) = i <= 2 ? length(H.v) + 1 : 1
+Base.size(H::Householder) = (length(H.v) + 1, length(H.v) + 1)
+Base.size(H::Householder, i::Integer) = i <= 2 ? length(H.v) + 1 : 1
 
-eltype(H::Householder{T}) where {T} = T
-eltype(H::HouseholderBlock{T}) where {T} = T
+Base.eltype(H::Householder{T}) where {T} = T
+Base.eltype(H::HouseholderBlock{T}) where {T} = T
 
-adjoint(H::Householder{T}) where {T} = Adjoint{T,typeof(H)}(H)
-adjoint(H::HouseholderBlock{T}) where {T} = Adjoint{T,typeof(H)}(H)
+LinearAlgebra.adjoint(H::Householder{T}) where {T} = Adjoint{T,typeof(H)}(H)
+LinearAlgebra.adjoint(H::HouseholderBlock{T}) where {T} = Adjoint{T,typeof(H)}(H)
 
 function lmul!(H::Householder, A::StridedMatrix)
     m, n = size(A)
@@ -113,7 +110,7 @@ function lmul!(H::HouseholderBlock{T}, A::StridedMatrix{T}, M::StridedMatrix{T})
 
     return A
 end
-(*)(H::HouseholderBlock{T}, A::StridedMatrix{T}) where {T} =
+Base.:(*)(H::HouseholderBlock{T}, A::StridedMatrix{T}) where {T} =
     lmul!(H, copy(A), similar(A, (min(size(H.V)...), size(A, 2))))
 
 function lmul!(
@@ -155,7 +152,7 @@ function lmul!(
 
     return A
 end
-(*)(adjH::Adjoint{T,<:HouseholderBlock{T}}, A::StridedMatrix{T}) where {T} =
+Base.:(*)(adjH::Adjoint{T,<:HouseholderBlock{T}}, A::StridedMatrix{T}) where {T} =
     lmul!(adjH, copy(A), similar(A, (min(size(parent(adjH).V)...), size(A, 2))))
 
 Base.convert(::Type{Matrix}, H::Householder{T}) where {T} = convert(Matrix{T}, H)

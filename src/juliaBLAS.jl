@@ -1,10 +1,3 @@
-using LinearAlgebra
-using LinearAlgebra: BlasComplex, BlasFloat, BlasReal, HermOrSym
-
-import LinearAlgebra: lmul!, mul!
-
-export rankUpdate!
-
 # Rank one update
 
 ## General

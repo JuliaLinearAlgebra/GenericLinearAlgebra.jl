@@ -1,8 +1,3 @@
-using LinearAlgebra
-
-import Base: getindex, size
-import LinearAlgebra: reflectorApply!
-
 struct QR2{T,S<:AbstractMatrix{T},V<:AbstractVector{T}} <: Factorization{T}
     factors::S
     τ::V
@@ -13,7 +8,7 @@ struct QR2{T,S<:AbstractMatrix{T},V<:AbstractVector{T}} <: Factorization{T}
 end
 QR2(factors::AbstractMatrix{T}, τ::Vector{T}) where {T} = QR2{T,typeof(factors)}(factors, τ)
 
-size(F::QR2, i::Integer...) = size(F.factors, i...)
+Base.size(F::QR2, i::Integer...) = size(F.factors, i...)
 
 # Similar to the definition in base but applies the reflector from the right
 @inline function reflectorApply!(A::StridedMatrix, x::AbstractVector, τ::Number) # apply conjugate transpose reflector from right.
@@ -41,6 +36,8 @@ size(F::QR2, i::Integer...) = size(F.factors, i...)
     return A
 end
 
+reflectorApply!(x::AbstractVector, τ::Number, A::StridedVecOrMat) = LinearAlgebra.reflectorApply!(x, τ, A)
+
 # FixMe! Consider how to represent Q
 
 # immutable Q{T,S<:QR2} <: AbstractMatrix{T}
@@ -52,7 +49,7 @@ end
 
 # getindex{T}(A::QR2{T}, ::Type{Tuple{:Q}}) = Q{T,typeof(A)}(A)
 
-function getindex(A::QR2{T}, ::Type{Tuple{:R}}) where {T}
+function Base.getindex(A::QR2{T}, ::Type{Tuple{:R}}) where {T}
     m, n = size(A)
     if m >= n
         UpperTriangular(view(A.factors, 1:n, 1:n))
@@ -61,7 +58,7 @@ function getindex(A::QR2{T}, ::Type{Tuple{:R}}) where {T}
     end
 end
 
-function getindex(A::QR2{T}, ::Type{Tuple{:QBlocked}}) where {T}
+function Base.getindex(A::QR2{T}, ::Type{Tuple{:QBlocked}}) where {T}
     m, n = size(A)
     mmn = min(m, n)
     F = A.factors

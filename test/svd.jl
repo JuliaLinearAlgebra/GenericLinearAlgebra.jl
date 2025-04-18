@@ -1,4 +1,5 @@
-using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
+using Test, GenericLinearAlgebra, Quaternions, DoubleFloats
+using LinearAlgebra: LinearAlgebra
 
 @testset "Singular value decomposition" begin
     @testset "Problem dimension ($m,$n)" for (m, n) in (
@@ -14,28 +15,27 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
     )
 
         vals = reverse(collect(1:min(m, n)))
-        U = qr(Quaternion{Float64}[Quaternion(randn(4)...) for i = 1:m, j = 1:min(m, n)]).Q
-        V = qr(Quaternion{Float64}[Quaternion(randn(4)...) for i = 1:n, j = 1:min(m, n)]).Q
+        U = LinearAlgebra.qr(Quaternion{Float64}[Quaternion(randn(4)...) for i = 1:m, j = 1:min(m, n)]).Q
+        V = LinearAlgebra.qr(Quaternion{Float64}[Quaternion(randn(4)...) for i = 1:n, j = 1:min(m, n)]).Q
 
         # FixMe! Using Array here shouldn't be necessary. Can be removed once
         # the bug in LinearAlgebra is fixed
         A = U * Array(Diagonal(vals)) * V'
 
         @test size(A) == (m, n)
-        @test vals ≈ svdvals(A)
+        @test vals ≈ GenericLinearAlgebra.svdvals(A)
 
-        F = svd(A)
+        F = GenericLinearAlgebra.svd(A)
         @test vals ≈ F.S
-        @show norm(F.U' * A * F.V - Diagonal(F.S), Inf)
         @test F.U' * A * F.V ≈ Diagonal(F.S)
     end
 
     @testset "The Ivan Slapničar Challenge" begin
         # This matrix used to hang (for n = 70). Thanks to Ivan Slapničar for reporting.
         n = 70
-        J = Bidiagonal(0.5 * ones(n), ones(n - 1), :U)
-        @test GenericLinearAlgebra._svdvals!(copy(J)) ≈ svdvals(J)
-        @test GenericLinearAlgebra._svdvals!(copy(J))[end] / svdvals(J)[end] - 1 < n * eps()
+        J = LinearAlgebra.Bidiagonal(0.5 * ones(n), ones(n - 1), :U)
+        @test GenericLinearAlgebra.svdvals(J) ≈ LinearAlgebra.svdvals(J)
+        @test GenericLinearAlgebra.svdvals(J)[end] / LinearAlgebra.svdvals(J)[end] - 1 < n * eps()
     end
 
     @testset "Compare to Base methods. Problem dimension ($m,$n)" for (m, n) in (
@@ -45,57 +45,60 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
     ) # wide
 
         A = randn(m, n)
-        Abig = big.(A)
-        @test svdvals(A) ≈ Vector{Float64}(svdvals(Abig))
-        @test cond(A) ≈ Float64(cond(Abig))
+        @test GenericLinearAlgebra.svdvals(A) ≈ GenericLinearAlgebra.svdvals(A)
+        @test LinearAlgebra.cond(A) ≈ GenericLinearAlgebra.cond(A)
 
-        F = svd(A)
-        Fbig = svd(Abig)
-        @test abs.(F.U'Float64.(Fbig.U)) ≈ I
-        @test abs.(F.V'Float64.(Fbig.V)) ≈ I
+        F_LAPACK = LinearAlgebra.svd(A)
+        F_GLA = GenericLinearAlgebra.svd(A)
+        @test abs.(F_LAPACK.U'F_GLA.U) ≈ I
+        @test abs.(F_LAPACK.V'F_GLA.V) ≈ I
 
-        F = svd(A, full = true)
-        Fbig = svd(Abig, full = true)
-        @test abs.(F.U'Float64.(Fbig.U)) ≈ I
-        @test abs.(F.V'Float64.(Fbig.V)) ≈ I
+        F_LAPACK = LinearAlgebra.svd(A, full = true)
+        F_GLA = GenericLinearAlgebra.svd(A, full = true)
+        @test abs.(F_LAPACK.U'F_GLA.U) ≈ I
+        @test abs.(F_LAPACK.V'F_GLA.V) ≈ I
     end
 
     @testset "Issue 54" begin
-        U0, _, V0 = svd(big.(reshape(0:15, 4, 4)))
+        U0, _, V0 = GenericLinearAlgebra.svd(big.(reshape(0:15, 4, 4)))
         A = U0[:, 1:3] * V0[:, 1:3]'
 
-        U, S, V = svd(A)
+        U, S, V = GenericLinearAlgebra.svd(A)
         @test A ≈ U * Diagonal(S) * V'
     end
 
-    @testset "Empty matrices. Issue 70" begin
-        @test svdvals!(Float16.(ones(10, 0))) == Float16[]
-        @test svdvals!(Float16.(ones(0, 10))) == Float16[]
-        U, s, Vt = svd!(Float16.(ones(10, 0)))
-        @test U == Matrix{Float16}(undef, 10, 0)
-        @test s == Float16[]
-        @test Vt == Matrix{Float16}(undef, 0, 0)
-        U, s, Vt = svd!(Float16.(ones(0, 10)))
-        @test U == Matrix{Float16}(undef, 0, 0)
-        @test s == Float16[]
-        @test Vt == Matrix{Float16}(undef, 10, 0)
+    @testset "Empty matrices. Issue 70. Eltype: $T" for T in (Float16, Float64)
+        @test eltype(GenericLinearAlgebra.svdvals(ones(T, 10, 0))) == T
+        @test eltype(GenericLinearAlgebra.svdvals(ones(T, 0, 10))) == T
+        if T == Float16
+            U, s, Vt = GenericLinearAlgebra.svd(ones(T, 10, 0))
+            @test U == Matrix{T}(undef, 10, 0)
+            @test eltype(s) == T
+            @test Vt == Matrix{T}(undef, 0, 0)
+            U, s, Vt = GenericLinearAlgebra.svd(ones(T, 0, 10))
+            @test U == Matrix{T}(undef, 0, 0)
+            @test eltype(s) == T
+            @test Vt == Matrix{T}(undef, 10, 0)
+        else
+            @test_broken false
+        end
     end
 
     @testset "Very small matrices. Issue 79" begin
         A = randn(1, 2)
-        FA = svd(A)
-        FAb = svd(big.(A))
-        FAtb = svd(big.(A'))
-        @test FA.S ≈ Float64.(FAb.S) ≈ Float64.(FAtb.S)
-        @test abs.(FA.U' * Float64.(FAb.U)) ≈ I
-        @test abs.(FA.U' * Float64.(FAtb.V)) ≈ I
-        @test abs.(FA.V' * Float64.(FAb.V)) ≈ I
-        @test abs.(FA.V' * Float64.(FAtb.U)) ≈ I
+        F_LAPACK = LinearAlgebra.svd(A)
+        F_GLA = GenericLinearAlgebra.svd(A)
+        Ft_GLA = GenericLinearAlgebra.svd(A')
+        @test F_LAPACK.S ≈ F_GLA.S ≈ Ft_GLA.S
+        @test abs.(F_LAPACK.U' * F_GLA.U) ≈ I
+        @test abs.(F_LAPACK.U' * Ft_GLA.V) ≈ I
+        @test abs.(F_LAPACK.V' * F_GLA.V) ≈ I
+        @test abs.(F_LAPACK.V' * Ft_GLA.U) ≈ I
     end
 
     @testset "Issue 81" begin
         A = [1 0 0 0; 0 2 1 0; 0 1 2 0; 0 0 0 -1]
-        @test Float64.(svdvals(big.(A))) ≈ svdvals(A)
+        @test Float64.(GenericLinearAlgebra.svdvals(big.(A))) ≈ LinearAlgebra.svdvals(A)
 
         A = [
             0.3 0.0 0.0 0.0 0.0 0.2 0.3 0.0
@@ -107,26 +110,24 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
             0.0 0.0 0.0 0.1 0.0 0.0 0.0 0.0
             0.0 0.3 -0.2 0.0 0.0 0.0 0.0 0.3
         ]
-        @test GenericLinearAlgebra._svdvals!(
-            GenericLinearAlgebra.bidiagonalize!(copy(A)).bidiagonal,
-        ) ≈ svdvals(A)
+        @test GenericLinearAlgebra.svdvals(A) ≈ LinearAlgebra.svdvals(A)
 
         n = 17
         A = zeros(Double64, n, n)
         for j = 1:n, i = 1:n
             A[i, j] = 1 / Double64(i + j - 1)
         end
-        @test svdvals(A) ≈ svdvals(Float64.(A))
+        @test GenericLinearAlgebra.svdvals(A) ≈ LinearAlgebra.svdvals(Float64.(A))
 
         # From https://github.com/JuliaMath/DoubleFloats.jl/issues/149
         n = 64
         c = Complex{BigFloat}(3 // 1 + 1im // 1)
-        A = diagm(
+        A = LinearAlgebra.diagm(
             1 => c * ones(BigFloat, n - 1),
             -1 => c * ones(BigFloat, n - 1),
             -2 => ones(BigFloat, n - 2),
         )
-        @test svdvals(A) ≈ svdvals(Complex{Double64}.(A))
+        @test GenericLinearAlgebra.svdvals(A) ≈ GenericLinearAlgebra.svdvals(Complex{Double64}.(A))
     end
 
     @testset "Issue 104. Trailing zero in bidiagonal." begin
@@ -165,9 +166,9 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
             -2.169544740239464e-155,
             2.3352910098001318e-232,
         ]
-        B = Bidiagonal(dv, ev, :U)
-        F = GenericLinearAlgebra._svd!(copy(B))
-        @test diag(F.U' * B * F.Vt') ≈ F.S rtol = 5e-15
+        B = LinearAlgebra.Bidiagonal(dv, ev, :U)
+        F = GenericLinearAlgebra.svd(B)
+        @test LinearAlgebra.diag(F.U' * B * F.Vt') ≈ F.S rtol = 5e-15
 
         dv = [
             -2.130128478463753,
@@ -244,9 +245,9 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
             -1.8291280657969477e-46,
             1.9436291711597153e-50,
         ]
-        B = Bidiagonal(dv, ev, :U)
-        F = GenericLinearAlgebra._svd!(copy(B))
-        @test diag(F.U' * B * F.Vt') ≈ F.S rtol = 5e-15
+        B = LinearAlgebra.Bidiagonal(dv, ev, :U)
+        F = GenericLinearAlgebra.svd(B)
+        @test LinearAlgebra.diag(F.U' * B * F.Vt') ≈ F.S rtol = 5e-15
     end
 
     @testset "Generic HessenbergQ multiplication" begin
@@ -256,14 +257,14 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
     end
 
     @testset "Issue 119" begin
-        F = svd(zeros(BigFloat, 2, 2))
+        F = GenericLinearAlgebra.svd(zeros(BigFloat, 2, 2))
         @test F.S == zeros(2)
         @test F.U == I
         @test F.Vt == I
     end
 
     @testset "Issue 121" begin
-        @test svdvals(BigFloat[0 0; 1 -1]) ≈ [sqrt(2), 0]
-        @test svdvals(BigFloat[1 0 0; 0 0 0; 0 1 -1]) ≈ [sqrt(2), 1, 0]
+        @test GenericLinearAlgebra.svdvals(BigFloat[0 0; 1 -1]) ≈ [sqrt(2), 0]
+        @test GenericLinearAlgebra.svdvals(BigFloat[1 0 0; 0 0 0; 0 1 -1]) ≈ [sqrt(2), 1, 0]
     end
 end

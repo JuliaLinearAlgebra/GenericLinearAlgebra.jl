@@ -1,5 +1,3 @@
-using LinearAlgebra: rdiv!
-
 function cholUnblocked!(A::AbstractMatrix{T}, ::Type{Val{:L}}) where {T<:Number}
     n = LinearAlgebra.checksquare(A)
     A[1, 1] = sqrt(A[1, 1])

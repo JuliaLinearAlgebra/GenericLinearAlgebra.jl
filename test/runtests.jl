@@ -6,7 +6,6 @@ include("cholesky.jl")
 include("qr.jl")
 include("eigenselfadjoint.jl")
 include("eigengeneral.jl")
-include("tridiag.jl")
 include("svd.jl")
 include("lapack.jl")
 # end

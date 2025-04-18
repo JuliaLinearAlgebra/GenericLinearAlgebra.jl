@@ -1,6 +1,6 @@
 name = "GenericLinearAlgebra"
 uuid = "14197337-ba66-59df-a3e3-ca00e7dcff7a"
-version = "0.3.15"
+version = "1.0.0"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -10,7 +10,7 @@ libblastrampoline_jll = "8e850b90-86db-534c-a0d3-1478176c7d93"
 
 [compat]
 Quaternions = "0.7.0"
-julia = "1.6"
+julia = "1.10"
 
 [extras]
 DoubleFloats = "497a8b3b-efae-58df-a0af-a86822472b78"
