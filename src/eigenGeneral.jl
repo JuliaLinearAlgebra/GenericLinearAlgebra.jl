@@ -19,9 +19,10 @@ function LinearAlgebra.ldiv!(H::HessenbergMatrix, B::AbstractVecOrMat)
         lmul!(G, view(Hd, 1:n, i:n))
         lmul!(G, B)
     end
-    ldiv!(UpperTriangular(Hd), B)
+    LinearAlgebra.ldiv!(UpperTriangular(Hd), B)
 end
-(\)(H::HessenbergMatrix, B::AbstractVecOrMat) = ldiv!(copy(H), copy(B))
+LinearAlgebra.:\(H::HessenbergMatrix, B::AbstractVecOrMat) =
+    LinearAlgebra.ldiv!(copy(H), copy(B))
 
 # Hessenberg factorization
 struct HessenbergFactorization{T,S<:StridedMatrix,U} <: Factorization{T}
@@ -32,7 +33,7 @@ end
 Base.copy(HF::HessenbergFactorization{T,S,U}) where {T,S,U} =
     HessenbergFactorization{T,S,U}(copy(HF.data), copy(HF.τ))
 
-function _hessenberg!(A::StridedMatrix{T}) where {T}
+function hessenberg!(A::StridedMatrix{T}) where {T}
     n = LinearAlgebra.checksquare(A)
     τ = Vector{Householder{T}}(undef, n - 1)
     for i = 1:n-1
@@ -45,7 +46,6 @@ function _hessenberg!(A::StridedMatrix{T}) where {T}
     end
     return HessenbergFactorization{T,typeof(A),eltype(τ)}(A, τ)
 end
-hessenberg!(A::StridedMatrix) = _hessenberg!(A)
 
 Base.size(H::HessenbergFactorization, args...) = size(H.data, args...)
 
@@ -56,6 +56,8 @@ function Base.getproperty(F::HessenbergFactorization, s::Symbol)
         return getfield(F, s)
     end
 end
+
+Base.propertynames(F::HessenbergFactorization) = (fieldnames(typeof(F))..., :H)
 
 # Schur
 struct Schur{T,S<:StridedMatrix} <: Factorization{T}
@@ -165,7 +167,7 @@ function _schur!(
 
     return Schur{T,typeof(HH)}(HH, τ)
 end
-schur!(A::StridedMatrix; kwargs...) = _schur!(_hessenberg!(A); kwargs...)
+schur!(A::StridedMatrix; kwargs...) = _schur!(hessenberg!(A); kwargs...)
 
 function singleShiftQR!(
     HH::StridedMatrix,

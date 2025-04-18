@@ -237,10 +237,10 @@ using LinearAlgebra: LinearAlgebra
         @test sort(imag(vals)) ≈ sort(imag(λs)) atol = 1e-25
     end
 
-    @testset "_hessenberg! and Hessenberg" begin
+    @testset "hessenberg! and Hessenberg" begin
         n = 10
         A = randn(n, n)
-        HF = GenericLinearAlgebra._hessenberg!(copy(A))
+        HF = GenericLinearAlgebra.hessenberg!(copy(A))
         for i = 1:length(HF.τ)
             HM = convert(Matrix, HF.τ[i])
             A[(i+1):end, :] = HM * A[(i+1):end, :]
