@@ -2,27 +2,11 @@ using Printf
 using LinearAlgebra
 using LinearAlgebra: givensAlgorithm
 
-struct SymmetricTridiagonalFactorization{T} <: Factorization{T}
-    uplo::Char
-    factors::Matrix{T}
-    τ::Vector{T}
-    diagonals::SymTridiagonal
-end
-
-Base.size(S::SymmetricTridiagonalFactorization, i::Integer) = size(S.factors, i)
-
+## EigenQ
 struct EigenQ{T} <: AbstractMatrix{T}
     uplo::Char
     factors::Matrix{T}
     τ::Vector{T}
-end
-
-function Base.getproperty(S::SymmetricTridiagonalFactorization, s::Symbol)
-    if s == :Q
-        return EigenQ(S.uplo, S.factors, S.τ)
-    else
-        return getfield(S, s)
-    end
 end
 
 Base.size(Q::EigenQ) = (size(Q.factors, 1), size(Q.factors, 1))
@@ -42,9 +26,8 @@ function LinearAlgebra.lmul!(Q::EigenQ, B::StridedVecOrMat)
         throw(DimensionMismatch(""))
     end
     if Q.uplo == 'L'
-        for k = length(Q.τ):-1:1
+        @inbounds for k = length(Q.τ):-1:1
             for j = 1:size(B, 2)
-                b = view(B, :, j)
                 vb = B[k+1, j]
                 for i = (k+2):m
                     vb += Q.factors[i, k]'B[i, j]
@@ -57,9 +40,8 @@ function LinearAlgebra.lmul!(Q::EigenQ, B::StridedVecOrMat)
             end
         end
     elseif Q.uplo == 'U'
-        for k = length(Q.τ):-1:1
+        @inbounds for k = length(Q.τ):-1:1
             for j = 1:size(B, 2)
-                b = view(B, :, j)
                 vb = B[k+1, j]
                 for i = (k+2):m
                     vb += Q.factors[k, i] * B[i, j]
@@ -120,6 +102,24 @@ end
 
 Base.Array(Q::EigenQ) = lmul!(Q, Matrix{eltype(Q)}(I, size(Q, 1), size(Q, 1)))
 
+
+## SymmetricTridiagonalFactorization
+struct SymmetricTridiagonalFactorization{T,Treal,S} <: Factorization{T}
+    reflectors::EigenQ{T}
+    diagonals::SymTridiagonal{Treal,S}
+end
+
+Base.size(S::SymmetricTridiagonalFactorization, i::Integer) = size(S.reflectors.factors, i)
+
+function Base.getproperty(S::SymmetricTridiagonalFactorization, s::Symbol)
+    if s == :Q
+        return S.reflectors
+    else
+        return getfield(S, s)
+    end
+end
+
+## Eigen solvers
 function _updateVectors!(c, s, j, vectors)
     @inbounds for i = 1:size(vectors, 1)
         v1 = vectors[i, j+1]
@@ -510,9 +510,11 @@ function symtriLower!(
         end
     end
     SymmetricTridiagonalFactorization(
-        'L',
-        AS,
-        τ,
+        EigenQ(
+            'L',
+            AS,
+            τ,
+        ),
         SymTridiagonal(real(diag(AS)), real(diag(AS, -1))),
     )
 end
@@ -564,9 +566,11 @@ function symtriUpper!(
         end
     end
     SymmetricTridiagonalFactorization(
-        'U',
-        AS,
-        τ,
+        EigenQ(
+            'U',
+            AS,
+            τ,
+        ),
         SymTridiagonal(real(diag(AS)), real(diag(AS, 1))),
     )
 end
