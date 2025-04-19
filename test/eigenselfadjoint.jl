@@ -1,4 +1,6 @@
-using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
+using Test, GenericLinearAlgebra, Quaternions
+using LinearAlgebra: LinearAlgebra,
+    Diagonal, Hermitian, I, SymTridiagonal, Symmetric, Tridiagonal
 
 @testset "The selfadjoint eigen problem" begin
     n = 50
@@ -7,11 +9,11 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
         # package since a BigFloat methods isn't defined in
         # LinearAlgebra
         T = SymTridiagonal(big.(randn(n)), big.(randn(n - 1)))
-        vals, vecs = eigen(T)
+        vals, vecs = GenericLinearAlgebra.eigen(T)
         @test issorted(vals)
         @testset "default" begin
             @test (vecs' * T) * vecs ≈ Diagonal(vals)
-            @test eigvals(T) ≈ vals
+            @test GenericLinearAlgebra.eigvals(T) ≈ vals
             @test vecs'vecs ≈ Matrix(I, n, n)
         end
 
@@ -28,17 +30,17 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
                 GenericLinearAlgebra.eigQR!(copy(T), vectors = Matrix{eltype(T)}(I, n, n))
             @test issorted(vals)
             @test (vecs' * T) * vecs ≈ Diagonal(vals)
-            @test eigvals(T) ≈ vals
+            @test GenericLinearAlgebra.eigvals(T) ≈ vals
             @test vecs'vecs ≈ Matrix(I, n, n)
         end
     end
 
     @testset "(full) Symmetric" for uplo in (:L, :U)
         A = Symmetric(big.(randn(n, n)), uplo)
-        vals, vecs = @inferred(eigen(A))
+        vals, vecs = GenericLinearAlgebra.eigen(A)
         @testset "default" begin
-            @test vecs' * A * vecs ≈ diagm(0 => vals)
-            @test @inferred(eigvals(A)) ≈ vals
+            @test vecs' * A * vecs ≈ LinearAlgebra.diagm(0 => vals)
+            @test @inferred(GenericLinearAlgebra.eigvals(A)) ≈ vals
             @test vecs'vecs ≈ Matrix(I, n, n)
             @test issorted(vals)
         end
@@ -53,19 +55,19 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
     end
 
     @testset "(full) Quaternion Hermitian using :$uplo" for uplo in (:L, :U)
-        V = qr([Quaternion(randn(4)...) for i = 1:n, j = 1:n]).Q
+        V = LinearAlgebra.qr([Quaternion(randn(4)...) for i = 1:n, j = 1:n]).Q
         λ = 10 .^ range(-8, stop = 0, length = n)
         A = Hermitian(V * Diagonal(λ) * V' |> t -> (t + t') / 2, uplo)
-        vals, vecs = eigen(A)
+        vals, vecs = GenericLinearAlgebra.eigen(A)
         @test issorted(vals)
 
         @testset "default" begin
             if uplo == :L # FixMe! Probably an conjugation is off somewhere. Don't have time to check now.
-                @test_broken vecs' * A * vecs ≈ diagm(0 => vals)
+                @test_broken vecs' * A * vecs ≈ LinearAlgebra.diagm(0 => vals)
             else
-                @test vecs' * A * vecs ≈ diagm(0 => vals)
+                @test vecs' * A * vecs ≈ LinearAlgebra.diagm(0 => vals)
             end
-            @test eigvals(A) ≈ vals
+            @test GenericLinearAlgebra.eigvals(A) ≈ vals
             @test vals ≈ λ rtol = 1e-13 * n
             @test vecs'vecs ≈ Matrix(I, n, n)
         end
@@ -82,21 +84,21 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
     @testset "big Hermitian{<:Complex}" begin
         # This one used to cause an ambiguity error. See #35
         A = complex.(randn(4, 4), randn(4, 4))
-        @test Float64.(eigen(Hermitian(big.(A))).values) ≈ eigen(Hermitian(copy(A))).values
-        @test Float64.(eigvals(Hermitian(big.(A)))) ≈ eigvals(Hermitian(copy(A)))
+        @test Float64.(GenericLinearAlgebra.eigen(Hermitian(big.(A))).values) ≈ LinearAlgebra.eigen(Hermitian(copy(A))).values
+        @test Float64.(GenericLinearAlgebra.eigvals(Hermitian(big.(A)))) ≈ LinearAlgebra.eigvals(Hermitian(copy(A)))
     end
 
     @testset "generic Givens" begin
         x, y = randn(2)
-        c, s, r = invoke(LinearAlgebra.givensAlgorithm, Tuple{Real,Real}, x, y)
+        c, s, r = GenericLinearAlgebra.givensAlgorithm(x, y)
         @test c * x + s * y ≈ r
         @test c * y ≈ s * x
     end
 
     @testset "out-of-bounds issue in 1x1 case" begin
-        @test GenericLinearAlgebra._eigvals!(SymTridiagonal([1.0], Float64[])) == [1.0]
-        @test GenericLinearAlgebra._eigen!(SymTridiagonal([1.0], Float64[])).values == [1.0]
-        @test GenericLinearAlgebra._eigen!(SymTridiagonal([1.0], Float64[])).vectors ==
+        @test GenericLinearAlgebra.eigvals!(SymTridiagonal([1.0], Float64[])) == [1.0]
+        @test GenericLinearAlgebra.eigen!(SymTridiagonal([1.0], Float64[])).values == [1.0]
+        @test GenericLinearAlgebra.eigen!(SymTridiagonal([1.0], Float64[])).vectors ==
               fill(1.0, 1, 1)
     end
 
@@ -106,16 +108,16 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
         M1[1, 1] = 0.01
         M2 = Hermitian(zeros(3, 3))
         M2[3, 3] = 0.01
-        @test eigvals(M1) == GenericLinearAlgebra._eigvals!(copy(M1))
-        @test eigvals(M2) == GenericLinearAlgebra._eigvals!(copy(M2))
-        @test eigen(M1).values == GenericLinearAlgebra._eigen!(copy(M1)).values
-        @test eigen(M2).values == GenericLinearAlgebra._eigen!(copy(M2)).values
+        @test LinearAlgebra.eigvals(M1) == GenericLinearAlgebra.eigvals!(copy(M1))
+        @test LinearAlgebra.eigvals(M2) == GenericLinearAlgebra.eigvals!(copy(M2))
+        @test LinearAlgebra.eigen(M1).values == GenericLinearAlgebra.eigen!(copy(M1)).values
+        @test LinearAlgebra.eigen(M2).values == GenericLinearAlgebra.eigen!(copy(M2)).values
     end
 
     @testset "Sorting of `ishermitian(T)==true` matrices on pre-1.2" begin
         T = big.(randn(5, 5))
         T = T + T'
-        @test issorted(eigvals(T))
+        @test issorted(GenericLinearAlgebra.eigvals(T))
     end
 
     @testset "issue 123" begin
@@ -125,7 +127,7 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
             big"-1.0795157507124452910839896877334667387210301781514938067860918240771876343947" big"0.1882735697944729855991976669864503854920622386133987141371224931350749728226066" big"0.9688026817149176598146701814747478080649943014810992426739997593840858865727305" big"-1.672789745967021000172452940954243617442140494364475046869527486458478435262502";
             big"0.9172086645212876240254394768180975107502376572771647296150618931226550446699544" big"-0.1599663084136352437739757607131301560774255778371317602542426234968564801904052" big"-1.672789745967021000172452940954243617442140494364475046869527486458478435262502" big"0.4212828742060771422472975116067336073573584644697624467523583310058490760719874"
         ])
-        F = eigen(M)
+        F = GenericLinearAlgebra.eigen(M)
         @test M * F.vectors ≈ F.vectors * Diagonal(F.values)
 
         @testset "2x2 cases, d: $d, e: $e" for (d, e) in (
@@ -147,28 +149,27 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
 
     @testset "#133" begin
         A = SymTridiagonal{BigFloat}(randn(5), randn(4))
-        T = Tridiagonal(A)
-        if VERSION ≥ v"1.10"
-            # The following depends on more recent behaviour of eigvals/eigen in stdlib
-            @test eigvals(A) == eigvals(T) == eigvals(A; sortby=LinearAlgebra.eigsortby) == eigvals(T; sortby=LinearAlgebra.eigsortby) ==  eigvals!(deepcopy(A); sortby=LinearAlgebra.eigsortby)
-            @test eigen(A).values == eigen(T).values == eigen(A; sortby=LinearAlgebra.eigsortby).values == eigen(T; sortby=LinearAlgebra.eigsortby).values
-            # compare abs to avoid sign issues
-            @test abs.(eigen(A).vectors) == abs.(eigen(T).vectors) == abs.(eigen(A; sortby=LinearAlgebra.eigsortby).vectors) == abs.(eigen(T; sortby=LinearAlgebra.eigsortby).vectors)
-        end
+        T = Matrix(Tridiagonal(A))
+        # The following depends on more recent behaviour of eigvals/eigen in stdlib
+        @test GenericLinearAlgebra.eigvals(A) ==
+            GenericLinearAlgebra.eigvals(T) ==
+            GenericLinearAlgebra.eigvals(A; sortby=LinearAlgebra.eigsortby) ==
+            GenericLinearAlgebra.eigvals(T; sortby=LinearAlgebra.eigsortby) ==
+            GenericLinearAlgebra.eigvals!(deepcopy(A); sortby=LinearAlgebra.eigsortby)
+        @test GenericLinearAlgebra.eigen(A).values ==
+            GenericLinearAlgebra.eigen(T).values ==
+            GenericLinearAlgebra.eigen(A; sortby=LinearAlgebra.eigsortby).values ==
+            GenericLinearAlgebra.eigen(T; sortby=LinearAlgebra.eigsortby).values
+        # compare abs to avoid sign issues
+        @test abs.(GenericLinearAlgebra.eigen(A).vectors) ==
+            abs.(GenericLinearAlgebra.eigen(T).vectors) ==
+            abs.(GenericLinearAlgebra.eigen(A; sortby=LinearAlgebra.eigsortby).vectors) ==
+            abs.(GenericLinearAlgebra.eigen(T; sortby=LinearAlgebra.eigsortby).vectors)
     end
 
-    if VERSION >= v"1.9"
-        @testset "#139" begin
-            A = Hermitian(Diagonal([1.0, 2.0]))
-            @test eigvals(A) == diag(A)
-            @test eigen(A).values == diag(A)
-        end
-    end
-
-    if VERSION >= v"1.11"
-        @testset "Method ambiguity in eigen with Julia 1.11 #141" begin
-            M = Hermitian(Tridiagonal(ones(ComplexF64, 2), ones(ComplexF64, 3), ones(ComplexF64, 2)))
-            @test eigen(M).values ≈ Float64.(eigen(big.(M)).values)
-        end
+    @testset "#139" begin
+        A = Hermitian(Diagonal([1.0, 2.0]))
+        @test GenericLinearAlgebra.eigvals(A) == LinearAlgebra.diag(A)
+        @test GenericLinearAlgebra.eigen(A).values == LinearAlgebra.diag(A)
     end
 end

@@ -1,12 +1,10 @@
 module LAPACK2
 
-using libblastrampoline_jll
-using LinearAlgebra
-using LinearAlgebra: BlasInt, chkstride1, LAPACKException
-using LinearAlgebra.BLAS: @blasfunc
-using LinearAlgebra.LAPACK: chkdiag, chkside, chkuplo
-
-liblapack_name = libblastrampoline_jll.libblastrampoline
+using LinearAlgebra: LinearAlgebra
+using LinearAlgebra.BLAS: BlasInt,
+    chkstride1
+using LinearAlgebra.LAPACK: @blasfunc
+liblapack_name = LinearAlgebra.libblastrampoline_jll.libblastrampoline
 
 ## Standard QR/QL
 function steqr!(

@@ -1,9 +1,3 @@
-using Printf
-using LinearAlgebra
-using LinearAlgebra: Givens, Rotation, givens
-
-import Base: \
-
 # Hessenberg Matrix
 struct HessenbergMatrix{T,S<:StridedMatrix} <: AbstractMatrix{T}
     data::S
@@ -25,17 +19,10 @@ function LinearAlgebra.ldiv!(H::HessenbergMatrix, B::AbstractVecOrMat)
         lmul!(G, view(Hd, 1:n, i:n))
         lmul!(G, B)
     end
-    ldiv!(UpperTriangular(Hd), B)
+    LinearAlgebra.ldiv!(UpperTriangular(Hd), B)
 end
-(\)(H::HessenbergMatrix, B::AbstractVecOrMat) = ldiv!(copy(H), copy(B))
-
-if VERSION < v"1.10"
-    # ensure tests pass on Julia v1.6
-    copy_similar(A::AbstractArray, ::Type{T}) where {T} = copyto!(similar(A, T, size(A)), A)
-    eigtype(T) = promote_type(Float32, typeof(zero(T)/sqrt(abs2(one(T)))))
-    eigencopy_oftype(A, S) = copy_similar(A, S)
-    LinearAlgebra.eigvals(A::HessenbergMatrix{T}; kws...) where T = LinearAlgebra.eigvals!(eigencopy_oftype(A, eigtype(T)); kws...)
-end
+LinearAlgebra.:\(H::HessenbergMatrix, B::AbstractVecOrMat) =
+    LinearAlgebra.ldiv!(copy(H), copy(B))
 
 # Hessenberg factorization
 struct HessenbergFactorization{T,S<:StridedMatrix,U} <: Factorization{T}
@@ -46,7 +33,7 @@ end
 Base.copy(HF::HessenbergFactorization{T,S,U}) where {T,S,U} =
     HessenbergFactorization{T,S,U}(copy(HF.data), copy(HF.τ))
 
-function _hessenberg!(A::StridedMatrix{T}) where {T}
+function hessenberg!(A::StridedMatrix{T}) where {T}
     n = LinearAlgebra.checksquare(A)
     τ = Vector{Householder{T}}(undef, n - 1)
     for i = 1:n-1
@@ -59,7 +46,6 @@ function _hessenberg!(A::StridedMatrix{T}) where {T}
     end
     return HessenbergFactorization{T,typeof(A),eltype(τ)}(A, τ)
 end
-LinearAlgebra.hessenberg!(A::StridedMatrix) = _hessenberg!(A)
 
 Base.size(H::HessenbergFactorization, args...) = size(H.data, args...)
 
@@ -70,6 +56,8 @@ function Base.getproperty(F::HessenbergFactorization, s::Symbol)
         return getfield(F, s)
     end
 end
+
+Base.propertynames(F::HessenbergFactorization) = (fieldnames(typeof(F))..., :H)
 
 # Schur
 struct Schur{T,S<:StridedMatrix} <: Factorization{T}
@@ -179,10 +167,7 @@ function _schur!(
 
     return Schur{T,typeof(HH)}(HH, τ)
 end
-_schur!(A::StridedMatrix; kwargs...) = _schur!(_hessenberg!(A); kwargs...)
-
-# FIXME! Move this method to piracy extension
-LinearAlgebra.schur!(A::StridedMatrix; kwargs...) = _schur!(A; kwargs...)
+schur!(A::StridedMatrix; kwargs...) = _schur!(hessenberg!(A); kwargs...)
 
 function singleShiftQR!(
     HH::StridedMatrix,
@@ -278,11 +263,11 @@ function doubleShiftQR!(
     return HH
 end
 
-_eigvals!(A::StridedMatrix; kwargs...) = _eigvals!(_schur!(A; kwargs...))
+_eigvals!(A::StridedMatrix; kwargs...) = _eigvals!(schur!(A; kwargs...))
 _eigvals!(H::HessenbergMatrix; kwargs...) = _eigvals!(_schur!(H; kwargs...))
 _eigvals!(H::HessenbergFactorization; kwargs...) = _eigvals!(_schur!(H; kwargs...))
 
-function LinearAlgebra.eigvals!(
+function eigvals!(
     A::StridedMatrix;
     sortby::Union{Function,Nothing} = LinearAlgebra.eigsortby,
     kwargs...,
@@ -294,13 +279,13 @@ function LinearAlgebra.eigvals!(
     LinearAlgebra.sorteig!(_eigvals!(A; kwargs...), sortby)
 end
 
-LinearAlgebra.eigvals!(
+eigvals!(
     H::HessenbergMatrix;
     sortby::Union{Function,Nothing} = LinearAlgebra.eigsortby,
     kwargs...,
 ) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
 
-LinearAlgebra.eigvals!(
+eigvals!(
     H::HessenbergFactorization;
     sortby::Union{Function,Nothing} = LinearAlgebra.eigsortby,
     kwargs...,
@@ -337,4 +322,18 @@ function _eigvals!(S::Schur{T}; tol = eps(real(T))) where {T}
         vals[i] = HH[n, n]
     end
     return vals
+end
+
+## eigen!
+function eigen!(
+    A::StridedMatrix;
+    sortby::Union{Function,Nothing} = LinearAlgebra.eigsortby,
+    kwargs...,
+)
+
+    if ishermitian(A)
+        return eigen!(Hermitian(A); sortby)
+    end
+
+    throw(ArgumentError("eigen! for general matrices not yet supported. Consider using schur!"))
 end

@@ -1,4 +1,5 @@
-using Test, GenericLinearAlgebra, LinearAlgebra
+using Test, GenericLinearAlgebra
+using LinearAlgebra: LinearAlgebra
 
 @testset "The General eigenvalue problem" begin
 
@@ -9,8 +10,8 @@ using Test, GenericLinearAlgebra, LinearAlgebra
 
         A = randn(T, n, n)
         vGLA = GenericLinearAlgebra._eigvals!(copy(A))
-        vLAPACK = eigvals(A)
-        vBig = eigvals(big.(A)) # not defined in LinearAlgebra so will dispatch to the version in GenericLinearAlgebra
+        vLAPACK = LinearAlgebra.eigvals(A)
+        vBig = GenericLinearAlgebra.eigvals(big.(A))
         @test sort(vGLA, by = cplxord) ≈ sort(vLAPACK, by = cplxord)
         @test sort(vGLA, by = cplxord) ≈ sort(complex(eltype(A)).(vBig), by = cplxord)
         @test issorted(vBig, by = cplxord)
@@ -19,10 +20,10 @@ using Test, GenericLinearAlgebra, LinearAlgebra
             @testset "Rayleigh shifts" begin
                 @test sort(
                     GenericLinearAlgebra._eigvals!(
-                        GenericLinearAlgebra._schur!(copy(A), shiftmethod = :Rayleigh),
+                        GenericLinearAlgebra.schur!(copy(A), shiftmethod = :Rayleigh),
                     ),
                     by = t -> (real(t), imag(t)),
-                ) ≈ sort(eigvals(A), by = t -> (real(t), imag(t)))
+                ) ≈ sort(LinearAlgebra.eigvals(A), by = t -> (real(t), imag(t)))
             end
         end
     end
@@ -30,7 +31,7 @@ using Test, GenericLinearAlgebra, LinearAlgebra
     @testset "make sure that solver doesn't hang" begin
         for i = 1:1000
             A = randn(8, 8)
-            sort(abs.(GenericLinearAlgebra._eigvals!(copy(A)))) ≈ sort(abs.(eigvals(A)))
+            sort(abs.(GenericLinearAlgebra._eigvals!(copy(A)))) ≈ sort(abs.(LinearAlgebra.eigvals(A)))
         end
     end
 
@@ -57,28 +58,28 @@ using Test, GenericLinearAlgebra, LinearAlgebra
 
         A = my_matrix(4, 1e-3)
         @test sort(
-            GenericLinearAlgebra._eigvals!(GenericLinearAlgebra._schur!(copy(A))),
+            GenericLinearAlgebra._eigvals!(GenericLinearAlgebra.schur!(copy(A))),
             by = t -> (real(t), imag(t)),
-        ) ≈ sort(eigvals(A), by = t -> (real(t), imag(t)))
+        ) ≈ sort(LinearAlgebra.eigvals(A), by = t -> (real(t), imag(t)))
     end
 
     @testset "Convergence in with 0s Issue 58." begin
         A = [0.0 1.0 0.0; -1.0 0.0 0.0; 0.0 0.0 0.0]
         @test sort(
-            GenericLinearAlgebra._eigvals!(GenericLinearAlgebra._schur!(copy(A))),
+            GenericLinearAlgebra._eigvals!(GenericLinearAlgebra.schur!(copy(A))),
             by = t -> (real(t), imag(t)),
-        ) ≈ sort(eigvals(A), by = t -> (real(t), imag(t)))
+        ) ≈ sort(LinearAlgebra.eigvals(A), by = t -> (real(t), imag(t)))
         B = [0.0 0.0 0.0; 0.0 0.0 1.0; 0.0 -1.0 0.0]
         @test sort(
-            GenericLinearAlgebra._eigvals!(GenericLinearAlgebra._schur!(copy(B))),
+            GenericLinearAlgebra._eigvals!(GenericLinearAlgebra.schur!(copy(B))),
             by = t -> (real(t), imag(t)),
-        ) ≈ sort(eigvals(B), by = t -> (real(t), imag(t)))
+        ) ≈ sort(LinearAlgebra.eigvals(B), by = t -> (real(t), imag(t)))
     end
 
     @testset "Extract Schur factor" begin
         A = randn(5, 5)
-        @test sum(eigvals(schur(A).T)) ≈ sum(eigvals(Float64.(schur(big.(A)).T)))
-        @test sum(eigvals(schur(A).Schur)) ≈ sum(eigvals(Float64.(schur(big.(A)).Schur)))
+        @test sum(LinearAlgebra.eigvals(LinearAlgebra.schur(A).T)) ≈ sum(LinearAlgebra.eigvals(GenericLinearAlgebra.schur!(copy(A)).T))
+        @test sum(LinearAlgebra.eigvals(LinearAlgebra.schur(A).Schur)) ≈ sum(LinearAlgebra.eigvals(GenericLinearAlgebra.schur!(copy(A)).Schur))
     end
 
     @testset "Issue 63" begin
@@ -107,7 +108,7 @@ using Test, GenericLinearAlgebra, LinearAlgebra
                 (7 + [2, 2]' * z2),
             ]) / 3
 
-        @test eigvals(big.(A)) ≈ truevals
+        @test GenericLinearAlgebra.eigvals(big.(A)) ≈ truevals
     end
 
     Demmel(η) = [
@@ -120,7 +121,7 @@ using Test, GenericLinearAlgebra, LinearAlgebra
     @testset "Demmel matrix" for t in (1e-10, 1e-9, 1e-8)
         # See "Sandia technical report 96-0913J: How the QR algorithm fails to converge and how fix it"
         A = Demmel(t)
-        vals = GenericLinearAlgebra._eigvals!(GenericLinearAlgebra._schur!(A, maxiter = 35))
+        vals = GenericLinearAlgebra._eigvals!(GenericLinearAlgebra.schur!(A, maxiter = 35))
         @test abs.(vals) ≈ ones(4)
     end
 
@@ -148,7 +149,7 @@ using Test, GenericLinearAlgebra, LinearAlgebra
             -0.313987810419091240,
         )
 
-        @test Float64.(abs.(eigvals(big.(H)))) ≈ ones(4)
+        @test Float64.(abs.(GenericLinearAlgebra.eigvals(big.(H)))) ≈ ones(4)
     end
 
     @testset "Issue 67" for (A, λs) in (
@@ -224,31 +225,31 @@ using Test, GenericLinearAlgebra, LinearAlgebra
     )
 
         @testset "shouldn't need excessive iterations (30*n) in the Float64 case" begin
-            GenericLinearAlgebra._schur!(float(A))
+            GenericLinearAlgebra.schur!(float(A))
         end
 
         # For BigFloats, many iterations are required for convergence
         # Improving this is probably a hard problem
-        vals = eigvals(big.(A), maxiter = 1500)
+        vals = GenericLinearAlgebra.eigvals(big.(A), maxiter = 1500)
 
         # It's hard to compare complex conjugate pairs so we compare the real and imaginary parts separately
         @test sort(real(vals)) ≈ sort(real(λs)) atol = 1e-25
         @test sort(imag(vals)) ≈ sort(imag(λs)) atol = 1e-25
     end
 
-    @testset "_hessenberg! and Hessenberg" begin
+    @testset "hessenberg! and Hessenberg" begin
         n = 10
         A = randn(n, n)
-        HF = GenericLinearAlgebra._hessenberg!(copy(A))
+        HF = GenericLinearAlgebra.hessenberg!(copy(A))
         for i = 1:length(HF.τ)
             HM = convert(Matrix, HF.τ[i])
             A[(i+1):end, :] = HM * A[(i+1):end, :]
             A[:, (i+1):end] = A[:, (i+1):end] * HM'
         end
-        @test tril(A, -2) ≈ zeros(n, n) atol = 1e-14
+        @test LinearAlgebra.tril(A, -2) ≈ zeros(n, n) atol = 1e-14
 
-        @test eigvals(HF.H) ≈ eigvals(A)
-        @test eigvals(HF.H) ≈ eigvals!(copy(HF))
+        @test GenericLinearAlgebra.eigvals(HF.H) ≈ LinearAlgebra.eigvals(A)
+        @test GenericLinearAlgebra.eigvals(HF.H) ≈ GenericLinearAlgebra.eigvals!(copy(HF))
         @test HF.H \ ones(n) ≈ Matrix(HF.H) \ ones(n)
     end
 end

@@ -1,7 +1,6 @@
 using Test
-using LinearAlgebra
+using LinearAlgebra: LinearAlgebra
 using GenericLinearAlgebra
-using GenericLinearAlgebra: qrBlocked!
 
 @testset "The QR decomposition" begin
     @testset "Problem dimension ($m,$n) with block size $bz" for (m, n) in (
@@ -15,22 +14,22 @@ using GenericLinearAlgebra: qrBlocked!
         bz in (1, 2, 3, 4, 7, 8, 9, 15, 16, 17, 31, 32, 33)
 
         A = randn(m, n)
-        Aqr = qrBlocked!(copy(A), bz)
+        Aqr = GenericLinearAlgebra.qrBlocked!(copy(A), bz)
         AqrQ = Aqr[Tuple{:QBlocked}]
         if m >= n
             @test (AqrQ'A)[1:min(m, n), :] ≈ Aqr[Tuple{:R}]
         else # For type stability getindex(,Tuple{:R}) throw when the output is trapezoid
-            @test (AqrQ'A) ≈ triu(Aqr.factors)
+            @test (AqrQ'A) ≈ LinearAlgebra.triu(Aqr.factors)
         end
         @test AqrQ' * (AqrQ * A) ≈ A
     end
 
     @testset "Error paths" begin
-        @test_throws DimensionMismatch LinearAlgebra.reflectorApply!(
+        @test_throws DimensionMismatch GenericLinearAlgebra.reflectorApply!(
             zeros(5, 5),
             zeros(4),
             1.0,
         )
-        @test_throws ArgumentError qrBlocked!(randn(5, 10))[Tuple{:R}]
+        @test_throws ArgumentError GenericLinearAlgebra.qrBlocked!(randn(5, 10))[Tuple{:R}]
     end
 end

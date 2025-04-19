@@ -1,12 +1,13 @@
-using Test, GenericLinearAlgebra, LinearAlgebra
+using Test, GenericLinearAlgebra
 using GenericLinearAlgebra.LAPACK2
+using LinearAlgebra: LinearAlgebra
 
 @testset "LAPACK wrappers" begin
 
     n = 100
 
     T = SymTridiagonal(randn(n), randn(n - 1))
-    vals, vecs = eigen(T)
+    vals, vecs = LinearAlgebra.eigen(T)
     @testset "steqr" begin
         _vals, _vecs = LAPACK2.steqr!('N', copy(T.dv), copy(T.ev))
         @test vals ≈ _vals
@@ -66,7 +67,7 @@ using GenericLinearAlgebra.LAPACK2
         _vals = sort(LAPACK2.lahqr!(copy(T))[1])
         @test _vals ≈ sort(real.(GenericLinearAlgebra._eigvals!(copy(T))))
         # LAPACK's multishift algorithm (the default) seems to be broken
-        @test !(_vals ≈ sort(eigvals(T)))
+        @test !(_vals ≈ sort(LinearAlgebra.eigvals(T)))
     end
 
     @testset "syevd: eltype=$eltype, uplo=$uplo" for eltype in (
@@ -84,7 +85,7 @@ using GenericLinearAlgebra.LAPACK2
         else
             vals, vecs = LAPACK2.heevd!('V', uplo, copy(A))
         end
-        @test diag(vecs' * A * vecs) ≈ eigvals(A)
+        @test LinearAlgebra.diag(vecs' * A * vecs) ≈ LinearAlgebra.eigvals(A)
     end
 
     @testset "tgevc: eltype=$eltype, side=$side, howmny=$howmny" for eltype in
@@ -93,16 +94,16 @@ using GenericLinearAlgebra.LAPACK2
         howmny in ('A', 'S')
 
         select = ones(Int, n)
-        S, P = triu(randn(eltype, n, n)), triu(randn(eltype, n, n))
+        S, P = LinearAlgebra.triu(randn(eltype, n, n)), LinearAlgebra.triu(randn(eltype, n, n))
         VL, VR, m = LAPACK2.tgevc!(side, howmny, select, copy(S), copy(P))
         if side ∈ ('R', 'B')
-            w = diag(S * VR) ./ diag(P * VR)
-            @test S * VR ≈ P * VR * Diagonal(w) rtol = sqrt(eps(eltype)) atol =
+            w = LinearAlgebra.diag(S * VR) ./ LinearAlgebra.diag(P * VR)
+            @test S * VR ≈ P * VR * LinearAlgebra.Diagonal(w) rtol = sqrt(eps(eltype)) atol =
                 sqrt(eps(eltype))
         end
         if side ∈ ('L', 'B')
-            w = w = diag(VL' * S) ./ diag(VL' * P)
-            @test VL' * S ≈ Diagonal(w) * VL' * P rtol = sqrt(eps(eltype)) atol =
+            w = w = LinearAlgebra.diag(VL' * S) ./ LinearAlgebra.diag(VL' * P)
+            @test VL' * S ≈ LinearAlgebra.Diagonal(w) * VL' * P rtol = sqrt(eps(eltype)) atol =
                 sqrt(eps(eltype))
         end
     end
@@ -111,7 +112,7 @@ using GenericLinearAlgebra.LAPACK2
         d = fill(10.0, n)
         e = fill(1.0, n - 1)
         vals, vecs = LAPACK2.pteqr!('I', copy(d), copy(e))
-        @test SymTridiagonal(d, e) ≈ vecs * Diagonal(vals) * vecs'
+        @test LinearAlgebra.SymTridiagonal(d, e) ≈ vecs * LinearAlgebra.Diagonal(vals) * vecs'
 
         vals2, _ = LAPACK2.pteqr!('N', copy(d), copy(e))
         @test vals ≈ vals2

@@ -1,6 +1,4 @@
-using Printf
-using LinearAlgebra
-using LinearAlgebra: givensAlgorithm
+eigeltype(T::Type) = typeof(sqrt(zero(T)))
 
 ## EigenQ
 struct EigenQ{T} <: AbstractMatrix{T}
@@ -162,18 +160,28 @@ function eig2x2!(d::StridedVector, e::StridedVector, j::Integer, vectors::Matrix
     return c, s
 end
 
-function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) where {T<:Real}
+function eigvalsPWK!(
+    S::SymTridiagonal{T};
+    tol = eps(T),
+    sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+    maxiter::Int = 30 * size(S, 1)
+) where {T<:Real}
     d = S.dv
     e = S.ev
     n = length(d)
     blockstart = 1
     blockend = n
     iter = 0
+    i = 0
     @inbounds begin
         for i = 1:n-1
             e[i] = abs2(e[i])
         end
         while true
+            i += 1
+            if i > maxiter
+                throw(ArgumentError("iteration limit $maxiter reached"))
+            end
             # Check for zero off diagonal elements
             for be = (blockstart + 1):n
                 if abs(e[be - 1]) <= tol * sqrt(abs(d[be - 1])) * sqrt(abs(d[be]))
@@ -225,7 +233,8 @@ end
 function eigQL!(
     S::SymTridiagonal{T};
     vectors::Matrix = zeros(T, 0, size(S, 1)),
-    tol = eps(T),
+    tol::AbstractFloat = eps(T),
+    maxiter::Int = 30 * size(S, 1)
 ) where {T<:Real}
     d = S.dv
     e = S.ev
@@ -248,43 +257,46 @@ function eigQL!(
 
     blockstart = 1
     blockend = n
-    @inbounds begin
-        while true
-            # Check for zero off diagonal elements
-            for be = (blockstart + 1):n
-                if abs(e[be - 1]) <= tol * sqrt(abs(d[be - 1])) * sqrt(abs(d[be]))
-                    blockend = be - 1
-                    break
-                end
-                blockend = n
-            end
-
-            @debug "submatrix" blockstart blockend
-
-            # Deflate?
-            if blockstart == blockend
-                @debug "Deflate? Yes!"
-                blockstart += 1
-            elseif blockstart + 1 == blockend
-                @debug "Deflate? Yes, but after solving 2x2 block"
-                eig2x2!(d, e, blockstart, vectors)
-                blockstart += 2
-            else
-                @debug "Deflate? No!"
-                # Calculate shift
-                μ = (d[blockstart + 1] - d[blockstart]) / (2 * e[blockstart])
-                r = hypot(μ, one(T))
-                μ = d[blockstart] - (e[blockstart] / (μ + copysign(r, μ)))
-
-                # QL bulk chase
-                @debug "Values before bulge chase" e[blockstart] e[blockend - 1] d[blockstart] μ
-                singleShiftQL!(S, μ, blockstart, blockend, vectors)
-                @debug "Values after bulge chase" e[blockstart] e[blockend - 1] d[blockstart]
-            end
-
-            if blockstart >= n
+    i = 0
+    @inbounds while true
+        i += 1
+        if i > maxiter
+            throw(ArgumentError("iteration limit $maxiter reached"))
+        end
+        # Check for zero off diagonal elements
+        for be = (blockstart + 1):n
+            if abs(e[be - 1]) <= tol * sqrt(abs(d[be - 1])) * sqrt(abs(d[be]))
+                blockend = be - 1
                 break
             end
+            blockend = n
+        end
+
+        @debug "submatrix" blockstart blockend
+
+        # Deflate?
+        if blockstart == blockend
+            @debug "Deflate? Yes!"
+            blockstart += 1
+        elseif blockstart + 1 == blockend
+            @debug "Deflate? Yes, but after solving 2x2 block"
+            eig2x2!(d, e, blockstart, vectors)
+            blockstart += 2
+        else
+            @debug "Deflate? No!"
+            # Calculate shift
+            μ = (d[blockstart + 1] - d[blockstart]) / (2 * e[blockstart])
+            r = hypot(μ, one(T))
+            μ = d[blockstart] - (e[blockstart] / (μ + copysign(r, μ)))
+
+            # QL bulk chase
+            @debug "Values before bulge chase" e[blockstart] e[blockend - 1] d[blockstart] μ
+            singleShiftQL!(S, μ, blockstart, blockend, vectors)
+            @debug "Values after bulge chase" e[blockstart] e[blockend - 1] d[blockstart]
+        end
+
+        if blockstart >= n
+            break
         end
     end
     p = sortperm(d)
@@ -294,49 +306,53 @@ end
 function eigQR!(
     S::SymTridiagonal{T};
     vectors::Matrix = zeros(T, 0, size(S, 1)),
-    tol = eps(T),
+    tol::AbstractFloat = eps(T),
+    maxiter::Int = 30 * size(S, 1)
 ) where {T<:Real}
     d = S.dv
     e = S.ev
     n = length(d)
     blockstart = 1
     blockend = n
-    @inbounds begin
-        while true
-            # Check for zero off diagonal elements
-            for be = (blockstart + 1):n
-                if abs(e[be - 1]) <= tol * sqrt(abs(d[be - 1])) * sqrt(abs(d[be]))
-                    blockend = be - 1
-                    break
-                end
-                blockend = n
-            end
-
-            @debug "submatrix" blockstart blockend
-
-            # Deflate?
-            if blockstart == blockend
-                @debug "Deflate? Yes!"
-                blockstart += 1
-            elseif blockstart + 1 == blockend
-                @debug "Deflate? Yes, but after solving 2x2 block!"
-                eig2x2!(d, e, blockstart, vectors)
-                blockstart += 2
-            else
-                @debug "Deflate? No!"
-                # Calculate shift
-                μ = (d[blockend - 1] - d[blockend]) / (2 * e[blockend - 1])
-                r = hypot(μ, one(T))
-                μ = d[blockend] - (e[blockend - 1] / (μ + copysign(r, μ)))
-
-                # QR bulk chase
-                @debug "Values before QR bulge chase" e[blockstart] e[blockend - 1] d[blockend] μ
-                singleShiftQR!(S, μ, blockstart, blockend, vectors)
-                @debug "Values after QR bulge chase" e[blockstart] e[blockend - 1] d[blockend]
-            end
-            if blockstart >= n
+    i = 0
+    @inbounds while true
+        i += 1
+        if i > maxiter
+            throw(ArgumentError("iteration limit $maxiter reached"))
+        end
+        # Check for zero off diagonal elements
+        for be = (blockstart + 1):n
+            if abs(e[be - 1]) <= tol * sqrt(abs(d[be - 1])) * sqrt(abs(d[be]))
+                blockend = be - 1
                 break
             end
+            blockend = n
+        end
+
+        @debug "submatrix" blockstart blockend
+
+        # Deflate?
+        if blockstart == blockend
+            @debug "Deflate? Yes!"
+            blockstart += 1
+        elseif blockstart + 1 == blockend
+            @debug "Deflate? Yes, but after solving 2x2 block!"
+            eig2x2!(d, e, blockstart, vectors)
+            blockstart += 2
+        else
+            @debug "Deflate? No!"
+            # Calculate shift
+            μ = (d[blockend - 1] - d[blockend]) / (2 * e[blockend - 1])
+            r = hypot(μ, one(T))
+            μ = d[blockend] - (e[blockend - 1] / (μ + copysign(r, μ)))
+
+            # QR bulk chase
+            @debug "Values before QR bulge chase" e[blockstart] e[blockend - 1] d[blockend] μ
+            singleShiftQR!(S, μ, blockstart, blockend, vectors)
+            @debug "Values after QR bulge chase" e[blockstart] e[blockend - 1] d[blockend]
+        end
+        if blockstart >= n
+            break
         end
     end
     p = sortperm(d)
@@ -576,114 +592,188 @@ function symtriUpper!(
 end
 
 
-_eigvals!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
-    eigvalsPWK!(A.diagonals; tol, sortby)
-
-_eigvals!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = eigvalsPWK!(A; tol, sortby)
-
-_eigvals!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = eigvals!(symtri!(A); tol, sortby)
-
-_eigvals!(A::Symmetric{<:Real}; tol = eps(eltype(A)), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = eigvals!(symtri!(A); tol, sortby)
-
-LinearAlgebra.eigvals!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
-    _eigvals!(A; tol, sortby)
-
-LinearAlgebra.eigvals!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
-    _eigvals!(A; tol, sortby)
-
-LinearAlgebra.eigvals!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigvals!(A; tol, sortby)
-
-LinearAlgebra.eigvals!(A::Symmetric{<:Real}; tol = eps(eltype(A)), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigvals!(A; tol, sortby)
-
-_eigen!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
-    LinearAlgebra.Eigen(LinearAlgebra.sorteig!(eigQL!(A.diagonals, vectors = Array(A.Q), tol = tol)..., sortby)...)
-
-_eigen!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = LinearAlgebra.Eigen(
-    eigQL!(A, vectors = Matrix{eltype(A)}(I, size(A, 1), size(A, 1)), tol = tol)...,
+eigvals!(
+    A::SymmetricTridiagonalFactorization;
+    tol = eps(real(eltype(A))),
+    sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+    maxiter::Int = 30 * size(A, 1)
+) = eigvalsPWK!(
+    A.diagonals;
+    tol,
+    sortby,
+    maxiter
 )
 
-_eigen!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(symtri!(A), tol = tol)
+eigvals!(
+    A::SymTridiagonal;
+    tol::AbstractFloat = eps(real(eltype(A))),
+    sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+    maxiter::Int = 30 * size(A, 1)
+) = eigvalsPWK!(A; tol, sortby, maxiter)
 
-_eigen!(A::Symmetric{<:Real}; tol = eps(eltype(A)), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(symtri!(A), tol = tol)
+eigvals!(
+    A::Hermitian;
+    tol::AbstractFloat = eps(real(eltype(A))),
+    sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+    maxiter::Int = 30 * size(A, 1)
+) = eigvals!(symtri!(A); tol, sortby, maxiter)
 
-LinearAlgebra.eigen!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
-    _eigen!(A; tol, sortby)
+eigvals!(
+    A::Symmetric{<:Real};
+    tol::AbstractFloat = eps(eltype(A)),
+    sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+    maxiter::Int = 30 * size(A, 1)
+) = eigvals!(
+    symtri!(A);
+    tol,
+    sortby,
+    maxiter
+)
 
-LinearAlgebra.eigen!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(A; tol, sortby)
+eigvals(
+    A::AbstractMatrix;
+    tol::AbstractFloat = eps(real(eigeltype(eltype(A)))),
+    sortby::Union{Function,Nothing} = sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+    maxiter::Int = 30 * size(A, 1)
+) = eigvals!(
+    _eigencopy_oftype(
+        A,
+        eigeltype(eltype(A)),
+    );
+    tol,
+    sortby,
+    maxiter
+)
 
-LinearAlgebra.eigen!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(A; tol, sortby)
+eigen!(
+    A::SymmetricTridiagonalFactorization;
+    tol::AbstractFloat = eps(real(eltype(A))),
+    sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+    maxiter::Int = 30 * size(A, 1)
+) = LinearAlgebra.Eigen(
+    LinearAlgebra.sorteig!(
+        eigQL!(
+            A.diagonals;
+            vectors = Array(A.Q),
+            tol,
+            maxiter
+        )...,
+        sortby
+    )...
+)
 
-LinearAlgebra.eigen!(A::Symmetric{<:Real}; tol = eps(eltype(A)), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(A; tol, sortby)
+function eigen!(
+    A::SymTridiagonal;
+    tol = eps(real(eltype(A))),
+    sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+    maxiter::Int = 30 * size(A, 1)
+)
+    return LinearAlgebra.Eigen(
+        LinearAlgebra.sorteig!(
+            eigQL!(
+                A;
+                vectors = Matrix{eltype(A)}(I, size(A, 1), size(A, 1)),
+                tol,
+                maxiter
+            )...,
+            sortby
+        )...,
+    )
+end
 
+eigen!(
+    A::Hermitian;
+    tol = eps(real(eltype(A))),
+    sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+    maxiter::Int = 30 * size(A, 1)
+) = eigen!(symtri!(A); tol, sortby, maxiter)
+
+eigen!(
+    A::Symmetric{<:Real};
+    tol = eps(eltype(A)),
+    sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+    maxiter::Int = 30 * size(A, 1)
+) = eigen!(symtri!(A); tol, sortby, maxiter)
+
+eigen(
+    A::AbstractMatrix;
+    tol::AbstractFloat = eps(real(eigeltype(eltype(A)))),
+    sortby::Union{Function,Nothing} = sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby,
+    maxiter::Int = 30 * size(A, 1)
+) = eigen!(
+    _eigencopy_oftype(
+        A,
+        eigeltype(eltype(A)),
+    );
+    tol,
+    sortby,
+    maxiter
+)
+
+# We need this method because eigencopy_oftype converts SymTridiagonal to Matrix.
+# That is probably a bad idea so maybe this should be filed upstream
+eigen(
+    A::SymTridiagonal;
+    tol::AbstractFloat = eps(real(eigeltype(eltype(A)))),
+    sortby::Union{Function,Nothing} = sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby
+) = eigen!(
+    LinearAlgebra.copy_oftype(
+        A,
+        eigeltype(eltype(A)),
+    );
+    tol,
+    sortby
+)
 
 function eigen2!(
     A::SymmetricTridiagonalFactorization;
-    tol = eps(real(float(one(eltype(A))))),
+    tol::AbstractFloat = eps(real(float(one(eltype(A))))),
+    sortby::Union{Function,Nothing} = sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby
 )
     V = zeros(eltype(A), 2, size(A, 1))
     V[1] = 1
     V[end] = 1
-    eigQL!(A.diagonals, vectors = rmul!(V, A.Q), tol = tol)
+    return LinearAlgebra.sorteig!(
+        eigQL!(A.diagonals; vectors = rmul!(V, A.Q), tol)...,
+        sortby
+    )
 end
 
-function eigen2!(A::SymTridiagonal; tol = eps(real(float(one(eltype(A))))))
+function eigen2!(
+    A::SymTridiagonal;
+    tol = eps(real(float(one(eltype(A))))),
+    sortby::Union{Function,Nothing} = sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby
+)
     V = zeros(eltype(A), 2, size(A, 1))
     V[1] = 1
     V[end] = 1
-    eigQL!(A, vectors = V, tol = tol)
+    return LinearAlgebra.sorteig!(
+        eigQL!(A; vectors = V, tol)...,
+        sortby
+    )
 end
 
-eigen2!(A::Hermitian; tol = eps(float(real(one(eltype(A)))))) =
-    eigen2!(symtri!(A), tol = tol)
+eigen2!(A::Hermitian; tol = eps(float(real(one(eltype(A))))), sortby::Union{Function,Nothing} = sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
+    eigen2!(symtri!(A); tol, sortby)
 
-eigen2!(A::Symmetric{<:Real}; tol = eps(float(one(eltype(A))))) =
-    eigen2!(symtri!(A), tol = tol)
+eigen2!(A::Symmetric{<:Real}; tol = eps(float(one(eltype(A)))), sortby::Union{Function,Nothing} = sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
+    eigen2!(symtri!(A); tol, sortby)
 
 
-eigen2(A::SymTridiagonal; tol = eps(float(real(one(eltype(A)))))) =
-    eigen2!(copy(A), tol = tol)
+eigen2(A::SymTridiagonal; tol = eps(float(real(one(eltype(A))))), sortby::Union{Function,Nothing} = sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
+    eigen2!(copy(A); tol, sortby)
 
-eigen2(A::Hermitian, tol = eps(float(real(one(eltype(A)))))) = eigen2!(copy(A), tol = tol)
+eigen2(A::Hermitian, tol = eps(float(real(one(eltype(A))))), sortby::Union{Function,Nothing} = sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
+    eigen2!(copy(A); tol, sortby)
 
-eigen2(A::Symmetric{<:Real}, tol = eps(float(one(eltype(A))))) = eigen2!(copy(A), tol = tol)
-
-# First method of each type here is identical to the method defined in
-# LinearAlgebra but is needed for disambiguation
-const _eigencopy_oftype = if VERSION >= v"1.9"
-    LinearAlgebra.eigencopy_oftype
-else
-    LinearAlgebra.copy_oftype
-end
-
-if VERSION < v"1.7"
-    function LinearAlgebra.eigvals(A::Hermitian{<:Real})
-        T = typeof(sqrt(zero(eltype(A))))
-        return eigvals!(_eigencopy_oftype(A, T))
-    end
-    function LinearAlgebra.eigvals(A::Hermitian{<:Complex})
-        T = typeof(sqrt(zero(eltype(A))))
-        return eigvals!(_eigencopy_oftype(A, T))
-    end
-    function LinearAlgebra.eigvals(A::Hermitian)
-        T = typeof(sqrt(zero(eltype(A))))
-        return eigvals!(_eigencopy_oftype(A, T))
-    end
-    function LinearAlgebra.eigen(A::Hermitian{<:Real})
-        T = typeof(sqrt(zero(eltype(A))))
-        return eigen!(_eigencopy_oftype(A, T))
-    end
-    function LinearAlgebra.eigen(A::Hermitian{<:Complex})
-        T = typeof(sqrt(zero(eltype(A))))
-        return eigen!(_eigencopy_oftype(A, T))
-    end
-    function LinearAlgebra.eigen(A::Hermitian)
-        T = typeof(sqrt(zero(eltype(A))))
-        return eigen!(_eigencopy_oftype(A, T))
-    end
-end
+eigen2(A::Symmetric{<:Real}; tol = eps(float(one(eltype(A)))), sortby::Union{Function,Nothing} = sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
+    eigen2!(copy(A); tol, sortby)
 
 # Aux (should go somewhere else at some point)
-function LinearAlgebra.givensAlgorithm(f::Real, g::Real)
+function givensAlgorithm(f::Real, g::Real)
     h = hypot(f, g)
     return f / h, g / h, h
 end
+
+_eigencopy_oftype(A::SymTridiagonal, ::Type{T}) where T = LinearAlgebra.copy_oftype(A, T)
+_eigencopy_oftype(A::AbstractMatrix, ::Type{T}) where T = LinearAlgebra.eigencopy_oftype(A, T)

@@ -1,11 +1,11 @@
-using LinearAlgebra
-
-import LinearAlgebra: mul!, rmul!
-
 AdjointQtype = isdefined(LinearAlgebra, :AdjointQ) ? LinearAlgebra.AdjointQ : Adjoint
 
+svdeltype(T::Type) = typeof(sqrt(zero(T)))
+
 lmul!(G::LinearAlgebra.Givens, ::Nothing) = nothing
+lmul!(A::Any, B::Any) = LinearAlgebra.lmul!(A, B)
 rmul!(::Nothing, G::LinearAlgebra.Givens) = nothing
+rmul!(A::Any, B::Any) = LinearAlgebra.rmul!(A, B)
 
 function svdvals2x2(d1, d2, e)
     d1sq = d1 * d1
@@ -266,7 +266,7 @@ function _sort_and_adjust!(U, s, Vᴴ)
     n = length(s)
 
     # Adjust sign of singular values if necessary
-    if any(!isposdef, s)
+    if any(!LinearAlgebra.isposdef, s)
         rmul!(U, Diagonal(_sign.(s)))
         map!(abs, s, s)
     end
@@ -322,7 +322,7 @@ function bidiagonalize!(A::AbstractMatrix)
                 conj!(x)
                 τi = LinearAlgebra.reflector!(x)
                 push!(τr, τi)
-                LinearAlgebra.reflectorApply!(view(A, (i+1):m, (i+1):n), x, τi)
+                reflectorApply!(view(A, (i+1):m, (i+1):n), x, τi)
             end
         end
 
@@ -341,7 +341,7 @@ function bidiagonalize!(A::AbstractMatrix)
             conj!(x)
             τi = LinearAlgebra.reflector!(x)
             push!(τr, τi)
-            LinearAlgebra.reflectorApply!(view(A, (i+1):m, i:n), x, τi)
+            reflectorApply!(view(A, (i+1):m, i:n), x, τi)
             if i < m
                 x = view(A, i+1:m, i)
                 τi = LinearAlgebra.reflector!(x)
@@ -410,8 +410,9 @@ function Base.getproperty(F::BidiagonalFactorization, s::Symbol)
     end
 end
 
+# PIRACY ALLERT!
 # For now, we define a generic lmul! and rmul! for HessenbergQ here
-function lmul!(Q::LinearAlgebra.HessenbergQ, B::AbstractVecOrMat)
+function LinearAlgebra.lmul!(Q::LinearAlgebra.HessenbergQ, B::AbstractVecOrMat)
 
     m, n = size(B, 1), size(B, 2)
 
@@ -436,7 +437,7 @@ function lmul!(Q::LinearAlgebra.HessenbergQ, B::AbstractVecOrMat)
     return B
 end
 
-function lmul!(adjQ::AdjointQtype{<:Any,<:LinearAlgebra.HessenbergQ}, B::AbstractVecOrMat)
+function LinearAlgebra.lmul!(adjQ::AdjointQtype{<:Any,<:LinearAlgebra.HessenbergQ}, B::AbstractVecOrMat)
 
     Q = parent(adjQ)
     m, n = size(B, 1), size(B, 2)
@@ -462,7 +463,7 @@ function lmul!(adjQ::AdjointQtype{<:Any,<:LinearAlgebra.HessenbergQ}, B::Abstrac
     return B
 end
 
-function rmul!(A::AbstractMatrix, Q::LinearAlgebra.HessenbergQ)
+function LinearAlgebra.rmul!(A::AbstractMatrix, Q::LinearAlgebra.HessenbergQ)
 
     m, n = size(A)
 
@@ -487,7 +488,7 @@ function rmul!(A::AbstractMatrix, Q::LinearAlgebra.HessenbergQ)
     return A
 end
 
-function rmul!(A::AbstractMatrix, adjQ::AdjointQtype{<:Any,<:LinearAlgebra.HessenbergQ})
+function LinearAlgebra.rmul!(A::AbstractMatrix, adjQ::AdjointQtype{<:Any,<:LinearAlgebra.HessenbergQ})
     m, n = size(A)
     Q = parent(adjQ)
 
@@ -541,7 +542,7 @@ end
 
 # Overload LinearAlgebra methods
 
-LinearAlgebra.svdvals!(B::Bidiagonal{T}; tol = eps(T)) where {T<:Real} =
+svdvals!(B::Bidiagonal{T}; tol = eps(T)) where {T<:Real} =
     _svdvals!(B, tol = tol)
 
 """
@@ -566,17 +567,21 @@ julia> svdvals(A) ≈ [3, 2, 1]
 true
 ```
 """
-function LinearAlgebra.svdvals!(A::StridedMatrix; tol = eps(real(eltype(A))))
+function svdvals!(A::StridedMatrix; tol = eps(real(eltype(A))))
     B = bidiagonalize!(A).bidiagonal
     # It doesn't matter that we transpose the bidiagonal matrix when we are only interested in the values
     return svdvals!(Bidiagonal(B.dv, B.ev, :U), tol = tol)
 end
 
+svdvals(A::AbstractMatrix; tol = eps(real(svdeltype(eltype(A))))) =
+    svdvals!(LinearAlgebra.copy_oftype(A, svdeltype(eltype(A))))
+
+
 # FixMe! The full keyword is redundant for Bidiagonal and should be removed from Base
-LinearAlgebra.svd!(
+svd!(
     B::Bidiagonal{T};
-    tol = eps(T),
-    full = false,
+    tol::AbstractFloat = eps(T),
+    full::Bool = false,
     # To avoid breaking on <Julia 1.3, the `alg` keyword doesn't do anything. Once we drop support for Julia 1.2
     # and below, we can make the keyword argument work correctly
     alg = nothing,
@@ -613,13 +618,10 @@ Vt factor:
  -0.817416   0.576048
 ```
 """
-function LinearAlgebra.svd!(
+function svd!(
     A::StridedMatrix{T};
-    tol = eps(real(eltype(A))),
-    full = false,
-    # To avoid breaking on <Julia 1.3, the `alg` keyword doesn't do anything. Once we drop support for Julia 1.2
-    # and below, we can make the keyword argument work correctly
-    alg = nothing,
+    tol::AbstractFloat = eps(real(eltype(A))),
+    full::Bool = false,
 ) where {T}
 
     m, n = size(A)
@@ -663,4 +665,16 @@ function LinearAlgebra.svd!(
     s = F.S
 
     return SVD(U, s, Vᴴ)
+end
+
+svd(
+    A::AbstractMatrix{T};
+    tol::AbstractFloat = eps(real(svdeltype(T))),
+    full::Bool = false,
+) where {T} = svd!(LinearAlgebra.copy_oftype(A, svdeltype(T)); tol, full)
+
+## Definitions that rely on the SVD
+function cond(A::AbstractMatrix)
+    vals = svdvals(A)
+    return first(vals) / last(vals)
 end
