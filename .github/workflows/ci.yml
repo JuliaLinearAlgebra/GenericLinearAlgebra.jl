@@ -20,8 +20,18 @@ jobs:
       - run: exit 1
         if: |
           (needs.test.result != 'success')
+
+  # format:
+  #   name: Format check
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: julia-actions/julia-format@v3
+  #       with:
+  #         version: '2.1.1'
+
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
+    # needs: [format]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -30,7 +40,7 @@ jobs:
           - 'min'
           - 'lts'
           - '1'
-          - 'pre'
+          # - 'pre'
         os:
           - ubuntu-latest
 #           - macos-latest

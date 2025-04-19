@@ -35,16 +35,16 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
 
     @testset "(full) Symmetric" for uplo in (:L, :U)
         A = Symmetric(big.(randn(n, n)), uplo)
-        vals, vecs = eigen(A)
+        vals, vecs = @inferred(eigen(A))
         @testset "default" begin
             @test vecs' * A * vecs ≈ diagm(0 => vals)
-            @test eigvals(A) ≈ vals
+            @test @inferred(eigvals(A)) ≈ vals
             @test vecs'vecs ≈ Matrix(I, n, n)
             @test issorted(vals)
         end
 
         @testset "eigen2" begin
-            vals2, vecs2 = GenericLinearAlgebra.eigen2(A)
+            vals2, vecs2 = @inferred(GenericLinearAlgebra.eigen2(A))
             @test vals ≈ vals2
             @test vecs[[1, n], :] ≈ vecs2
             @test vecs2 * vecs2' ≈ Matrix(I, 2, 2)
