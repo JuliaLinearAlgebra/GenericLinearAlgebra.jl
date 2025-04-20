@@ -26,9 +26,8 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
         @testset "QR version (QL is default)" begin
             vals, vecs =
                 GenericLinearAlgebra.eigQR!(copy(T), vectors = Matrix{eltype(T)}(I, n, n))
-            @test issorted(vals)
             @test (vecs' * T) * vecs ≈ Diagonal(vals)
-            @test eigvals(T) ≈ vals
+            @test eigvals(T) ≈ sort(vals)
             @test vecs'vecs ≈ Matrix(I, n, n)
         end
     end
