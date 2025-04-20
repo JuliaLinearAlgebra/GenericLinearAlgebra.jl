@@ -200,14 +200,14 @@ function __svd!(
                     break
                 end
             end
-            @debug "Active submatrix" iteration n1 n2 d[n1] d[n2] e[n1] e[n2 - 1]
+            # @debug "Active submatrix" iteration n1 n2 d[n1] d[n2] e[n1] e[n2 - 1]
 
             # Deflation check. See LAWN3 p21
             # The Demmel-Kahan iteration moves the zero to the end and produces a
             # zero super diagonal element as well
             for i = n1:n2
                 if d[i] == 0
-                    @debug "Deflation! Exact zero in diagonal element" i
+                    # @debug "Deflation! Exact zero in diagonal element" i
                     svdDemmelKahan!(B, n1, n2, U, Vᴴ)
 
                     # We have now moved a zero to the end so the problem is one smaller
@@ -230,7 +230,7 @@ function __svd!(
             fudge = n2 - n1 + 1
             thresh = tol * σ⁻
 
-            @debug "estimated quantities" σ⁻ σ⁺ fudge thresh
+            # @debug "estimated quantities" σ⁻ σ⁺ fudge thresh
 
             if fudge * tol * σ⁻ <= eps(σ⁺)
                 svdDemmelKahan!(B, n1, n2, U, Vᴴ)
