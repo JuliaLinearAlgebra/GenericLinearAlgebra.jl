@@ -183,20 +183,20 @@ function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T), sortby::Union{Function,
                 blockend = n
             end
 
-            @debug "submatrix" blockstart blockend
+            # @debug "submatrix" blockstart blockend
 
             # Deflate?
             if blockstart == blockend
-                @debug "Deflate? Yes!"
+                # @debug "Deflate? Yes!"
                 blockstart += 1
             elseif blockstart + 1 == blockend
-                @debug "Defalte? Yes, but after solving 2x2 block!"
+                # @debug "Defalte? Yes, but after solving 2x2 block!"
                 d[blockstart], d[blockend] =
                     eigvals2x2(d[blockstart], d[blockend], sqrt(e[blockstart]))
                 e[blockstart] = zero(T)
                 blockstart += 1
             else
-                @debug "Deflate? No!"
+                # @debug "Deflate? No!"
                 # Calculate shift
                 sqrte = sqrt(e[blockstart])
                 μ = (d[blockstart+1] - d[blockstart]) / (2 * sqrte)
@@ -204,12 +204,12 @@ function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T), sortby::Union{Function,
                 μ = d[blockstart] - sqrte / (μ + copysign(r, μ))
 
                 # QL bulk chase
-                @debug "Values before PWK QL bulge chase" e[blockstart] e[blockend-1] μ
+                # @debug "Values before PWK QL bulge chase" e[blockstart] e[blockend-1] μ
                 singleShiftQLPWK!(S, μ, blockstart, blockend)
 
                 rotations = blockend - blockstart
                 iter += rotations
-                @debug "Values after PWK QL bulge chase" e[blockstart] e[blockend-1] rotations
+                # @debug "Values after PWK QL bulge chase" e[blockstart] e[blockend-1] rotations
             end
             if blockstart >= n
                 break
@@ -259,27 +259,27 @@ function eigQL!(
                 blockend = n
             end
 
-            @debug "submatrix" blockstart blockend
+            # @debug "submatrix" blockstart blockend
 
             # Deflate?
             if blockstart == blockend
-                @debug "Deflate? Yes!"
+                # @debug "Deflate? Yes!"
                 blockstart += 1
             elseif blockstart + 1 == blockend
-                @debug "Deflate? Yes, but after solving 2x2 block"
+                # @debug "Deflate? Yes, but after solving 2x2 block"
                 eig2x2!(d, e, blockstart, vectors)
                 blockstart += 2
             else
-                @debug "Deflate? No!"
+                # @debug "Deflate? No!"
                 # Calculate shift
                 μ = (d[blockstart + 1] - d[blockstart]) / (2 * e[blockstart])
                 r = hypot(μ, one(T))
                 μ = d[blockstart] - (e[blockstart] / (μ + copysign(r, μ)))
 
                 # QL bulk chase
-                @debug "Values before bulge chase" e[blockstart] e[blockend - 1] d[blockstart] μ
+                # @debug "Values before bulge chase" e[blockstart] e[blockend - 1] d[blockstart] μ
                 singleShiftQL!(S, μ, blockstart, blockend, vectors)
-                @debug "Values after bulge chase" e[blockstart] e[blockend - 1] d[blockstart]
+                # @debug "Values after bulge chase" e[blockstart] e[blockend - 1] d[blockstart]
             end
 
             if blockstart >= n
@@ -312,27 +312,27 @@ function eigQR!(
                 blockend = n
             end
 
-            @debug "submatrix" blockstart blockend
+            # @debug "submatrix" blockstart blockend
 
             # Deflate?
             if blockstart == blockend
-                @debug "Deflate? Yes!"
+                # @debug "Deflate? Yes!"
                 blockstart += 1
             elseif blockstart + 1 == blockend
-                @debug "Deflate? Yes, but after solving 2x2 block!"
+                # @debug "Deflate? Yes, but after solving 2x2 block!"
                 eig2x2!(d, e, blockstart, vectors)
                 blockstart += 2
             else
-                @debug "Deflate? No!"
+                # @debug "Deflate? No!"
                 # Calculate shift
                 μ = (d[blockend - 1] - d[blockend]) / (2 * e[blockend - 1])
                 r = hypot(μ, one(T))
                 μ = d[blockend] - (e[blockend - 1] / (μ + copysign(r, μ)))
 
                 # QR bulk chase
-                @debug "Values before QR bulge chase" e[blockstart] e[blockend - 1] d[blockend] μ
+                # @debug "Values before QR bulge chase" e[blockstart] e[blockend - 1] d[blockend] μ
                 singleShiftQR!(S, μ, blockstart, blockend, vectors)
-                @debug "Values after QR bulge chase" e[blockstart] e[blockend - 1] d[blockend]
+                # @debug "Values after QR bulge chase" e[blockstart] e[blockend - 1] d[blockend]
             end
             if blockstart >= n
                 break

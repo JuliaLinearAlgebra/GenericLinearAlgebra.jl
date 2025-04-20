@@ -104,7 +104,7 @@ function _schur!(
 
     @inbounds while true
         i += 1
-        @debug "iteration" i
+        # @debug "iteration" i
         if i > maxiter
             throw(ArgumentError("iteration limit $maxiter reached"))
         end
@@ -118,7 +118,7 @@ function _schur!(
                 # Set istart to the beginning of the second block
                 istart = _istart + 1
 
-                @debug "Split!" HH[istart, istart-1] istart
+                # @debug "Split!" HH[istart, istart-1] istart
 
                 # Set the subdiagonal element to zero to signal that a split has taken place
                 HH[istart, istart-1] = 0
@@ -131,12 +131,12 @@ function _schur!(
 
         # if block size is one we deflate
         if istart >= iend
-            @debug "Bottom deflation! Block size is one. New iend is" iend - 1
+            # @debug "Bottom deflation! Block size is one. New iend is" iend - 1
             iend -= 1
 
             # and the same for a 2x2 block
         elseif istart + 1 == iend
-            @debug "Bottom deflation! Block size is two. New iend is" iend - 2
+            # @debug "Bottom deflation! Block size is two. New iend is" iend - 2
             iend -= 2
 
             # run a QR iteration
@@ -153,14 +153,14 @@ function _schur!(
                 d = Hm1m1 * Hmm - HH[iend, iend-1] * HH[iend-1, iend]
                 t = Hm1m1 + Hmm
             end
-            @debug "block start is, block end, d, and t" istart iend d t
+            # @debug "block start is, block end, d, and t" istart iend d t
 
             if shiftmethod == :Francis
-                @debug "Francis double shift!" HH[iend, iend-1] HH[iend-1, iend-2]
+                # @debug "Francis double shift!" HH[iend, iend-1] HH[iend-1, iend-2]
 
                 doubleShiftQR!(HH, τ, t, d, istart, iend)
             elseif shiftmethod == :Rayleigh
-                @debug "Single shift with Rayleigh shift!" HH[iend, iend-1]
+                # @debug "Single shift with Rayleigh shift!" HH[iend, iend-1]
 
                 # Run a bulge chase
                 singleShiftQR!(HH, τ, Hmm, istart, iend)
