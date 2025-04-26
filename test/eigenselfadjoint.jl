@@ -58,12 +58,17 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions
         vals, vecs = eigen(A)
         @test issorted(vals)
 
+        @testset "symtri!" begin
+            T = GenericLinearAlgebra.symtri!(copy(A))
+            Q = Array(T.reflectors)
+            @test Q == lmul!(T.reflectors, Matrix{eltype(A)}(I, size(A)...))
+            @test Q ≈ rmul!(Matrix{eltype(A)}(I, size(A)...), T.reflectors)
+            @test Q'Q ≈ Q*Q' ≈ I
+            @test Q' * A * Q ≈ T.diagonals
+        end
+
         @testset "default" begin
-            if uplo == :L # FixMe! Probably an conjugation is off somewhere. Don't have time to check now.
-                @test_broken vecs' * A * vecs ≈ diagm(0 => vals)
-            else
-                @test vecs' * A * vecs ≈ diagm(0 => vals)
-            end
+            @test A * vecs ≈ vecs * Diagonal(vals)
             @test eigvals(A) ≈ vals
             @test vals ≈ λ rtol = 1e-13 * n
             @test vecs'vecs ≈ Matrix(I, n, n)

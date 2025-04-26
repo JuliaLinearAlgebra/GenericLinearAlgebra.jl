@@ -3,7 +3,7 @@ using LinearAlgebra
 using LinearAlgebra: givensAlgorithm
 
 ## EigenQ
-struct EigenQ{T} <: AbstractMatrix{T}
+struct EigenQ{T}
     uplo::Char
     factors::Matrix{T}
     τ::Vector{T}
@@ -23,35 +23,35 @@ end
 function LinearAlgebra.lmul!(Q::EigenQ, B::StridedVecOrMat)
     m, n = size(B)
     if size(Q, 1) != m
-        throw(DimensionMismatch(""))
+        throw(DimensionMismatch("first dimension of second argument matrix doesn't match the size of the first argument reflectors"))
     end
     if Q.uplo == 'L'
-        @inbounds for k = length(Q.τ):-1:1
-            for j = 1:size(B, 2)
-                vb = B[k+1, j]
-                for i = (k+2):m
-                    vb += Q.factors[i, k]'B[i, j]
-                end
-                τkvb = Q.τ[k]'vb
-                B[k+1, j] -= τkvb
-                for i = (k+2):m
-                    B[i, j] -= Q.factors[i, k] * τkvb
+        for k = length(Q.τ):-1:1
+            h = view(Q.factors, (k + 1):m, k)
+            τ = Q.τ[k]
+            tmp = h[1]
+            h[1] = 1
+            for j = 1:n
+                tmp = τ * (h' * view(B, (k + 1):m, j))
+                for i = 1:(m - k)
+                    B[k + i, j] -= h[i] * tmp
                 end
             end
+            h[1] = tmp
         end
     elseif Q.uplo == 'U'
-        @inbounds for k = length(Q.τ):-1:1
-            for j = 1:size(B, 2)
-                vb = B[k+1, j]
-                for i = (k+2):m
-                    vb += Q.factors[k, i] * B[i, j]
-                end
-                τkvb = Q.τ[k]'vb
-                B[k+1, j] -= τkvb
-                for i = (k+2):m
-                    B[i, j] -= Q.factors[k, i]' * τkvb
+        for k = length(Q.τ):-1:1
+            h = view(Q.factors, 1:(m - k), m - k + 1)
+            τ = Q.τ[k]
+            tmp = h[end]
+            h[end] = 1
+            for j = 1:n
+                tmp = τ * (h' * view(B, 1:(n - k), j))
+                for i = 1:(n - k)
+                    B[i, j] -= h[i] * tmp
                 end
             end
+            h[end] = tmp
         end
     else
         throw(ArgumentError("Q.uplo is neither 'L' or 'U'. This should never happen."))
@@ -62,37 +62,35 @@ end
 function LinearAlgebra.rmul!(A::StridedMatrix, Q::EigenQ)
     m, n = size(A)
     if size(Q, 1) != n
-        throw(DimensionMismatch(""))
+        throw(DimensionMismatch("second dimension of first argument matrix doesn't match the size of the second argument reflectors"))
     end
     if Q.uplo == 'L'
         for k = 1:length(Q.τ)
-            for i = 1:size(A, 1)
-                a = view(A, i, :)
-                va = A[i, k+1]
-                for j = (k+2):n
-                    va += A[i, j] * Q.factors[j, k]
-                end
-                τkva = va * Q.τ[k]'
-                A[i, k+1] -= τkva
-                for j = (k+2):n
-                    A[i, j] -= τkva * Q.factors[j, k]'
+            h = view(Q.factors, (k + 1):n, k)
+            τ = Q.τ[k]
+            tmp = h[1]
+            h[1] = 1
+            for i = 1:m
+                tmp = transpose(view(A, i, (k + 1):n)) * h * τ
+                for j = 1:(n - k)
+                    A[i, k + j] -= tmp * h[j]'
                 end
             end
+            h[1] = tmp
         end
-    elseif Q.uplo == 'U' # FixMe! Should consider reordering loops
+    elseif Q.uplo == 'U'
         for k = 1:length(Q.τ)
-            for i = 1:size(A, 1)
-                a = view(A, i, :)
-                va = A[i, k+1]
-                for j = (k+2):n
-                    va += A[i, j] * Q.factors[k, j]'
-                end
-                τkva = va * Q.τ[k]'
-                A[i, k+1] -= τkva
-                for j = (k+2):n
-                    A[i, j] -= τkva * Q.factors[k, j]
+            h = view(Q.factors, 1:(n - k), n - k + 1)
+            τ = Q.τ[k]
+            tmp = h[end]
+            h[end] = 1
+            for i = 1:m
+                tmp = transpose(view(A, i, 1:(n - k))) * h * τ
+                for j = 1:(n - k)
+                    A[i, j] -= tmp * h[j]'
                 end
             end
+            h[end] = tmp
         end
     else
         throw(ArgumentError("Q.uplo is neither 'L' or 'U'. This should never happen."))
@@ -100,7 +98,7 @@ function LinearAlgebra.rmul!(A::StridedMatrix, Q::EigenQ)
     return A
 end
 
-Base.Array(Q::EigenQ) = lmul!(Q, Matrix{eltype(Q)}(I, size(Q, 1), size(Q, 1)))
+Base.Array(Q::EigenQ{T}) where T = lmul!(Q, Matrix{T}(I, size(Q, 1), size(Q, 1)))
 
 
 ## SymmetricTridiagonalFactorization
@@ -463,49 +461,37 @@ function symtriLower!(
 
     @inbounds for k = 1:(n-2+!(T <: Real))
 
-        τk = LinearAlgebra.reflector!(view(AS, (k+1):n, k))
+        x = view(AS, (k + 1):n, k)
+
+        τk = LinearAlgebra.reflector!(x)
         τ[k] = τk
 
-        for i = (k+1):n
-            u[i] = AS[i, k+1]
-        end
-        for j = (k+2):n
-            ASjk = AS[j, k]
-            for i = j:n
-                u[i] += AS[i, j] * ASjk
+        # Temporarily store the implicit 1
+        tmp = x[1]
+        x[1] = 1
+
+        Ã = view(AS, (k + 1):n, (k + 1):n)
+        ũ = view(u, (k + 1):n)
+
+        # Form Ãvτ
+        mul!(ũ, Hermitian(Ã, :L), x, τk, zero(τk))
+
+        # Form τx'Ãvτ (which is real except for rounding)
+        ξ = real(τk'*(x'*ũ))
+
+        # Compute the rank up and down grade
+        # Ã = Ã + τx'Ãvτ - τx'Ã - Ãvτ
+        for j in 1:(n - k)
+            xⱼ = x[j]
+            ũⱼ = ũ[j]
+            ξxⱼ = ξ * xⱼ
+            for i in j:(n - k)
+                AS[k + i, k + j] += x[i] * ξxⱼ' - x[i] * ũⱼ' - ũ[i] * xⱼ'
             end
         end
-        for j = (k+1):(n-1)
-            tmp = zero(T)
-            for i = j+1:n
-                tmp += AS[i, j]'AS[i, k]
-            end
-            u[j] += tmp
-        end
 
-        vcAv = u[k+1]
-        for i = (k+2):n
-            vcAv += AS[i, k]'u[i]
-        end
-        ξτ2 = real(vcAv) * abs2(τk) / 2
-
-        u[k+1] = u[k+1] * τk - ξτ2
-        for i = (k+2):n
-            u[i] = u[i] * τk - ξτ2 * AS[i, k]
-        end
-
-        AS[k+1, k+1] -= 2real(u[k+1])
-        for i = (k+2):n
-            AS[i, k+1] -= u[i] + AS[i, k] * u[k+1]'
-        end
-        for j = (k+2):n
-            ASjk = AS[j, k]
-            uj = u[j]
-            AS[j, j] -= 2real(uj * ASjk')
-            for i = (j+1):n
-                AS[i, j] -= u[i] * ASjk' + AS[i, k] * uj'
-            end
-        end
+        # Restore element
+        x[1] = tmp
     end
     SymmetricTridiagonalFactorization(
         EigenQ(
@@ -531,37 +517,41 @@ function symtriUpper!(
     end
 
     @inbounds for k = 1:(n-2+!(T <: Real))
-        # This is a bit convoluted method to get the conjugated vector but conjugation is required for correctness of arrays of quaternions. Eventually, it should be sufficient to write vec(x') but it currently (July 10, 2018) hits a bug in LinearAlgebra
-        τk = LinearAlgebra.reflector!(vec(transpose(view(AS, k, (k+1):n)')))
-        τ[k] = τk'
+        # LAPACK allows the reflection element to be chosen freely whereas
+        # LinearAlgebra's reflector! assumes it is the first element in the vector
+        # Maybe we should implement a method similar to the LAPACK version
+        x = view(AS, 1:(n - k), n - k + 1)
+        xᵣ = view(AS, (n - k):-1:1, n - k + 1)
 
-        for j = (k+1):n
-            tmp = AS[k+1, j]
-            for i = (k+2):j
-                tmp += AS[k, i] * AS[i, j]
+        τk = LinearAlgebra.reflector!(xᵣ)
+        τ[k] = τk
+
+        # Temporarily store the implicit 1
+        tmp = x[end]
+        x[end] = 1
+
+        Ã = view(AS, 1:(n - k), 1:(n - k))
+        ũ = view(u, 1:(n - k))
+
+        # Form Ãvτ
+        mul!(ũ, Hermitian(Ã, :U), x, τk, zero(τk))
+
+        # Form τx'Ãvτ (which is real except for rounding)
+        ξ = real(τk'*(x'*ũ))
+
+        # Compute the rank up and down grade
+        # Ã = Ã + τx'Ãvτ - τx'Ã - Ãvτ
+        for j in 1:(n - k)
+            xⱼ = x[j]
+            ũⱼ = ũ[j]
+            ξxⱼ = ξ * xⱼ
+            for i in 1:j
+                AS[i, j] += x[i] * ξxⱼ' - x[i] * ũⱼ' - ũ[i] * xⱼ'
             end
-            for i = (j+1):n
-                tmp += AS[k, i] * AS[j, i]'
-            end
-            u[j] = τk' * tmp
         end
 
-        vcAv = u[k+1]
-        for i = (k+2):n
-            vcAv += u[i] * AS[k, i]'
-        end
-        ξ = real(vcAv * τk)
-
-        for j = (k+1):n
-            ujt = u[j]
-            hjt = j > (k + 1) ? AS[k, j] : one(ujt)
-            ξhjt = ξ * hjt
-            for i = (k+1):(j-1)
-                hit = i > (k + 1) ? AS[k, i] : one(ujt)
-                AS[i, j] -= hit' * ujt + u[i]' * hjt - hit' * ξhjt
-            end
-            AS[j, j] -= 2 * real(hjt' * ujt) - abs2(hjt) * ξ
-        end
+        # Restore element
+        x[end] = tmp
     end
     SymmetricTridiagonalFactorization(
         EigenQ(
