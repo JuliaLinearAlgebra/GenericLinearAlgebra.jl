@@ -40,7 +40,7 @@ jobs:
           - 'min'
           - 'lts'
           - '1'
-          # - 'pre'
+          - 'pre'
         os:
           - ubuntu-latest
 #           - macos-latest
