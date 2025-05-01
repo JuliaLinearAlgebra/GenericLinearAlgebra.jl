@@ -2,27 +2,11 @@ using Printf
 using LinearAlgebra
 using LinearAlgebra: givensAlgorithm
 
-struct SymmetricTridiagonalFactorization{T} <: Factorization{T}
+## EigenQ
+struct EigenQ{T}
     uplo::Char
     factors::Matrix{T}
     τ::Vector{T}
-    diagonals::SymTridiagonal
-end
-
-Base.size(S::SymmetricTridiagonalFactorization, i::Integer) = size(S.factors, i)
-
-struct EigenQ{T} <: AbstractMatrix{T}
-    uplo::Char
-    factors::Matrix{T}
-    τ::Vector{T}
-end
-
-function Base.getproperty(S::SymmetricTridiagonalFactorization, s::Symbol)
-    if s == :Q
-        return EigenQ(S.uplo, S.factors, S.τ)
-    else
-        return getfield(S, s)
-    end
 end
 
 Base.size(Q::EigenQ) = (size(Q.factors, 1), size(Q.factors, 1))
@@ -39,37 +23,35 @@ end
 function LinearAlgebra.lmul!(Q::EigenQ, B::StridedVecOrMat)
     m, n = size(B)
     if size(Q, 1) != m
-        throw(DimensionMismatch(""))
+        throw(DimensionMismatch("first dimension of second argument matrix doesn't match the size of the first argument reflectors"))
     end
     if Q.uplo == 'L'
         for k = length(Q.τ):-1:1
-            for j = 1:size(B, 2)
-                b = view(B, :, j)
-                vb = B[k+1, j]
-                for i = (k+2):m
-                    vb += Q.factors[i, k]'B[i, j]
-                end
-                τkvb = Q.τ[k]'vb
-                B[k+1, j] -= τkvb
-                for i = (k+2):m
-                    B[i, j] -= Q.factors[i, k] * τkvb
+            h = view(Q.factors, (k + 1):m, k)
+            τ = Q.τ[k]
+            tmp = h[1]
+            h[1] = 1
+            for j = 1:n
+                tmp = τ * (h' * view(B, (k + 1):m, j))
+                for i = 1:(m - k)
+                    B[k + i, j] -= h[i] * tmp
                 end
             end
+            h[1] = tmp
         end
     elseif Q.uplo == 'U'
         for k = length(Q.τ):-1:1
-            for j = 1:size(B, 2)
-                b = view(B, :, j)
-                vb = B[k+1, j]
-                for i = (k+2):m
-                    vb += Q.factors[k, i] * B[i, j]
-                end
-                τkvb = Q.τ[k]'vb
-                B[k+1, j] -= τkvb
-                for i = (k+2):m
-                    B[i, j] -= Q.factors[k, i]' * τkvb
+            h = view(Q.factors, 1:(m - k), m - k + 1)
+            τ = Q.τ[k]
+            tmp = h[end]
+            h[end] = 1
+            for j = 1:n
+                tmp = τ * (h' * view(B, 1:(n - k), j))
+                for i = 1:(n - k)
+                    B[i, j] -= h[i] * tmp
                 end
             end
+            h[end] = tmp
         end
     else
         throw(ArgumentError("Q.uplo is neither 'L' or 'U'. This should never happen."))
@@ -80,37 +62,35 @@ end
 function LinearAlgebra.rmul!(A::StridedMatrix, Q::EigenQ)
     m, n = size(A)
     if size(Q, 1) != n
-        throw(DimensionMismatch(""))
+        throw(DimensionMismatch("second dimension of first argument matrix doesn't match the size of the second argument reflectors"))
     end
     if Q.uplo == 'L'
         for k = 1:length(Q.τ)
-            for i = 1:size(A, 1)
-                a = view(A, i, :)
-                va = A[i, k+1]
-                for j = (k+2):n
-                    va += A[i, j] * Q.factors[j, k]
-                end
-                τkva = va * Q.τ[k]'
-                A[i, k+1] -= τkva
-                for j = (k+2):n
-                    A[i, j] -= τkva * Q.factors[j, k]'
+            h = view(Q.factors, (k + 1):n, k)
+            τ = Q.τ[k]
+            tmp = h[1]
+            h[1] = 1
+            for i = 1:m
+                tmp = transpose(view(A, i, (k + 1):n)) * h * τ
+                for j = 1:(n - k)
+                    A[i, k + j] -= tmp * h[j]'
                 end
             end
+            h[1] = tmp
         end
-    elseif Q.uplo == 'U' # FixMe! Should consider reordering loops
+    elseif Q.uplo == 'U'
         for k = 1:length(Q.τ)
-            for i = 1:size(A, 1)
-                a = view(A, i, :)
-                va = A[i, k+1]
-                for j = (k+2):n
-                    va += A[i, j] * Q.factors[k, j]'
-                end
-                τkva = va * Q.τ[k]'
-                A[i, k+1] -= τkva
-                for j = (k+2):n
-                    A[i, j] -= τkva * Q.factors[k, j]
+            h = view(Q.factors, 1:(n - k), n - k + 1)
+            τ = Q.τ[k]
+            tmp = h[end]
+            h[end] = 1
+            for i = 1:m
+                tmp = transpose(view(A, i, 1:(n - k))) * h * τ
+                for j = 1:(n - k)
+                    A[i, j] -= tmp * h[j]'
                 end
             end
+            h[end] = tmp
         end
     else
         throw(ArgumentError("Q.uplo is neither 'L' or 'U'. This should never happen."))
@@ -118,8 +98,26 @@ function LinearAlgebra.rmul!(A::StridedMatrix, Q::EigenQ)
     return A
 end
 
-Base.Array(Q::EigenQ) = lmul!(Q, Matrix{eltype(Q)}(I, size(Q, 1), size(Q, 1)))
+Base.Array(Q::EigenQ{T}) where T = lmul!(Q, Matrix{T}(I, size(Q, 1), size(Q, 1)))
 
+
+## SymmetricTridiagonalFactorization
+struct SymmetricTridiagonalFactorization{T,Treal,S} <: Factorization{T}
+    reflectors::EigenQ{T}
+    diagonals::SymTridiagonal{Treal,S}
+end
+
+Base.size(S::SymmetricTridiagonalFactorization, i::Integer) = size(S.reflectors.factors, i)
+
+function Base.getproperty(S::SymmetricTridiagonalFactorization, s::Symbol)
+    if s == :Q
+        return S.reflectors
+    else
+        return getfield(S, s)
+    end
+end
+
+## Eigen solvers
 function _updateVectors!(c, s, j, vectors)
     @inbounds for i = 1:size(vectors, 1)
         v1 = vectors[i, j+1]
@@ -162,7 +160,7 @@ function eig2x2!(d::StridedVector, e::StridedVector, j::Integer, vectors::Matrix
     return c, s
 end
 
-function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) where {T<:Real}
+function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T)) where {T<:Real}
     d = S.dv
     e = S.ev
     n = length(d)
@@ -183,20 +181,20 @@ function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T), sortby::Union{Function,
                 blockend = n
             end
 
-            @debug "submatrix" blockstart blockend
+            # @debug "submatrix" blockstart blockend
 
             # Deflate?
             if blockstart == blockend
-                @debug "Deflate? Yes!"
+                # @debug "Deflate? Yes!"
                 blockstart += 1
             elseif blockstart + 1 == blockend
-                @debug "Defalte? Yes, but after solving 2x2 block!"
+                # @debug "Defalte? Yes, but after solving 2x2 block!"
                 d[blockstart], d[blockend] =
                     eigvals2x2(d[blockstart], d[blockend], sqrt(e[blockstart]))
                 e[blockstart] = zero(T)
                 blockstart += 1
             else
-                @debug "Deflate? No!"
+                # @debug "Deflate? No!"
                 # Calculate shift
                 sqrte = sqrt(e[blockstart])
                 μ = (d[blockstart+1] - d[blockstart]) / (2 * sqrte)
@@ -204,12 +202,12 @@ function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T), sortby::Union{Function,
                 μ = d[blockstart] - sqrte / (μ + copysign(r, μ))
 
                 # QL bulk chase
-                @debug "Values before PWK QL bulge chase" e[blockstart] e[blockend-1] μ
+                # @debug "Values before PWK QL bulge chase" e[blockstart] e[blockend-1] μ
                 singleShiftQLPWK!(S, μ, blockstart, blockend)
 
                 rotations = blockend - blockstart
                 iter += rotations
-                @debug "Values after PWK QL bulge chase" e[blockstart] e[blockend-1] rotations
+                # @debug "Values after PWK QL bulge chase" e[blockstart] e[blockend-1] rotations
             end
             if blockstart >= n
                 break
@@ -217,9 +215,7 @@ function eigvalsPWK!(S::SymTridiagonal{T}; tol = eps(T), sortby::Union{Function,
         end
     end
 
-    # LinearAlgebra.eigvals will pass sortby=nothing but LAPACK always sort the symmetric
-    # eigenvalue problem so we'll will do the same here
-    LinearAlgebra.sorteig!(d, sortby === nothing ? LinearAlgebra.eigsortby : sortby)
+    return d
 end
 
 function eigQL!(
@@ -259,27 +255,27 @@ function eigQL!(
                 blockend = n
             end
 
-            @debug "submatrix" blockstart blockend
+            # @debug "submatrix" blockstart blockend
 
             # Deflate?
             if blockstart == blockend
-                @debug "Deflate? Yes!"
+                # @debug "Deflate? Yes!"
                 blockstart += 1
             elseif blockstart + 1 == blockend
-                @debug "Deflate? Yes, but after solving 2x2 block"
+                # @debug "Deflate? Yes, but after solving 2x2 block"
                 eig2x2!(d, e, blockstart, vectors)
                 blockstart += 2
             else
-                @debug "Deflate? No!"
+                # @debug "Deflate? No!"
                 # Calculate shift
                 μ = (d[blockstart + 1] - d[blockstart]) / (2 * e[blockstart])
                 r = hypot(μ, one(T))
                 μ = d[blockstart] - (e[blockstart] / (μ + copysign(r, μ)))
 
                 # QL bulk chase
-                @debug "Values before bulge chase" e[blockstart] e[blockend - 1] d[blockstart] μ
+                # @debug "Values before bulge chase" e[blockstart] e[blockend - 1] d[blockstart] μ
                 singleShiftQL!(S, μ, blockstart, blockend, vectors)
-                @debug "Values after bulge chase" e[blockstart] e[blockend - 1] d[blockstart]
+                # @debug "Values after bulge chase" e[blockstart] e[blockend - 1] d[blockstart]
             end
 
             if blockstart >= n
@@ -287,8 +283,8 @@ function eigQL!(
             end
         end
     end
-    p = sortperm(d)
-    return d[p], vectors[:, p]
+
+    return d, vectors
 end
 
 function eigQR!(
@@ -312,35 +308,35 @@ function eigQR!(
                 blockend = n
             end
 
-            @debug "submatrix" blockstart blockend
+            # @debug "submatrix" blockstart blockend
 
             # Deflate?
             if blockstart == blockend
-                @debug "Deflate? Yes!"
+                # @debug "Deflate? Yes!"
                 blockstart += 1
             elseif blockstart + 1 == blockend
-                @debug "Deflate? Yes, but after solving 2x2 block!"
+                # @debug "Deflate? Yes, but after solving 2x2 block!"
                 eig2x2!(d, e, blockstart, vectors)
                 blockstart += 2
             else
-                @debug "Deflate? No!"
+                # @debug "Deflate? No!"
                 # Calculate shift
                 μ = (d[blockend - 1] - d[blockend]) / (2 * e[blockend - 1])
                 r = hypot(μ, one(T))
                 μ = d[blockend] - (e[blockend - 1] / (μ + copysign(r, μ)))
 
                 # QR bulk chase
-                @debug "Values before QR bulge chase" e[blockstart] e[blockend - 1] d[blockend] μ
+                # @debug "Values before QR bulge chase" e[blockstart] e[blockend - 1] d[blockend] μ
                 singleShiftQR!(S, μ, blockstart, blockend, vectors)
-                @debug "Values after QR bulge chase" e[blockstart] e[blockend - 1] d[blockend]
+                # @debug "Values after QR bulge chase" e[blockstart] e[blockend - 1] d[blockend]
             end
             if blockstart >= n
                 break
             end
         end
     end
-    p = sortperm(d)
-    return d[p], vectors[:, p]
+
+    return d, vectors
 end
 
 # Own implementation based on Parlett's book
@@ -465,54 +461,44 @@ function symtriLower!(
 
     @inbounds for k = 1:(n-2+!(T <: Real))
 
-        τk = LinearAlgebra.reflector!(view(AS, (k+1):n, k))
+        x = view(AS, (k + 1):n, k)
+
+        τk = LinearAlgebra.reflector!(x)
         τ[k] = τk
 
-        for i = (k+1):n
-            u[i] = AS[i, k+1]
-        end
-        for j = (k+2):n
-            ASjk = AS[j, k]
-            for i = j:n
-                u[i] += AS[i, j] * ASjk
+        # Temporarily store the implicit 1
+        tmp = x[1]
+        x[1] = 1
+
+        Ã = view(AS, (k + 1):n, (k + 1):n)
+        ũ = view(u, (k + 1):n)
+
+        # Form Ãvτ
+        mul!(ũ, Hermitian(Ã, :L), x, τk, zero(τk))
+
+        # Form τx'Ãvτ (which is real except for rounding)
+        ξ = real(τk'*(x'*ũ))
+
+        # Compute the rank up and down grade
+        # Ã = Ã + τx'Ãvτ - τx'Ã - Ãvτ
+        for j in 1:(n - k)
+            xⱼ = x[j]
+            ũⱼ = ũ[j]
+            ξxⱼ = ξ * xⱼ
+            for i in j:(n - k)
+                AS[k + i, k + j] += x[i] * ξxⱼ' - x[i] * ũⱼ' - ũ[i] * xⱼ'
             end
         end
-        for j = (k+1):(n-1)
-            tmp = zero(T)
-            for i = j+1:n
-                tmp += AS[i, j]'AS[i, k]
-            end
-            u[j] += tmp
-        end
 
-        vcAv = u[k+1]
-        for i = (k+2):n
-            vcAv += AS[i, k]'u[i]
-        end
-        ξτ2 = real(vcAv) * abs2(τk) / 2
-
-        u[k+1] = u[k+1] * τk - ξτ2
-        for i = (k+2):n
-            u[i] = u[i] * τk - ξτ2 * AS[i, k]
-        end
-
-        AS[k+1, k+1] -= 2real(u[k+1])
-        for i = (k+2):n
-            AS[i, k+1] -= u[i] + AS[i, k] * u[k+1]'
-        end
-        for j = (k+2):n
-            ASjk = AS[j, k]
-            uj = u[j]
-            AS[j, j] -= 2real(uj * ASjk')
-            for i = (j+1):n
-                AS[i, j] -= u[i] * ASjk' + AS[i, k] * uj'
-            end
-        end
+        # Restore element
+        x[1] = tmp
     end
     SymmetricTridiagonalFactorization(
-        'L',
-        AS,
-        τ,
+        EigenQ(
+            'L',
+            AS,
+            τ,
+        ),
         SymTridiagonal(real(diag(AS)), real(diag(AS, -1))),
     )
 end
@@ -531,55 +517,63 @@ function symtriUpper!(
     end
 
     @inbounds for k = 1:(n-2+!(T <: Real))
-        # This is a bit convoluted method to get the conjugated vector but conjugation is required for correctness of arrays of quaternions. Eventually, it should be sufficient to write vec(x') but it currently (July 10, 2018) hits a bug in LinearAlgebra
-        τk = LinearAlgebra.reflector!(vec(transpose(view(AS, k, (k+1):n)')))
-        τ[k] = τk'
+        # LAPACK allows the reflection element to be chosen freely whereas
+        # LinearAlgebra's reflector! assumes it is the first element in the vector
+        # Maybe we should implement a method similar to the LAPACK version
+        x = view(AS, 1:(n - k), n - k + 1)
+        xᵣ = view(AS, (n - k):-1:1, n - k + 1)
 
-        for j = (k+1):n
-            tmp = AS[k+1, j]
-            for i = (k+2):j
-                tmp += AS[k, i] * AS[i, j]
+        τk = LinearAlgebra.reflector!(xᵣ)
+        τ[k] = τk
+
+        # Temporarily store the implicit 1
+        tmp = x[end]
+        x[end] = 1
+
+        Ã = view(AS, 1:(n - k), 1:(n - k))
+        ũ = view(u, 1:(n - k))
+
+        # Form Ãvτ
+        mul!(ũ, Hermitian(Ã, :U), x, τk, zero(τk))
+
+        # Form τx'Ãvτ (which is real except for rounding)
+        ξ = real(τk'*(x'*ũ))
+
+        # Compute the rank up and down grade
+        # Ã = Ã + τx'Ãvτ - τx'Ã - Ãvτ
+        for j in 1:(n - k)
+            xⱼ = x[j]
+            ũⱼ = ũ[j]
+            ξxⱼ = ξ * xⱼ
+            for i in 1:j
+                AS[i, j] += x[i] * ξxⱼ' - x[i] * ũⱼ' - ũ[i] * xⱼ'
             end
-            for i = (j+1):n
-                tmp += AS[k, i] * AS[j, i]'
-            end
-            u[j] = τk' * tmp
         end
 
-        vcAv = u[k+1]
-        for i = (k+2):n
-            vcAv += u[i] * AS[k, i]'
-        end
-        ξ = real(vcAv * τk)
-
-        for j = (k+1):n
-            ujt = u[j]
-            hjt = j > (k + 1) ? AS[k, j] : one(ujt)
-            ξhjt = ξ * hjt
-            for i = (k+1):(j-1)
-                hit = i > (k + 1) ? AS[k, i] : one(ujt)
-                AS[i, j] -= hit' * ujt + u[i]' * hjt - hit' * ξhjt
-            end
-            AS[j, j] -= 2 * real(hjt' * ujt) - abs2(hjt) * ξ
-        end
+        # Restore element
+        x[end] = tmp
     end
     SymmetricTridiagonalFactorization(
-        'U',
-        AS,
-        τ,
+        EigenQ(
+            'U',
+            AS,
+            τ,
+        ),
         SymTridiagonal(real(diag(AS)), real(diag(AS, 1))),
     )
 end
 
+_eigvals!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
+    LinearAlgebra.sorteig!(eigvalsPWK!(A; tol), sortby == nothing ? LinearAlgebra.eigsortby : sortby)
 
 _eigvals!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
-    eigvalsPWK!(A.diagonals; tol, sortby)
+    _eigvals!(A.diagonals; tol, sortby)
 
-_eigvals!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = eigvalsPWK!(A; tol, sortby)
+_eigvals!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
+    _eigvals!(symtri!(A); tol, sortby)
 
-_eigvals!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = eigvals!(symtri!(A); tol, sortby)
-
-_eigvals!(A::Symmetric{<:Real}; tol = eps(eltype(A)), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = eigvals!(symtri!(A); tol, sortby)
+_eigvals!(A::Symmetric{<:Real}; tol = eps(eltype(A)), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
+    _eigvals!(symtri!(A); tol, sortby)
 
 LinearAlgebra.eigvals!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
     _eigvals!(A; tol, sortby)
@@ -587,16 +581,35 @@ LinearAlgebra.eigvals!(A::SymmetricTridiagonalFactorization; tol = eps(real(elty
 LinearAlgebra.eigvals!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
     _eigvals!(A; tol, sortby)
 
-LinearAlgebra.eigvals!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigvals!(A; tol, sortby)
+LinearAlgebra.eigvals!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby, alg = nothing) =
+    _eigvals!(A; tol, sortby)
 
-LinearAlgebra.eigvals!(A::Symmetric{<:Real}; tol = eps(eltype(A)), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigvals!(A; tol, sortby)
+LinearAlgebra.eigvals!(A::Symmetric{<:Real}; tol = eps(eltype(A)), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby, alg = nothing) =
+    _eigvals!(A; tol, sortby)
 
 _eigen!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
-    LinearAlgebra.Eigen(LinearAlgebra.sorteig!(eigQL!(A.diagonals, vectors = Array(A.Q), tol = tol)..., sortby)...)
+    LinearAlgebra.Eigen(
+        LinearAlgebra.sorteig!(
+            eigQL!(
+                A.diagonals;
+                vectors = Array(A.Q),
+                tol
+            )...,
+            sortby == nothing ? LinearAlgebra.eigsortby : sortby
+        )...
+    )
 
-_eigen!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = LinearAlgebra.Eigen(
-    eigQL!(A, vectors = Matrix{eltype(A)}(I, size(A, 1), size(A, 1)), tol = tol)...,
-)
+_eigen!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
+    LinearAlgebra.Eigen(
+        LinearAlgebra.sorteig!(
+            eigQL!(
+                A;
+                vectors = Matrix{eltype(A)}(I, size(A, 1), size(A, 1)),
+                tol
+            )...,
+            sortby == nothing ? LinearAlgebra.eigsortby : sortby
+        )...
+    )
 
 _eigen!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(symtri!(A), tol = tol, sortby = sortby)
 
@@ -605,11 +618,14 @@ _eigen!(A::Symmetric{<:Real}; tol = eps(eltype(A)), sortby::Union{Function,Nothi
 LinearAlgebra.eigen!(A::SymmetricTridiagonalFactorization; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
     _eigen!(A; tol, sortby)
 
-LinearAlgebra.eigen!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(A; tol, sortby)
+LinearAlgebra.eigen!(A::SymTridiagonal; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) =
+    _eigen!(A; tol, sortby)
 
-LinearAlgebra.eigen!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(A; tol, sortby)
+LinearAlgebra.eigen!(A::Hermitian; tol = eps(real(eltype(A))), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby, alg = nothing) =
+    _eigen!(A; tol, sortby)
 
-LinearAlgebra.eigen!(A::Symmetric{<:Real}; tol = eps(eltype(A)), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby) = _eigen!(A; tol, sortby)
+LinearAlgebra.eigen!(A::Symmetric{<:Real}; tol = eps(eltype(A)), sortby::Union{Function,Nothing}=LinearAlgebra.eigsortby, alg = nothing) =
+    _eigen!(A; tol, sortby)
 
 
 function eigen2!(
@@ -619,29 +635,35 @@ function eigen2!(
     V = zeros(eltype(A), 2, size(A, 1))
     V[1] = 1
     V[end] = 1
-    eigQL!(A.diagonals, vectors = rmul!(V, A.Q), tol = tol)
+    LinearAlgebra.sorteig!(
+        eigQL!(A.diagonals; vectors = rmul!(V, A.Q), tol)...,
+        LinearAlgebra.eigsortby
+    )
 end
 
 function eigen2!(A::SymTridiagonal; tol = eps(real(float(one(eltype(A))))))
     V = zeros(eltype(A), 2, size(A, 1))
     V[1] = 1
     V[end] = 1
-    eigQL!(A, vectors = V, tol = tol)
+    LinearAlgebra.sorteig!(
+        eigQL!(A; vectors = V, tol)...,
+        LinearAlgebra.eigsortby
+    )
 end
 
 eigen2!(A::Hermitian; tol = eps(float(real(one(eltype(A)))))) =
-    eigen2!(symtri!(A), tol = tol)
+    eigen2!(symtri!(A); tol)
 
 eigen2!(A::Symmetric{<:Real}; tol = eps(float(one(eltype(A))))) =
-    eigen2!(symtri!(A), tol = tol)
+    eigen2!(symtri!(A); tol)
 
 
 eigen2(A::SymTridiagonal; tol = eps(float(real(one(eltype(A)))))) =
-    eigen2!(copy(A), tol = tol)
+    eigen2!(copy(A); tol)
 
-eigen2(A::Hermitian, tol = eps(float(real(one(eltype(A)))))) = eigen2!(copy(A), tol = tol)
+eigen2(A::Hermitian; tol = eps(float(real(one(eltype(A)))))) = eigen2!(copy(A); tol)
 
-eigen2(A::Symmetric{<:Real}, tol = eps(float(one(eltype(A))))) = eigen2!(copy(A), tol = tol)
+eigen2(A::Symmetric{<:Real}; tol = eps(float(one(eltype(A))))) = eigen2!(copy(A); tol)
 
 # First method of each type here is identical to the method defined in
 # LinearAlgebra but is needed for disambiguation
