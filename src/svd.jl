@@ -153,13 +153,16 @@ end
 
 # The actual SVD solver routine
 # Notice that this routine doesn't adjust the sign and sorts the values
-function __svd!(
+function __svd!(B::Bidiagonal{T}, args...; kwargs...) where {T<:Real}
+    B.uplo == 'U' ? __svd_helper!(B, args...; kwargs...) : __svd_helper!(B', args...; kwargs...)
+end
+
+function __svd_helper!(
     B::Bidiagonal{T},
     U = nothing,
     Vᴴ = nothing;
     tol = 100eps(T),
 ) where {T<:Real}
-
     n = size(B, 1)
     if n == 0
         # Exit early in the empty case
