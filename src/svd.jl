@@ -111,7 +111,7 @@ function svdDemmelKahan!(
         d[n2] = h * Gold.c
 
     else
-        throw(ArgumentError("lower bidiagonal version not implemented yet"))
+        throw(ArgumentError("please convert to upper bidiagonal"))
     end
 
     return B
@@ -248,8 +248,7 @@ function __svd!(
             iteration += 1
         end
     else
-        # Just transpose the matrix
-        error("SVD for lower triangular bidiagonal matrices isn't implemented yet.")
+        throw(ArgumentError("please convert to upper bidiagonal"))
     end
 end
 
@@ -288,7 +287,7 @@ end
 # of givens rotations from the left. A noop if the Bidiagnoal is
 # already upper.
 function _lower_to_upper!(B::Bidiagonal, U::Matrix)
-    if istriu(B)
+    if B.uplo === 'U'
         return B
     end
     for i in 1:length(B.ev)
@@ -647,38 +646,18 @@ function LinearAlgebra.svd!(
     # Convert the input matrix A to bidiagonal form and return a BidiagonalFactorization object
     BF = bidiagonalize!(A)
 
-    # The location of the super/sub-diagonal of the bidiagonal matrix depends on the aspect ratio of the input. For tall and square matrices, the bidiagonal matrix is upper whereas it is lower for wide input matrices as illustrated below. The 'O' entries indicate orthogonal (unitary) matrices.
-
-    #      A      =   Q_l  *   B   * Q_r^H
-
-    #     |x x x| = |O O O| |x x  | |O O O|
-    #     |x x x|   |O O O|*|  x x|*|O O O|
-    #     |x x x|   |O O O| |    x| |O O O|
-    #     |x x x|   |O O O|
-    #     |x x x|   |O O O|
-
-    # |x x x x x| = |O O O| |x    | |O O O O O|
-    # |x x x x x|   |O O O|*|x x  |*|O O O O O|
-    # |x x x x x|   |O O O| |  x x| |O O O O O|
-
-    _B = BF.bidiagonal
-    B = _B.uplo === 'U' ? _B : Bidiagonal(_B.dv, _B.ev, :U)
+    B = BF.bidiagonal
 
     # Compute the SVD of the bidiagonal matrix B
     F = _svd!(B, tol = tol)
 
     # Form the matrices U and Vᴴ by combining the singular vector matrices of the bidiagonal SVD with the Householder reflectors from the bidiagonal factorization.
-    if _B.uplo === 'U'
-        U = Matrix{T}(I, m, full ? m : n)
-        U[1:n, 1:n] = F.U
-        lmul!(BF.leftQ, U)
-        Vᴴ = F.Vt * BF.rightQ'
-    else
-        U = BF.leftQ * F.V
-        Vᴴ = Matrix{T}(I, full ? n : m, n)
-        Vᴴ[1:m, 1:m] = F.U'
-        rmul!(Vᴴ, BF.rightQ')
-    end
+    U = Matrix{T}(I, m, full ? m : min(m, n))
+    U[1:min(m, n), 1:min(m, n)] = F.U
+    lmul!(BF.leftQ, U)
+    Vᴴ = Matrix{T}(I, full ? n : min(m, n), n)
+    Vᴴ[1:min(m, n), 1:min(m, n)] = F.Vt
+    rmul!(Vᴴ, BF.rightQ')
 
     s = F.S
 
