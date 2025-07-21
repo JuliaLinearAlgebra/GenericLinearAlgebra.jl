@@ -266,4 +266,12 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
         @test svdvals(BigFloat[0 0; 1 -1]) ≈ [sqrt(2), 0]
         @test svdvals(BigFloat[1 0 0; 0 0 0; 0 1 -1]) ≈ [sqrt(2), 1, 0]
     end
+
+    @testset "Lower Bidiagonal matrices. Issue 157" begin
+        B = Bidiagonal(randn(4), randn(3), :L)
+        @test GenericLinearAlgebra._svdvals!(copy(B)) ≈ GenericLinearAlgebra._svdvals!(copy(B'))
+        U, s, V = GenericLinearAlgebra._svd!(copy(B))
+        @test B ≈ U * Diagonal(s) * V'
+        @test_throws ArgumentError("please convert to upper bidiagonal") GenericLinearAlgebra.svdIter!(B, 1, size(B, 1), 1.0)
+    end
 end
