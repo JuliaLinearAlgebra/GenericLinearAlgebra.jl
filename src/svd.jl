@@ -71,7 +71,7 @@ function svdIter!(
         d[n2] = -G.s * ei1 + G.c * di1
 
     else
-        throw(ArgumentError("lower bidiagonal version not implemented yet"))
+        throw(ArgumentError("please convert to upper bidiagonal"))
     end
 
     return B
@@ -254,6 +254,7 @@ function __svd!(
 end
 
 function _svdvals!(B::Bidiagonal{T}; tol = eps(T)) where {T<:Real}
+    B = Bidiagonal(B.dv, B.ev, :U)
     __svd!(B, tol = tol)
     return sort(abs.(diag(B)), rev = true)
 end
@@ -283,11 +284,30 @@ function _sort_and_adjust!(U, s, Vᴴ)
     return nothing
 end
 
+# Convert a lower Bidiagonal to an upper by running a single pass
+# of givens rotations from the left. A noop if the Bidiagnoal is
+# already upper.
+function _lower_to_upper!(B::Bidiagonal, U::Matrix)
+    if istriu(B)
+        return B
+    end
+    for i in 1:length(B.ev)
+        G, r = givens(B.dv[i], B.ev[i], i, i + 1)
+        B.dv[i] = r
+        B.ev[i] = G.s * B.dv[i + 1]
+        B.dv[i + 1] = G.c * B.dv[i + 1]
+        rmul!(U, G')
+    end
+    return Bidiagonal(B.dv, B.ev, :U)
+end
+
 function _svd!(B::Bidiagonal{T}; tol = eps(T)) where {T<:Real}
     n = size(B, 1)
 
     U = Matrix{T}(I, n, n)
     Vᴴ = Matrix{T}(I, n, n)
+
+    B = _lower_to_upper!(B, U)
 
     __svd!(B, U, Vᴴ, tol = tol)
 
