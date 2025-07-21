@@ -273,5 +273,7 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
         U, s, V = GenericLinearAlgebra._svd!(copy(B))
         @test B ≈ U * Diagonal(s) * V'
         @test_throws ArgumentError("please convert to upper bidiagonal") GenericLinearAlgebra.svdIter!(B, 1, size(B, 1), 1.0)
+        @test_throws ArgumentError("please convert to upper bidiagonal") GenericLinearAlgebra.svdDemmelKahan!(B, 1, size(B, 1), 1.0)
+        @test_throws ArgumentError("please convert to upper bidiagonal") GenericLinearAlgebra.__svd!(B)
     end
 end
