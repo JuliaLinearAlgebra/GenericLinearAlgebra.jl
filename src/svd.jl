@@ -639,6 +639,8 @@ function LinearAlgebra.svd!(
     # To avoid breaking on <Julia 1.3, the `alg` keyword doesn't do anything. Once we drop support for Julia 1.2
     # and below, we can make the keyword argument work correctly
     alg = nothing,
+    atol = 0,
+    rtol = 0
 ) where {T}
 
     m, n = size(A)
