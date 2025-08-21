@@ -8,6 +8,8 @@ on:
       - master
     tags: '*'
   merge_group:
+  schedule:
+    - cron: '0 0 1 * *'
 jobs:
   finalize:
     timeout-minutes: 10
