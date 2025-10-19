@@ -662,6 +662,13 @@ function LinearAlgebra.svd!(
     rmul!(Vᴴ, BF.rightQ')
 
     s = F.S
+    s[_count_svdvals(s, atol, rtol)+1:end] .= 0
 
     return SVD(U, s, Vᴴ)
+end
+
+function _count_svdvals(S, atol::Real, rtol::Real)
+    isempty(S) && return 0
+    tol = max(rtol * S[1], atol)
+    return iszero(S[1]) ? 0 : searchsortedlast(S, tol, rev=true)
 end
