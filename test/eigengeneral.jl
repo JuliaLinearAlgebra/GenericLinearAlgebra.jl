@@ -252,3 +252,13 @@ using Test, GenericLinearAlgebra, LinearAlgebra
         @test HF.H \ ones(n) ≈ Matrix(HF.H) \ ones(n)
     end
 end
+
+@testset "Wrapper function for eigen(Matrix A) where A is hermitian by value but not by type" begin
+    # just need to verify that the wrapper function correctly calls eigen(Hermitian(A))
+    # so no need for multiple numeric tests
+    a = big(2.0);
+    A = [1 a; a 0] # A == A^*, but type is Matrix{BigFloat}, not Hermitian{BigFloat, Matrix{BigFloat}}
+    λs = [(1 - √(1+4a^2))/2 ; (1 + √(1+4a^2))/2]
+    vals = eigvals(A)
+    @test sort(vals) ≈ sort(λs) atol=1e-25
+end
