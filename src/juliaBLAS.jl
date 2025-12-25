@@ -112,9 +112,9 @@ function rankUpdate!(C::Hermitian, A::StridedVecOrMat, α::Real)
 end
 
 ### Generic fallbacks
-function lmul!(A::UpperTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
+function lmul!(A::UpperTriangular{T,S}, B::StridedVecOrMat{T}, α::T) where {T<:Number,S}
     AA = A.data
-    m, n = size(B)
+    m, n = size(B, 1), size(B, 2)
     for i ∈ 1:m
         for j ∈ 1:n
             B[i, j] = α * AA[i, i] * B[i, j]
@@ -125,9 +125,9 @@ function lmul!(A::UpperTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:Nu
     end
     return B
 end
-function lmul!(A::LowerTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
+function lmul!(A::LowerTriangular{T,S}, B::StridedVecOrMat{T}, α::T) where {T<:Number,S}
     AA = A.data
-    m, n = size(B)
+    m, n = size(B, 1), size(B, 2)
     for i ∈ m:-1:1
         for j ∈ 1:n
             B[i, j] = α * AA[i, i] * B[i, j]
@@ -138,9 +138,9 @@ function lmul!(A::LowerTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:Nu
     end
     return B
 end
-function lmul!(A::UnitUpperTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
+function lmul!(A::UnitUpperTriangular{T,S}, B::StridedVecOrMat{T}, α::T) where {T<:Number,S}
     AA = A.data
-    m, n = size(B)
+    m, n = size(B, 1), size(B, 2)
     for i ∈ 1:m
         for j ∈ 1:n
             B[i, j] = α * B[i, j]
@@ -151,9 +151,9 @@ function lmul!(A::UnitUpperTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T
     end
     return B
 end
-function lmul!(A::UnitLowerTriangular{T,S}, B::StridedMatrix{T}, α::T) where {T<:Number,S}
+function lmul!(A::UnitLowerTriangular{T,S}, B::StridedVecOrMat{T}, α::T) where {T<:Number,S}
     AA = A.data
-    m, n = size(B)
+    m, n = size(B, 1), size(B, 2)
     for i ∈ m:-1:1
         for j ∈ 1:n
             B[i, j] = α * B[i, j]
