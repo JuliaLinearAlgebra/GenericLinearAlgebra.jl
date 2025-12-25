@@ -567,6 +567,8 @@ LinearAlgebra.svdvals!(B::Bidiagonal{T}; tol = eps(T)) where {T<:Real} =
     svdvals!(A [, tol])
 
 Generic computation of singular values.
+
+# Examples
 ```jldoctest
 julia> using LinearAlgebra, GenericLinearAlgebra, Quaternions
 
@@ -574,12 +576,12 @@ julia> n = 20;
 
 julia> H = [big(1)/(i + j - 1) for i in 1:n, j in 1:n]; # The Hilbert matrix
 
-julia> Float64(svdvals(H)[end]/svdvals(Float64.(H))[end] - 1) # The relative error of the LAPACK based solution in 64 bit floating point.
--0.9999999999447275
+julia> round(svdvals(H)[end]/svdvals(Float64.(H))[end] - 1, sigdigits=8) # The relative error of the LAPACK based solution rounded to eight significant digits.
+-1.0
 
 julia> A = qr([Quaternion(randn(4)...) for i in 1:3, j in 1:3]).Q *
            Diagonal([3, 2, 1]) *
-           qr([Quaternion(randn(4)...) for i in 1:3, j in 1:3]).Q'; # A quaternion matrix with the singular value 1, 2, and 3.
+           qr([Quaternion(randn(4)...) for i in 1:3, j in 1:3]).Q';
 
 julia> svdvals(A) ≈ [3, 2, 1]
 true
@@ -617,7 +619,7 @@ A generic singular value decomposition (SVD). The implementation only uses Julia
 
 ```jldoctest
 julia> svd(big.([1 2; 3 4]))
-SVD{BigFloat, BigFloat, Matrix{BigFloat}}
+SVD{BigFloat, BigFloat, Matrix{BigFloat}, Vector{BigFloat}}
 U factor:
 2×2 Matrix{BigFloat}:
  -0.404554   0.914514
