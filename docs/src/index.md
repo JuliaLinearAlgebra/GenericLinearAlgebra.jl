@@ -7,6 +7,9 @@ CurrentModule = GenericLinearAlgebra
 ```
 
 ```@docs
+ldlt
+ldlt!
+numnegevals
 svd!
 svdvals!
 ```

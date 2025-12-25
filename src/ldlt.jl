@@ -147,7 +147,7 @@ end
 
 See [`ldlt`](@ref)
 """
-function LinearAlgebra.ldlt!(A::Hermitian{T}, blocksize::Int = 32 ÷ sizeof(T)) where T
+function LinearAlgebra.ldlt!(A::Hermitian{T}, blocksize::Int = max(1, 128 ÷ sizeof(T))) where T
     if A.uplo === 'U'
         _ldlt_upper_blocked!(A.data, blocksize)
     else
@@ -157,7 +157,7 @@ function LinearAlgebra.ldlt!(A::Hermitian{T}, blocksize::Int = 32 ÷ sizeof(T)) 
 end
 
 """
-    ldlt(A::Hermitian)::LTLt
+    ldlt(A::Hermitian, blocksize::Int)::LTLt
 
 A Hermitian LDL factorization of `A` such that `A = L*D*L'` if `A.uplo == 'L'`
 and `A = U'*D*U` if `A.uplo == 'U'. Hence, the `t` is a bit of a misnomer,
@@ -171,35 +171,37 @@ The factorization has three properties: `d`, `D`, and `L` which is respectively
 a vector of the diagonal elements of `D`, the `Diagonal` matrix `D` and the `L`
 matrix when `A.uplo == 'L'` or the `adjoint` of the `U` matrix when `A.uplo == 'U'`.
 
-The factorization is blocked. Currently, the blocking size is set to `32 ÷ sizeof(eltype(A))`
-based on very rudimentary benchmarking on my laptop.
+The `blocksize` argument controls the block size in the blocked algorithm.
+Currently, the blocking size is set to `128 ÷ sizeof(eltype(A))`
+based on very rudimentary benchmarking on my laptop. Most users won't need
+adjust this argument.
 
 # Examples
 ```jldoctest
-julia> ldlt(Hermitian([1 1; 1 -1]))
-LDLt{Int64, Hermitian{Int64, Matrix{Int64}}}
+julia> ldlt(Hermitian([1//1 1; 1 -1]))
+LDLt{Rational{Int64}, Hermitian{Rational{Int64}, Matrix{Rational{Int64}}}}
 L factor:
-2×2 UnitLowerTriangular{Int64, Adjoint{Int64, Matrix{Int64}}}:
+2×2 UnitLowerTriangular{Rational{Int64}, Adjoint{Rational{Int64}, Matrix{Rational{Int64}}}}:
  1  ⋅
  1  1
 D factor:
-2×2 Diagonal{Int64, SubArray{Int64, 1, Base.ReshapedArray{Int64, 1, Hermitian{Int64, Matrix{Int64}}, Tuple{Base.MultiplicativeInverses.SignedMultiplicativeInverse{Int64}}}, Tuple{StepRange{Int64, Int64}}, false}}:
+2×2 Diagonal{Rational{Int64}, SubArray{Rational{Int64}, 1, Base.ReshapedArray{Rational{Int64}, 1, Hermitian{Rational{Int64}, Matrix{Rational{Int64}}}, Tuple{Base.MultiplicativeInverses.SignedMultiplicativeInverse{Int64}}}, Tuple{StepRange{Int64, Int64}}, false}}:
  1   ⋅
  ⋅  -2
 
-julia> ldlt(Hermitian([1 1; 1 1], :L))
-LDLt{Int64, Hermitian{Int64, Matrix{Int64}}}
+julia> ldlt(Hermitian([1//1 1; 1 1], :L))
+LDLt{Rational{Int64}, Hermitian{Rational{Int64}, Matrix{Rational{Int64}}}}
 L factor:
-2×2 UnitLowerTriangular{Int64, Matrix{Int64}}:
+2×2 UnitLowerTriangular{Rational{Int64}, Matrix{Rational{Int64}}}:
  1  ⋅
  1  1
 D factor:
-2×2 Diagonal{Int64, SubArray{Int64, 1, Base.ReshapedArray{Int64, 1, Hermitian{Int64, Matrix{Int64}}, Tuple{Base.MultiplicativeInverses.SignedMultiplicativeInverse{Int64}}}, Tuple{StepRange{Int64, Int64}}, false}}:
+2×2 Diagonal{Rational{Int64}, SubArray{Rational{Int64}, 1, Base.ReshapedArray{Rational{Int64}, 1, Hermitian{Rational{Int64}, Matrix{Rational{Int64}}}, Tuple{Base.MultiplicativeInverses.SignedMultiplicativeInverse{Int64}}}, Tuple{StepRange{Int64, Int64}}, false}}:
  1  ⋅
  ⋅  0
 ```
 """
-LinearAlgebra.ldlt(A::Hermitian{T}, blocksize::Int = 32 ÷ sizeof(T)) where T = ldlt!(LinearAlgebra.copy_oftype(A, typeof(oneunit(T) / one(T))))
+LinearAlgebra.ldlt(A::Hermitian{T}, blocksize::Int = max(1, 128 ÷ sizeof(T))) where T = ldlt!(LinearAlgebra.copy_oftype(A, typeof(oneunit(T) / one(T))))
 
 function Base.getproperty(F::LDLt{<:Any, <:Hermitian}, d::Symbol)
     Fdata = getfield(F, :data)
