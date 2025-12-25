@@ -5,6 +5,7 @@ import LinearAlgebra: mul!, ldiv!
 include("juliaBLAS.jl")
 include("lapack.jl")
 include("cholesky.jl")
+include("ldlt.jl")
 include("householder.jl")
 include("qr.jl")
 include("eigenSelfAdjoint.jl")
