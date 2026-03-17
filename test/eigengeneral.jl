@@ -240,13 +240,8 @@ using Test, GenericLinearAlgebra, LinearAlgebra
         n = 10
         A = randn(n, n)
         HF = GenericLinearAlgebra._hessenberg!(copy(A))
-        for i = 1:length(HF.τ)
-            HM = convert(Matrix, HF.τ[i])
-            A[(i+1):end, :] = HM * A[(i+1):end, :]
-            A[:, (i+1):end] = A[:, (i+1):end] * HM'
-        end
+        A = HF.Q' * A * HF.Q
         @test tril(A, -2) ≈ zeros(n, n) atol = 1e-14
-
         @test eigvals(HF.H) ≈ eigvals(A)
         @test eigvals(HF.H) ≈ eigvals!(copy(HF))
         @test HF.H \ ones(n) ≈ Matrix(HF.H) \ ones(n)
