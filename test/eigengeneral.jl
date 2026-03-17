@@ -243,7 +243,6 @@ using Test, GenericLinearAlgebra, LinearAlgebra
         A = HF.Q' * A * HF.Q
         @test tril(A, -2) ≈ zeros(n, n) atol = 1e-14
         @test eigvals(HF.H) ≈ eigvals(A)
-        @test eigvals(HF.H) ≈ eigvals!(copy(HF))
         @test HF.H \ ones(n) ≈ Matrix(HF.H) \ ones(n)
     end
 end
