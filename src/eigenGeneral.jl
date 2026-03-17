@@ -42,7 +42,7 @@ end
 
 # We currently absorb extra unsupported keywords in kwargs. These could e.g. be scale and permute. Do we want to check that these are false?
 function _schur!(
-    H::Hessenberg{T};
+    H::UpperHessenberg{T};
     tol = eps(real(T)),
     shiftmethod = :Francis,
     maxiter = 30 * size(H, 1),
@@ -51,7 +51,7 @@ function _schur!(
     n = size(H, 1)
     istart = 1
     iend = n
-    HH = H.H.data
+    HH = H.data
     τ = Rotation(Givens{T}[])
 
     # iteration count
@@ -134,7 +134,7 @@ function _schur!(
 
     return Schur{T,typeof(HH)}(HH, τ)
 end
-_schur!(A::StridedMatrix; kwargs...) = _schur!(_hessenberg!(A); kwargs...)
+_schur!(A::StridedMatrix; kwargs...) = _schur!(_hessenberg!(A).H; kwargs...)
 
 # FIXME! Move this method to piracy extension
 LinearAlgebra.schur!(A::StridedMatrix; kwargs...) = _schur!(A; kwargs...)
@@ -234,18 +234,31 @@ function doubleShiftQR!(
 end
 
 _eigvals!(A::StridedMatrix; kwargs...) = _eigvals!(_schur!(A; kwargs...))
+_eigvals!(H::UpperHessenberg; kwargs...) = _eigvals!(_schur!(H; kwargs...))
+_eigvals!(H::Hessenberg; kwargs...) = _eigvals!(_schur!(H.H; kwargs...))
 
 function LinearAlgebra.eigvals!(
     A::StridedMatrix;
     sortby::Union{Function,Nothing} = LinearAlgebra.eigsortby,
     kwargs...,
 )
-
     if ishermitian(A)
         return LinearAlgebra.sorteig!(eigvals!(Hermitian(A)), sortby)
     end
     LinearAlgebra.sorteig!(_eigvals!(A; kwargs...), sortby)
 end
+
+LinearAlgebra.eigvals!(
+    H::UpperHessenberg;
+    sortby::Union{Function,Nothing} = LinearAlgebra.eigsortby,
+    kwargs...,
+) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
+
+LinearAlgebra.eigvals!(
+    H::Hessenberg;
+    sortby::Union{Function,Nothing} = LinearAlgebra.eigsortby,
+    kwargs...,
+) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
 
 # To compute the eigenvalue of the pseudo triangular Schur matrix we just return
 # the values of the 1x1 diagonal blocks and compute the eigenvalues of the 2x2
