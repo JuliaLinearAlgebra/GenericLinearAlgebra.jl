@@ -239,16 +239,12 @@ using Test, GenericLinearAlgebra, LinearAlgebra
     @testset "_hessenberg! and Hessenberg" begin
         n = 10
         A = randn(n, n)
-        HF = GenericLinearAlgebra._hessenberg!(copy(A))
-        for i = 1:length(HF.τ)
-            HM = convert(Matrix, HF.τ[i])
-            A[(i+1):end, :] = HM * A[(i+1):end, :]
-            A[:, (i+1):end] = A[:, (i+1):end] * HM'
-        end
+        HF = hessenberg(big.(A))
+        LHF = hessenberg(A)
+        @test Matrix(HF) ≈ Matrix(LHF)
+        A = HF.Q' * A * HF.Q
         @test tril(A, -2) ≈ zeros(n, n) atol = 1e-14
-
-        @test eigvals(HF.H) ≈ eigvals(A)
-        @test eigvals(HF.H) ≈ eigvals!(copy(HF))
+        @test eigvals(HF.H) ≈ eigvals(LHF.H) ≈ eigvals(A)
         @test HF.H \ ones(n) ≈ Matrix(HF.H) \ ones(n)
     end
 end

@@ -2,74 +2,33 @@ using Printf
 using LinearAlgebra
 using LinearAlgebra: Givens, Rotation, givens
 
-import Base: \
-
-# Hessenberg Matrix
-struct HessenbergMatrix{T,S<:StridedMatrix} <: AbstractMatrix{T}
-    data::S
-end
-
-Base.copy(H::HessenbergMatrix{T,S}) where {T,S} = HessenbergMatrix{T,S}(copy(H.data))
-
-Base.getindex(H::HessenbergMatrix{T,S}, i::Integer, j::Integer) where {T,S} =
-    i > j + 1 ? zero(T) : H.data[i, j]
-
-Base.size(H::HessenbergMatrix) = size(H.data)
-Base.size(H::HessenbergMatrix, i::Integer) = size(H.data, i)
-
-function LinearAlgebra.ldiv!(H::HessenbergMatrix, B::AbstractVecOrMat)
-    n = size(H, 1)
-    Hd = H.data
-    for i = 1:n-1
-        G, _ = givens(Hd, i, i + 1, i)
-        lmul!(G, view(Hd, 1:n, i:n))
-        lmul!(G, B)
-    end
-    ldiv!(UpperTriangular(Hd), B)
-end
-(\)(H::HessenbergMatrix, B::AbstractVecOrMat) = ldiv!(copy(H), copy(B))
-
 if VERSION < v"1.10"
     # ensure tests pass on Julia v1.6
     copy_similar(A::AbstractArray, ::Type{T}) where {T} = copyto!(similar(A, T, size(A)), A)
     eigtype(T) = promote_type(Float32, typeof(zero(T)/sqrt(abs2(one(T)))))
     eigencopy_oftype(A, S) = copy_similar(A, S)
-    LinearAlgebra.eigvals(A::HessenbergMatrix{T}; kws...) where T = LinearAlgebra.eigvals!(eigencopy_oftype(A, eigtype(T)); kws...)
+    LinearAlgebra.eigvals(A::UpperHessenberg{T}; kws...) where T = LinearAlgebra.eigvals!(eigencopy_oftype(A, eigtype(T)); kws...)
+    Base.:\(H::UpperHessenberg, B::AbstractVecOrMat) = ldiv!(copy(H), copy(B))
 end
-
-# Hessenberg factorization
-struct HessenbergFactorization{T,S<:StridedMatrix,U} <: Factorization{T}
-    data::S
-    τ::Vector{U}
+if v"1.10" ≤ VERSION < v"1.14"
+    #otherwise the Hessenberg shortcut is not used
+    LinearAlgebra.eigencopy_oftype(H::UpperHessenberg, S) = UpperHessenberg(LinearAlgebra.eigencopy_oftype(H.data, S))
 end
-
-Base.copy(HF::HessenbergFactorization{T,S,U}) where {T,S,U} =
-    HessenbergFactorization{T,S,U}(copy(HF.data), copy(HF.τ))
 
 function _hessenberg!(A::StridedMatrix{T}) where {T}
     n = LinearAlgebra.checksquare(A)
-    τ = Vector{Householder{T}}(undef, n - 1)
+    τ = Vector{T}(undef, n - 1)
     for i = 1:n-1
         xi = view(A, i+1:n, i)
         t = LinearAlgebra.reflector!(xi)
+        τ[i] = t
         H = Householder{T,typeof(xi)}(view(xi, 2:n-i), t)
-        τ[i] = H
         lmul!(H', view(A, i+1:n, i+1:n))
         rmul!(view(A, :, i+1:n), H)
     end
-    return HessenbergFactorization{T,typeof(A),eltype(τ)}(A, τ)
+    return Hessenberg(A, τ)
 end
 LinearAlgebra.hessenberg!(A::StridedMatrix) = _hessenberg!(A)
-
-Base.size(H::HessenbergFactorization, args...) = size(H.data, args...)
-
-function Base.getproperty(F::HessenbergFactorization, s::Symbol)
-    if s === :H
-        return HessenbergMatrix{eltype(F.data),typeof(F.data)}(F.data)
-    else
-        return getfield(F, s)
-    end
-end
 
 # Schur
 struct Schur{T,S<:StridedMatrix} <: Factorization{T}
@@ -87,12 +46,11 @@ end
 
 # We currently absorb extra unsupported keywords in kwargs. These could e.g. be scale and permute. Do we want to check that these are false?
 function _schur!(
-    H::HessenbergFactorization{T};
+    H::UpperHessenberg{T};
     tol = eps(real(T)),
     shiftmethod = :Francis,
     maxiter = 30 * size(H, 1),
 ) where {T}
-
     n = size(H, 1)
     istart = 1
     iend = n
@@ -179,7 +137,7 @@ function _schur!(
 
     return Schur{T,typeof(HH)}(HH, τ)
 end
-_schur!(A::StridedMatrix; kwargs...) = _schur!(_hessenberg!(A); kwargs...)
+_schur!(A::StridedMatrix; kwargs...) = _schur!(_hessenberg!(A).H; kwargs...)
 
 # FIXME! Move this method to piracy extension
 LinearAlgebra.schur!(A::StridedMatrix; kwargs...) = _schur!(A; kwargs...)
@@ -279,15 +237,13 @@ function doubleShiftQR!(
 end
 
 _eigvals!(A::StridedMatrix; kwargs...) = _eigvals!(_schur!(A; kwargs...))
-_eigvals!(H::HessenbergMatrix; kwargs...) = _eigvals!(_schur!(H; kwargs...))
-_eigvals!(H::HessenbergFactorization; kwargs...) = _eigvals!(_schur!(H; kwargs...))
+_eigvals!(H::UpperHessenberg; kwargs...) = _eigvals!(_schur!(H; kwargs...))
 
 function LinearAlgebra.eigvals!(
     A::StridedMatrix;
     sortby::Union{Function,Nothing} = LinearAlgebra.eigsortby,
     kwargs...,
 )
-
     if ishermitian(A)
         return LinearAlgebra.sorteig!(eigvals!(Hermitian(A)), sortby)
     end
@@ -295,13 +251,7 @@ function LinearAlgebra.eigvals!(
 end
 
 LinearAlgebra.eigvals!(
-    H::HessenbergMatrix;
-    sortby::Union{Function,Nothing} = LinearAlgebra.eigsortby,
-    kwargs...,
-) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
-
-LinearAlgebra.eigvals!(
-    H::HessenbergFactorization;
+    H::UpperHessenberg;
     sortby::Union{Function,Nothing} = LinearAlgebra.eigsortby,
     kwargs...,
 ) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
