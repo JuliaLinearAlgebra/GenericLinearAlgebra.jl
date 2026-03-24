@@ -10,7 +10,7 @@ if VERSION < v"1.10"
     LinearAlgebra.eigvals(A::UpperHessenberg{T}; kws...) where T = LinearAlgebra.eigvals!(eigencopy_oftype(A, eigtype(T)); kws...)
     Base.:\(H::UpperHessenberg, B::AbstractVecOrMat) = ldiv!(copy(H), copy(B))
 end
-if VERSION < v"1.14"
+if v"1.10" ≤ VERSION < v"1.14"
     #otherwise the Hessenberg shortcut is not used
     LinearAlgebra.eigencopy_oftype(H::UpperHessenberg, S) = UpperHessenberg(LinearAlgebra.eigencopy_oftype(H.data, S))
 end
