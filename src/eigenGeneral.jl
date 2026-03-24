@@ -235,7 +235,6 @@ end
 
 _eigvals!(A::StridedMatrix; kwargs...) = _eigvals!(_schur!(A; kwargs...))
 _eigvals!(H::UpperHessenberg; kwargs...) = _eigvals!(_schur!(H; kwargs...))
-_eigvals!(H::Hessenberg; kwargs...) = _eigvals!(_schur!(H.H; kwargs...))
 
 function LinearAlgebra.eigvals!(
     A::StridedMatrix;
@@ -250,12 +249,6 @@ end
 
 LinearAlgebra.eigvals!(
     H::UpperHessenberg;
-    sortby::Union{Function,Nothing} = LinearAlgebra.eigsortby,
-    kwargs...,
-) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
-
-LinearAlgebra.eigvals!(
-    H::Hessenberg;
     sortby::Union{Function,Nothing} = LinearAlgebra.eigsortby,
     kwargs...,
 ) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)

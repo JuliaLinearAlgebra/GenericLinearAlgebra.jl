@@ -244,7 +244,7 @@ using Test, GenericLinearAlgebra, LinearAlgebra
         @test Matrix(HF) ≈ Matrix(LHF)
         A = HF.Q' * A * HF.Q
         @test tril(A, -2) ≈ zeros(n, n) atol = 1e-14
-        @test eigvals!(copy(HF)) ≈ eigvals!(copy(HF.H)) ≈ eigvals(A)
+        @test eigvals(HF.H) ≈ eigvals(LHF.H) ≈ eigvals(A)
         @test HF.H \ ones(n) ≈ Matrix(HF.H) \ ones(n)
     end
 end
