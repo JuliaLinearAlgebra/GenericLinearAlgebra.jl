@@ -10,6 +10,10 @@ if VERSION < v"1.10"
     LinearAlgebra.eigvals(A::UpperHessenberg{T}; kws...) where T = LinearAlgebra.eigvals!(eigencopy_oftype(A, eigtype(T)); kws...)
     Base.:\(H::UpperHessenberg, B::AbstractVecOrMat) = ldiv!(copy(H), copy(B))
 end
+if VERSION < v"1.14"
+    #otherwise the Hessenberg shortcut is not used
+    LinearAlgebra.eigencopy_oftype(H::UpperHessenberg, S) = UpperHessenberg(LinearAlgebra.eigencopy_oftype(H.data, S))
+end
 
 function _hessenberg!(A::StridedMatrix{T}) where {T}
     n = LinearAlgebra.checksquare(A)
@@ -47,7 +51,6 @@ function _schur!(
     shiftmethod = :Francis,
     maxiter = 30 * size(H, 1),
 ) where {T}
-
     n = size(H, 1)
     istart = 1
     iend = n
