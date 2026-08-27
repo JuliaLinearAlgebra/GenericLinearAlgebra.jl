@@ -48,12 +48,17 @@ function Base.getproperty(F::Schur, s::Symbol)
     end
 end
 
-# We currently absorb extra unsupported keywords in kwargs. These could e.g. be scale and permute. Do we want to check that these are false?
+# Absorb LinearAlgebra.eigvals!/eigen! keywords (permute/scale) that may be
+# forwarded through the dense UpperHessenberg fallback on Julia 1.13. They are
+# not meaningful once the matrix is already in Hessenberg form.
 function _schur!(
     H::UpperHessenberg{T};
     tol = eps(real(T)),
     shiftmethod = :Francis,
     maxiter = 30 * size(H, 1),
+    permute::Bool = false,
+    scale::Bool = true,
+    kwargs...,
 ) where {T}
     n = size(H, 1)
     istart = 1
@@ -254,11 +259,13 @@ function LinearAlgebra.eigvals!(
     LinearAlgebra.sorteig!(_eigvals!(A; kwargs...), sortby)
 end
 
-# Julia 1.13 still ships a generic LinearAlgebra.eigvals!(::UpperHessenberg)
-# fallback (JuliaLang/LinearAlgebra.jl#1602 was not backported). Overwriting
-# it is rejected during precompilation, so only pirate on older Julias.
-# BlasFloat UpperHessenberg goes through LinearAlgebra's LAPACK methods on
-# 1.13+; generic types need the LinearAlgebra backport / 1.14.
+# Julia 1.13.0-rc* still ships a generic LinearAlgebra.eigvals!(::UpperHessenberg)
+# densifying fallback (JuliaLang/LinearAlgebra.jl#1602 is on release-1.13 but not
+# yet in the Julia 1.13.0-rc LinearAlgebra pin). Overwriting it is rejected during
+# precompilation, so only pirate on older Julias. BlasFloat UpperHessenberg goes
+# through LinearAlgebra's LAPACK methods; generic element types hit the dense
+# fallback, which forwards permute/scale into our StridedMatrix pirate — those
+# kwargs are absorbed by `_schur!` above.
 # Use v"1.13.0-" so 1.13 nightlies/prereleases are treated as 1.13+.
 if VERSION < v"1.13.0-"
     LinearAlgebra.eigvals!(
