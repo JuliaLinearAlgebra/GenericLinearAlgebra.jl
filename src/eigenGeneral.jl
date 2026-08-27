@@ -58,7 +58,6 @@ function _schur!(
     maxiter = 30 * size(H, 1),
     permute::Bool = false,
     scale::Bool = true,
-    kwargs...,
 ) where {T}
     n = size(H, 1)
     istart = 1
