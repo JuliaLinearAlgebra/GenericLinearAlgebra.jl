@@ -13,7 +13,8 @@ end
 # Julia 1.13+ ships LinearAlgebra.eigencopy_oftype(::UpperHessenberg, ...)
 # (backported from 1.14). Defining it here overwrites that method and is
 # rejected during precompilation. See JuliaLinearAlgebra/GenericLinearAlgebra.jl#180.
-if v"1.10" ≤ VERSION < v"1.13"
+# Use v"1.13.0-" so 1.13 nightlies/prereleases (VERSION < v"1.13") are excluded.
+if v"1.10" ≤ VERSION < v"1.13.0-"
     # otherwise the Hessenberg shortcut is not used
     LinearAlgebra.eigencopy_oftype(H::UpperHessenberg, S) = UpperHessenberg(LinearAlgebra.eigencopy_oftype(H.data, S))
 end
@@ -258,7 +259,8 @@ end
 # it is rejected during precompilation, so only pirate on older Julias.
 # BlasFloat UpperHessenberg goes through LinearAlgebra's LAPACK methods on
 # 1.13+; generic types need the LinearAlgebra backport / 1.14.
-if VERSION < v"1.13"
+# Use v"1.13.0-" so 1.13 nightlies/prereleases are treated as 1.13+.
+if VERSION < v"1.13.0-"
     LinearAlgebra.eigvals!(
         H::UpperHessenberg;
         sortby::Union{Function,Nothing} = LinearAlgebra.eigsortby,
