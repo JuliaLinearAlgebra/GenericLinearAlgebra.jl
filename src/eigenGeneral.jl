@@ -10,8 +10,11 @@ if VERSION < v"1.10"
     LinearAlgebra.eigvals(A::UpperHessenberg{T}; kws...) where T = LinearAlgebra.eigvals!(eigencopy_oftype(A, eigtype(T)); kws...)
     Base.:\(H::UpperHessenberg, B::AbstractVecOrMat) = ldiv!(copy(H), copy(B))
 end
-if v"1.10" ≤ VERSION < v"1.14.0-DEV.2266"
-    #otherwise the Hessenberg shortcut is not used
+# Julia 1.13+ ships LinearAlgebra.eigencopy_oftype(::UpperHessenberg, ...)
+# (backported from 1.14). Defining it here overwrites that method and is
+# rejected during precompilation. See JuliaLinearAlgebra/GenericLinearAlgebra.jl#180.
+if v"1.10" ≤ VERSION < v"1.13"
+    # otherwise the Hessenberg shortcut is not used
     LinearAlgebra.eigencopy_oftype(H::UpperHessenberg, S) = UpperHessenberg(LinearAlgebra.eigencopy_oftype(H.data, S))
 end
 
@@ -250,11 +253,18 @@ function LinearAlgebra.eigvals!(
     LinearAlgebra.sorteig!(_eigvals!(A; kwargs...), sortby)
 end
 
-LinearAlgebra.eigvals!(
-    H::UpperHessenberg;
-    sortby::Union{Function,Nothing} = LinearAlgebra.eigsortby,
-    kwargs...,
-) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
+# Julia 1.13 still ships a generic LinearAlgebra.eigvals!(::UpperHessenberg)
+# fallback (JuliaLang/LinearAlgebra.jl#1602 was not backported). Overwriting
+# it is rejected during precompilation, so only pirate on older Julias.
+# BlasFloat UpperHessenberg goes through LinearAlgebra's LAPACK methods on
+# 1.13+; generic types need the LinearAlgebra backport / 1.14.
+if VERSION < v"1.13"
+    LinearAlgebra.eigvals!(
+        H::UpperHessenberg;
+        sortby::Union{Function,Nothing} = LinearAlgebra.eigsortby,
+        kwargs...,
+    ) = LinearAlgebra.sorteig!(_eigvals!(H; kwargs...), sortby)
+end
 
 # To compute the eigenvalue of the pseudo triangular Schur matrix we just return
 # the values of the 1x1 diagonal blocks and compute the eigenvalues of the 2x2
