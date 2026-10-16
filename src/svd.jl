@@ -2,8 +2,6 @@ using LinearAlgebra
 
 import LinearAlgebra: mul!, rmul!
 
-AdjointQtype = isdefined(LinearAlgebra, :AdjointQ) ? LinearAlgebra.AdjointQ : Adjoint
-
 lmul!(G::LinearAlgebra.Givens, ::Nothing) = nothing
 rmul!(::Nothing, G::LinearAlgebra.Givens) = nothing
 
@@ -399,7 +397,7 @@ function Base.getproperty(F::BidiagonalFactorization, s::Symbol)
                 typeof(τr),
                 false,
             }(
-                'U',
+                'L',
                 factors,
                 τr,
             )
@@ -412,10 +410,10 @@ function Base.getproperty(F::BidiagonalFactorization, s::Symbol)
             return LinearAlgebra.HessenbergQ{
                 eltype(factors),
                 typeof(factors),
-                typeof(τr),
+                typeof(τl),
                 false,
             }(
-                'U',
+                'L',
                 factors,
                 τl,
             )
@@ -429,7 +427,13 @@ function Base.getproperty(F::BidiagonalFactorization, s::Symbol)
     end
 end
 
-# For now, we define a generic lmul! and rmul! for HessenbergQ here
+# LinearAlgebra's generic `HessenbergQ` multiplication (available in versions that ship it)
+# handles non-BLAS element types and the `uplo` field, so these fallbacks are only needed for
+# older versions. Defining them unconditionally would overwrite the upstream methods, which is
+# an error during precompilation.
+@static if !hasmethod(lmul!, Tuple{LinearAlgebra.HessenbergQ,AbstractVecOrMat})
+AdjointQtype = isdefined(LinearAlgebra, :AdjointQ) ? LinearAlgebra.AdjointQ : Adjoint
+
 function lmul!(Q::LinearAlgebra.HessenbergQ, B::AbstractVecOrMat)
 
     m, n = size(B, 1), size(B, 2)
@@ -529,6 +533,7 @@ function rmul!(A::AbstractMatrix, adjQ::AdjointQtype{<:Any,<:LinearAlgebra.Hesse
     end
 
     return A
+end
 end
 
 # FIXME! Commented out for now because we currently don't produce
