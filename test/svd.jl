@@ -249,10 +249,27 @@ using Test, GenericLinearAlgebra, LinearAlgebra, Quaternions, DoubleFloats
         @test diag(F.U' * B * F.Vt') ≈ F.S rtol = 5e-15
     end
 
-    @testset "Generic HessenbergQ multiplication" begin
-        A = big.(randn(10, 10))
+    # the tall case stores the right reflectors in a HessenbergQ, the wide case the left ones
+    @testset "Generic HessenbergQ multiplication: big($T), ($m, $n)" for T in (Float64, ComplexF64),
+        (m, n) in ((10, 10), (10, 6), (6, 10))
+
+        A = big.(randn(T, m, n))
+        TB = eltype(A)
         BF = GenericLinearAlgebra.bidiagonalize!(copy(A))
-        @test (BF.rightQ' * Matrix(I, size(A)...)) * BF.rightQ ≈ I
+        for Q in (BF.leftQ, BF.rightQ)
+            k = size(Q, 1)
+            QI = Q * Matrix{TB}(I, k, k)
+            @test Q' * QI ≈ I
+            B = big.(randn(T, k, 3))
+            C = big.(randn(T, 3, k))
+            @test lmul!(Q, copy(B)) ≈ QI * B
+            @test lmul!(Q', copy(B)) ≈ QI' * B
+            @test rmul!(copy(C), Q) ≈ C * QI
+            @test rmul!(copy(C), Q') ≈ C * QI'
+        end
+        Bd = zeros(TB, m, n)
+        Bd[1:min(m, n), 1:min(m, n)] = BF.bidiagonal
+        @test BF.leftQ * Bd * BF.rightQ' ≈ A
     end
 
     @testset "Issue 119" begin
